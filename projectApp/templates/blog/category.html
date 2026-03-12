@@ -1,0 +1,133 @@
+
+{% extends 'base.html' %}
+{% load static %}
+{% block canonical %}
+{% if posts.number == 1 %}
+<link rel="canonical" href="{{ request.build_absolute_uri|cut:'?page=' }}">
+{% else %}
+<link rel="canonical" href="{{ request.build_absolute_uri }}">
+{% endif %}
+{% endblock canonical %}
+{% block title %}{{ category.name }} News | PulseLineDaily{% endblock title %}
+{% block meta_description %}Latest news and updates from the {{ category.name }} category on PulseLineDaily.{% endblock %}
+{% block og_title %}{{ category.name }} News{% endblock %}
+{% block og_description %}Latest news and updates from the {{ category.name }} category on PulseLineDaily.{% endblock %}
+{% block og_image %}{% static 'image/Pulsemainlogo.jpg' %}{% endblock %}
+
+<script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": "{{ category.name }} News",
+    "description": "Latest news and updates from the {{ category.name }} category on PulseLineDaily.",
+    "url": "{{ request.build_absolute_uri|cut:'?page=' }}",
+    "publisher": {
+      "isPartOf": {
+        "@type": "website",
+        "name": "PulseLineDaily",
+        "url": "{{ request.scheme }}://{{ request.get_host }}"
+      }
+    }
+  }
+</script>
+
+{% block content %}
+<!-- Category Header -->
+<div class="max-w-7xl mx-auto px-4 py-8">
+<section class="mb-8">
+  <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-300">{{ category.name }}</h1>
+  <p class="text-gray-600 dark:text-gray-300">Latest news from {{ category.name }}.</p>
+</section>
+
+<!-- Posts List -->
+{% for post in posts %}
+<div class="flex flex-col md:flex-row bg-gray-50 shadow rounded-lg overflow-hidden hover:shadow-lg active:shadow-lg hover:scale-105 active:scale-105 transition-all duration-300 mb-6 dark:bg-gray-900 dark:text-gray-100">
+  <!-- Image -->
+  <div class="md:w-1/3">
+  {% if post.image %}
+    <img 
+      src="{{ post.image.url }}?f_auto,q_auto,w_600,h_400,c_fill" 
+      srcset="
+        {{ post.image.url }}?f_auto,q_auto,w_400,h_300,c_fill 400w,
+        {{ post.image.url }}?f_auto,q_auto,w_800,h_500,c_fill 800w,
+        {{ post.image.url }}?f_auto,q_auto,w_1200,h_600,c_fill 1200w
+      "
+      sizes="(max-width: 640px) 400px, (max-width: 1024px) 800px, 1200px"
+      alt="{{ post.title }}" 
+      class="w-full h-48 md:h-60 object-cover" 
+      loading="lazy" />
+  {% else %}
+    <div class="w-full h-48 flex items-center justify-center bg-gray-200 text-gray-500 dark:bg-gray-800 dark:text-gray-300">
+      No image
+    </div>
+  {% endif %}
+  </div>
+
+  <!-- Content -->
+  <div class="md:w-2/3 p-4 dark:bg-gray-900 dark:text-gray-100">
+    <h2 class="text-xl font-semibold mb-2">
+      <a href="{% url 'details' post.slug %}" class="text-gray-800 hover:text-blue-600 transition dark:text-blue-400 dark:hover:text-blue-400">
+        {{ post.title }}
+      </a>
+    </h2>
+  <p class="text-gray-700 mb-3 dark:text-gray-300">
+      {{ post.body|truncatewords:30 }}
+    </p>
+  <p class="text-sm text-gray-500 dark:text-gray-300">
+      {{ post.date_created }} | by <a href="{% url 'author_profile' post.author.slug %}" class=hover:underline">{{ post.author.name }}</a>
+    </p>
+  </div>
+</div>
+{% empty %}
+<p class="text-gray-500 dark:text-gray-300">No post available in this category.</p>
+{% endfor %}
+
+<!-- Pagination -->
+<nav class="flex justify-center mt-8">
+  <ul class="flex space-x-2">
+    {% if posts.has_previous %}
+      <li>
+  <a href="?page=1" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700">First</a>
+      </li>
+      <li>
+  <a href="?page={{ posts.previous_page_number }}" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700">Previous</a>
+      </li>
+    {% else %}
+      <li>
+        <span class="px-3 py-1 bg-gray-100 text-gray-400 rounded">Previous</span>
+      </li>
+    {% endif %}
+
+    {% for num in posts.paginator.page_range %}
+      {% if posts.number == num %}
+        <li>
+          <span class="px-3 py-1 bg-blue-600 text-white rounded">{{ num }}</span>
+        </li>
+      {% else %}
+        <li>
+          <a href="?page={{ num }}" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">{{ num }}</a>
+        </li>
+      {% endif %}
+    {% endfor %}
+
+    {% if posts.has_next %}
+      <li>
+        <a href="?page={{ posts.next_page_number }}" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">Next</a>
+      </li>
+      <li>
+        <a href="?page={{ posts.paginator.num_pages }}" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">Last</a>
+      </li>
+    {% else %}
+      <li>
+        <span class="px-3 py-1 bg-gray-100 text-gray-400 rounded">Next</span>
+      </li>
+    {% endif %}
+  </ul>
+</nav>
+
+
+</div>
+
+
+
+{% endblock content %}

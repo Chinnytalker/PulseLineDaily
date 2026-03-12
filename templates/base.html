@@ -1,0 +1,573 @@
+{% load static tailwind_tags %}
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>  
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+
+        {% block title %}Breaking News, Politics, Sports, & World News - PulseLineDaily{% endblock %}
+
+    </title>
+
+    <meta name="description" content="{% block meta_description %}Latest breaking news, politics, sports, entertainment, and international stories. Trusted daily news from PulseLineDaily.{% endblock %}">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta property="og:site_name" content="PulseLineDaily">
+    <meta property="og:title" content="{% block og_title %}PulseLineDaily - Trusted Global News{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Breaking news, analysis, and stories from around the world.{% endblock %}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
+    <meta property="og:image" content="{% block og_image %}{% static 'image/Pulsemainlogo.jpg' %}{% endblock %}">
+    {% block canonical %}
+    <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
+    {% endblock %}
+    {% tailwind_css %}
+    <link rel="icon" href="{% static 'favicon/favicon.ico' %}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'favicon/apple-touch-icon.png' %}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'favicon/favicon-32x32.png' %}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{% static 'favicon/favicon-16x16.png' %}">
+    <link rel="manifest" href="{% static 'images/site.webmanifest' %}">
+    <style>
+      /* Hide default scrollbar */
+      .scrollbar-hide::-webkit-scrollbar { display: none; }
+      .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+      /* Dark mode styles */
+      body.dark-mode {
+        background-color: #18181b;
+        color: #e5e7eb;
+      }
+      body.dark-mode .bg-white, body.dark-mode .bg-gray-200 {
+        background-color: #18181b !important;
+      }
+      body.dark-mode .text-gray-900, body.dark-mode .text-gray-700 {
+        color: #e5e7eb !important;
+      }
+      body.dark-mode .bg-gray-900 {
+        background-color: #27272a !important;
+      }
+      body.dark-mode .text-gray-200, body.dark-mode .text-gray-400 {
+        color: #d1d5db !important;
+      }
+      body.dark-mode .border-gray-300, body.dark-mode .border-gray-700 {
+        border-color: #444 !important;
+      }
+      body.dark-mode input, body.dark-mode textarea {
+        background-color: #27272a !important;
+        color: #e5e7eb !important;
+      }
+      body.dark-mode .hover\:text-blue-600:hover {
+        color: #60a5fa !important;
+      }
+      body.dark-mode .hover\:bg-blue-700:hover {
+        background-color: #1e40af !important;
+      }
+      body.dark-mode .bg-gray-800 {
+        background-color: #18181b !important;
+      }
+      body.dark-mode .dark\:bg-gray-800 {
+        background-color: #18181b !important;
+      }
+      body.dark-mode .dark\:text-gray-300 {
+        color: #d1d5db !important;
+      }
+    </style>
+    <!-- Font Awesome (Icons) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    <!-- OneSignal Push Notification -->
+    <script src="https://cdn.onesignal.com/sdks/OneSignalSDK.js" async="async"></script>
+    <script>
+      window.OneSignal = window.OneSignal || [];
+      OneSignal.push(function() {
+        OneSignal.init({
+          appId: "YOUR-ONESIGNAL-APP-ID",
+        });
+      });
+    </script>
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-XXXXXXXXXX');
+  </script>
+
+  <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "NewsMediaOrganization",
+        "name": "PulseLineDaily",
+        "url": "https://www.pulselinedaily.com",
+        "logo": {
+        "@type": "ImageObject",
+        "url": "https://www.pulselinedaily.com{% static 'image/Pulsemainlogo.jpg' %}",
+        "width": 600,
+        "height": 60
+        },
+        "sameAs": [
+        "https://www.facebook.com/pulselinedaily",
+        "https://x.com/pulselinedaily",
+        "https://www.instagram.com/pulselinedaily",
+        "https://youtube.com/@pulselinedaily"
+        ]
+    }
+  </script>
+</head>
+
+
+<body class="bg-white">
+  <!-- Loading Indicator Overlay -->
+  <div id="loading-indicator" style="display:none;position:fixed;z-index:9999;top:0;left:0;width:100vw;height:100vh;background:rgba(237, 235, 235, 0.4);backdrop-filter:blur(2px);align-items:center;justify-content:center;">
+    <div style="background:#eeeff1e6;padding:2rem 2.5rem;border-radius:1rem;box-shadow:0 2px 16px #0003;display:flex;flex-direction:column;align-items:center;">
+      <svg class="animate-spin" width="48" height="48" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="#60a5fa" stroke-width="6" stroke-linecap="round" stroke-dasharray="31.4 31.4" stroke-dashoffset="0"><animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/></circle></svg>
+      <span style="color:#fff;margin-top:1rem;font-size:1.1rem;">Loading...</span>
+    </div>
+  </div>
+  <!-- Cookie Consent Banner -->
+  <div id="cookie-consent-banner" class="fixed bottom-0 left-0 right-0 bg-gray-900 text-white p-4 flex justify-between items-center z-50" style="display:none;">
+    <span>We use cookies to improve your experience. By using our site, you accept our <a href="/privacy" class="underline text-blue-400">Privacy Policy</a>.</span>
+    <button id="accept-cookies" class="ml-4 px-4 py-2 bg-blue-600 rounded hover:bg-blue-700">Accept</button>
+  </div>
+
+  <!-- Newsletter Popup (bottom left corner) -->
+  <div id="newsletter-popup" class="fixed bottom-6 left-6 z-50" style="display:none;">
+    <div class="bg-white dark:bg-gray-900 p-4 rounded shadow-lg max-w-xs w-full relative border border-gray-300 dark:border-gray-700">
+      <button id="close-newsletter" class="absolute top-2 right-2 text-gray-500 hover:text-gray-900">&times;</button>
+      <h2 class="text-lg font-bold mb-1 text-gray-900 dark:text-gray-100">Subscribe to our Newsletter</h2>
+      <form id="newsletter-form" action="{% url 'subscribe' %}" method="POST">
+        {% csrf_token %}
+        <input type="email" required placeholder="Your email" class="w-full px-2 py-1 mb-2 border border-gray-300 rounded text-sm" />
+        <button type="submit" class="w-full bg-blue-600 text-white py-1 rounded hover:bg-blue-700 text-sm">Subscribe</button>
+      </form>
+    </div>
+  </div>
+  <!-- Dark mode toggle button -->
+  <button id="dark-mode-toggle" aria-label="Toggle dark mode" class="fixed top-4 right-4 z-50 bg-gray-800 text-white px-3 py-2 rounded shadow hover:bg-gray-700 focus:outline-none">
+    <i class="fa fa-moon"></i>
+  </button>
+  <header class="bg-gray-200 sticky shadow rounded-sm p-3 flex justify-between items-center z-50 hover:shadow-lg active:shadow-lg hover:scale-105 active:scale-105 transition-all duration-300">
+    <!-- Logo -->
+    <div class="flex items-center">
+      <a href="{% url 'Home' %}">
+       <svg xmlns="http://www.w3.org/2000/svg" 
+     width="200" height="75 "
+     viewBox="0 0 500 120" 
+     role="img" aria-labelledby="pulseLineLogoTitle">
+  <title id="pulseLineLogoTitle">PulseLineDaily Logo</title>
+  
+  <!-- Heartbeat Line -->
+  <path d="M10 60 H60 L75 30 L90 90 L110 20 L130 90 L150 60 H180" 
+        fill="none" 
+        stroke="black" 
+        stroke-width="8" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+  
+  <!-- Text: PulseLineDaily -->
+  <text x="200" y="75"
+        font-family="Arial, Helvetica, sans-serif" 
+        font-size="40" 
+        font-weight="bold" 
+        fill="black">
+    PulseLineDaily
+  </text>
+</svg>
+      </a>
+    </div>
+    <!-- Navigation Links (Desktop) -->
+    <nav class="hidden md:flex space-x-8 ml-8">
+      <a href="{% url 'Home' %}" class="text-gray-700 hover:text-blue-600 font-medium text-xl">Home</a>
+      <a href="{% url 'category' 'Politics' %}" class="text-gray-700 hover:text-blue-600 font-medium text-xl">Politics</a>
+      <a href="{% url 'category' 'Sports' %}" class="text-gray-700 hover:text-blue-600 font-medium text-xl">Sports</a>
+      <a href="{% url 'category' 'Entertainment' %}" class="text-gray-700 hover:text-blue-600 font-medium text-xl">Entertainment</a>
+      <a href="{% url 'category' 'International News' %}" class="text-gray-700 hover:text-blue-600 font-medium text-xl">International News</a>
+      <a href="{% url 'category' 'Articles' %}" class="text-gray-700 hover:text-blue-600 font-medium text-xl">Articles</a>
+      <a href="{% url 'category' 'Hot Gist' %}" class="text-gray-700 hover:text-blue-600 font-medium text-xl">Hot Gist</a>
+    </nav>
+    <!-- Search Form (Desktop) -->
+    <form action="{% url 'search' %}" method="get" class="hidden md:flex items-center hover:shadow-lg active:shadow-lg hover:scale-105 active:scale-105 transition-all duration-300 ml-8 w-64">
+  <input type="text" name="query" placeholder="Search..." class="w-full px-3 py-2 rounded-l-md border bg-white border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+      <button type="submit" class="px-4 py-2 bg-gray-700 text-white rounded-r-md hover:bg-blue-700">Search</button>
+    </form>
+    <!-- Mobile menu button -->
+    <div class="md:hidden flex items-center ml-4">
+      <button id="mobile-menu-button" class="text-gray-700 hover:text-blue-600 focus:outline-none">
+        <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+  <!-- Mobile Menu (hidden by default) -->
+  <div id="mobile-menu" class="md:hidden hidden px-4 pb-4 bg-gray-200 border-t border-gray-300">
+    <nav class="flex flex-col space-y-2 py-2">
+       <form action="{% url 'search' %}" method="get" class="flex mt-2">
+  <input type="text" name="query" placeholder="Search..." class="w-full px-3 py-2 rounded-l-md border bg-white border-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900" />
+        <button type="submit" class="px-4 py-2 bg-gray-700 text-white rounded-r-md hover:bg-blue-700">Search</button>
+      </form>
+      <a href="{% url 'Home' %}" class="block py-2 text-gray-700 hover:text-blue-600 font-medium">Home</a>
+      <a href="{% url 'category' 'Politics' %}" class="block py-2 text-gray-700 hover:text-blue-600 font-medium">Politics</a>
+      <a href="{% url 'category' 'Sports' %}" class="block py-2 text-gray-700 hover:text-blue-600 font-medium">Sports</a>
+      <a href="{% url 'category' 'Entertainment' %}" class="block py-2 text-gray-700 hover:text-blue-600 font-medium">Entertainment</a>
+      <a href="{% url 'category' 'International News' %}" class="block py-2 text-gray-700 hover:text-blue-600 font-medium">International News</a>
+      <a href="{% url 'category' 'Articles' %}" class="block py-2 text-gray-700 hover:text-blue-600 font-medium">Articles</a>
+      <a href="{% url 'category' 'Hot Gist' %}" class="block py-2 text-gray-700 hover:text-blue-600 font-medium">Hot Gist</a>
+      <a href="{% url 'About us' %}" class="block py-2 text-gray-700 hover:text-blue-600 font-medium">About Us</a>
+      <a href="{% url 'Contact us' %}" class="block py-2 text-gray-700 hover:text-blue-600 font-medium">Contact Us</a>
+      <a href="{% url 'Terms of service' %}" class="block py-2 text-gray-700 hover:text-blue-600 font-medium">Term of Service</a>
+      <a href="{% url 'advertise' %}" class="block py-2 text-gray-700 hover:text-blue-600 font-medium">Advertise</a>
+      <a href="{% url 'careers' %}" class="block py-2 text-gray-700 hover:text-blue-600 font-medium">Careers</a>
+      <!-- Search Form (Mobile) -->
+
+    </nav>
+  </div>
+  
+<main id="content">
+ {% block content %}
+ 
+ 
+ 
+ 
+ 
+ {% endblock %}
+</main>
+
+<footer class="bg-gray-900 text-gray-200 dark:bg-gray-800 dark:text-gray-300 mt-10">
+  <div class="max-w-7xl mx-auto px-4 py-10 grid grid-cols-1 md:grid-cols-4 gap-8">
+    <!-- Logo + About -->
+    <div>
+      <h2 class="text-2xl font-bold">PulseLineDaily</h2>
+      <p class="mt-2 text-sm text-gray-400">
+        Delivering breaking news, analysis, and stories from around the world.
+      </p>
+    </div>
+    <!-- Quick Links -->
+    <div>
+      <h3 class="font-semibold mb-3">Quick Links</h3>
+      <ul class="space-y-2">
+        <li><a href="{% url 'Home' %}" class="hover:text-white">Home</a></li>
+        <li><a href="{% url 'category' 'Politics' %}" class="hover:text-white">Politics</a></li>
+        <li><a href="{% url 'category' 'Sports' %}" class="hover:text-white">Sports</a></li>
+        <li><a href="{% url 'category' 'Entertainment' %}" class="hover:text-white">Entertainment</a></li>
+        <li><a href="{% url 'category' 'International News' %}" class="hover:text-white">International News</a></li>
+        <li><a href="{% url 'category' 'Articles' %}" class="hover:text-white">Articles</a></li>
+        <li><a href="{% url 'category' 'Hot Gist'}" class="hover:text-white">Hot Gist</a></li>
+      </ul>
+    </div>
+    <!-- Info -->
+    <div>
+      <h3 class="font-semibold mb-3">Company</h3>
+      <ul class="space-y-2">
+        <li><a href="{% url 'About us' %}" class="hover:text-white">About Us</a></li>
+        <li><a href="{% url 'Contact us' %}" class="hover:text-white">Contact Us</a></li>
+        <li><a href="{% url 'advertise' %}" class="hover:text-white">Advertise</a></li>
+        <li><a href="{% url 'careers' %}" class="hover:text-white">Careers</a></li>
+        <li><a href="{% url 'Privacy' %}" class="hover:text-white">Privacy Policy</a></li>
+        <li><a href="{% url 'Terms of service' %}" class="hover:text-white">Terms of Service</a></li>
+      </ul>
+    </div>
+    <!-- Newsletter -->
+    <div>
+      <h3 class="font-semibold mb-3">Newsletter</h3>
+      <p class="text-sm text-gray-400 mb-3">Stay updated with our latest news.</p>
+      <form class="flex" method="POST" action="{% url 'subscribe' %}">
+        {% csrf_token %}
+        <input type="email" name="email" placeholder="Enter Your email"
+               class="w-full px-3 py-2 bg-gray-200 text-gray-900 rounded-l-md focus:outline-none">
+        <button type="submit"
+                class="px-4 bg-blue-600 text-white rounded-r-md hover:bg-blue-700">
+          Subscribe
+        </button>
+      </form>
+    </div>
+  </div>
+  <!-- Bottom bar -->
+  <div class="border-t border-gray-700 mt-8">
+  <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center">
+    <p class="text-sm text-gray-400">© 2025 PulseLineDaily. All rights reserved.</p>
+
+    <div class="flex space-x-4 mt-3 md:mt-0">
+      <!-- Facebook -->
+      <a href="https://www.facebook.com/share/1BQrg72dXv/?mibextid=wwXIfr" target="_blank"
+         class="w-10 h-10 flex items-center justify-center rounded-full bg-blue-600 text-white 
+                hover:bg-blue-700 hover:scale-110 hover:shadow-lg 
+                transition transform duration-300 ease-in-out">
+        <i class="fab fa-facebook-f"></i>
+      </a>
+
+      <!-- Twitter -->
+      <a href="https://x.com/pulselinedaily?s=21&t=HdBK787O3UIzkseRnN2Tjw" target="_blank"
+         class="w-10 h-10 flex items-center justify-center rounded-full bg-sky-500 text-white 
+                hover:bg-sky-600 hover:scale-110 hover:shadow-lg 
+                transition transform duration-300 ease-in-out">
+        <i class="fab fa-x-twitter"></i>
+      </a>
+
+      <!-- Instagram -->
+      <a href="https://www.instagram.com/pulselinedaily?igsh=YXR0cDhubm9veWgx&utm_source=qr" target="_blank"
+         class="w-10 h-10 flex items-center justify-center rounded-full bg-pink-600 text-white 
+                hover:bg-pink-700 hover:scale-110 hover:shadow-lg 
+                transition transform duration-300 ease-in-out">
+        <i class="fab fa-instagram"></i>
+      </a>
+
+      <!-- YouTube -->
+      <a href="https://youtube.com/@pulselinedaily?si=17A-F-CiSZOXAV3nq" target="_blank"
+         class="w-10 h-10 flex items-center justify-center rounded-full bg-red-600 text-white 
+                hover:bg-red-700 hover:scale-110 hover:shadow-lg 
+                transition transform duration-300 ease-in-out">
+        <i class="fab fa-youtube"></i>
+      </a>
+
+      <!-- LinkedIn -->
+      <a href="http://linkedin.com/in/clinton-nwachukwu-b34143241" target="_blank"
+         class="w-10 h-10 flex items-center justify-center rounded-full bg-blue-800 text-white 
+                hover:bg-blue-900 hover:scale-110 hover:shadow-lg 
+                transition transform duration-300 ease-in-out">
+        <i class="fab fa-linkedin-in"></i>
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Back to Top Button -->
+<button 
+  id="backToTop"
+  onclick="window.scrollTo({top: 0, behavior: 'smooth'});" 
+  class="fixed bottom-6 right-6 bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg hover:bg-blue-700 transition-opacity opacity-0 pointer-events-none z-50">
+  ↑ Back to Top
+</button>
+
+</footer>
+
+
+{% comment %} vanilla js {% endcomment %}
+<script>
+// Cookie Consent Banner
+if (!localStorage.getItem('cookiesAccepted')) {
+  document.getElementById('cookie-consent-banner').style.display = 'flex';
+}
+document.getElementById('accept-cookies').onclick = function() {
+  localStorage.setItem('cookiesAccepted', 'true');
+  document.getElementById('cookie-consent-banner').style.display = 'none';
+};
+
+// Newsletter Popup (shows after 10s if not dismissed)
+if (!localStorage.getItem('newsletterDismissed')) {
+  setTimeout(() => {
+    document.getElementById('newsletter-popup').style.display = 'flex';
+  }, 10000);
+}
+document.getElementById('close-newsletter').onclick = function() {
+  localStorage.setItem('newsletterDismissed', 'true');
+  document.getElementById('newsletter-popup').style.display = 'none';
+};
+document.getElementById('newsletter-form').onsubmit = function(e) {
+  e.preventDefault();
+  localStorage.setItem('newsletterDismissed', 'true');
+  document.getElementById('newsletter-popup').style.display = 'none';
+  alert('Thank you for subscribing!');
+};
+
+// Return to Last Page (store last visited page)
+window.addEventListener('beforeunload', function() {
+  localStorage.setItem('lastPage', window.location.pathname + window.location.search);
+});
+window.addEventListener('DOMContentLoaded', function() {
+  const lastPage = localStorage.getItem('lastPage');
+  if (lastPage && lastPage !== window.location.pathname + window.location.search) {
+    // Optionally, show a banner or button to return to last page
+    // Example: Uncomment below to show an alert
+    // if (confirm('Return to your last visited page?')) window.location.href = lastPage;
+  }
+});
+// Dark mode toggle logic
+const darkModeToggle = document.getElementById('dark-mode-toggle');
+const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+const storedTheme = localStorage.getItem('theme');
+if (storedTheme === 'dark' || (!storedTheme && prefersDark)) {
+  document.body.classList.add('dark-mode');
+}
+darkModeToggle.addEventListener('click', () => {
+  document.body.classList.toggle('dark-mode');
+  if (document.body.classList.contains('dark-mode')) {
+    localStorage.setItem('theme', 'dark');
+  } else {
+    localStorage.setItem('theme', 'light');
+  }
+});
+    // Mobile menu toggle
+    document.addEventListener('DOMContentLoaded', function() {
+      var btn = document.getElementById('mobile-menu-button');
+      var menu = document.getElementById('mobile-menu');
+      btn.addEventListener('click', function() {
+        menu.classList.toggle('hidden');
+      });
+      // Optional: Close menu when clicking outside
+      document.addEventListener('click', function(e) {
+        if (!btn.contains(e.target) && !menu.contains(e.target)) {
+          menu.classList.add('hidden');
+        }
+      });
+    });
+
+
+    // JS for Carousel 
+    function scrollCarousel(id, offset) {
+  const el = document.getElementById(id);
+  el.scrollBy({ left: offset, behavior: 'smooth' });
+  }
+
+function copyToClipboard() {
+  navigator.clipboard.writeText(window.location.href);
+  alert("Link copied to clipboard!");
+}
+</script>
+
+<!-- JS for Image Preview -->
+<script>
+  const adImageInput = document.getElementById('{{ form.ad_image.id_for_label }}');
+  const imagePreview = document.getElementById('imagePreview');
+
+  adImageInput.addEventListener('change', function() {
+    const file = this.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        imagePreview.src = e.target.result;
+        imagePreview.classList.remove('hidden');
+      }
+      reader.readAsDataURL(file);
+    } else {
+      imagePreview.src = "#";
+      imagePreview.classList.add('hidden');
+    }
+  });
+</script>
+
+
+
+<!-- ScrollSpy for TOC (optional) -->
+<script>
+  // Back to Top button functionality
+  const backToTopBtn = document.getElementById('backToTop');
+
+  window.addEventListener('scroll', () => {
+    // Show button after 300px
+    if (window.pageYOffset > 300) {
+      backToTopBtn.classList.remove('opacity-0', 'pointer-events-none');
+      backToTopBtn.classList.add('opacity-100', 'pointer-events-auto');
+    } else {
+      backToTopBtn.classList.add('opacity-0', 'pointer-events-none');
+      backToTopBtn.classList.remove('opacity-100', 'pointer-events-auto');
+    }
+
+    // ScrollSpy functionality (only if TOC exists)
+    const sections = document.querySelectorAll('section');
+    const tocLinks = document.querySelectorAll('.toc-link');
+    if (sections.length && tocLinks.length) {
+      let current = '';
+      sections.forEach(section => {
+        const sectionTop = section.offsetTop - 100;
+        if (window.pageYOffset >= sectionTop) {
+          current = section.getAttribute('id');
+        }
+      });
+      tocLinks.forEach(link => {
+        link.classList.remove('font-bold', 'text-blue-800');
+        link.classList.add('text-blue-600');
+        if (link.getAttribute('href') === '#' + current) {
+          link.classList.add('font-bold', 'text-blue-800');
+          link.classList.remove('text-blue-600');
+        }
+      });
+    }
+  });
+</script>
+
+<!-- ScrollSpy JS -->
+<script>
+  const tocLinks = document.querySelectorAll('.toc-link');
+  const sections = document.querySelectorAll('section');
+
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(section => {
+      const sectionTop = section.offsetTop - 150; // adjust for navbar height
+      if (window.pageYOffset >= sectionTop) {
+        current = section.getAttribute('id');
+      }
+    });
+
+    tocLinks.forEach(link => {
+      link.classList.remove('font-bold', 'text-blue-800');
+      link.classList.add('text-blue-600');
+      if (link.getAttribute('href') === '#' + current) {
+        link.classList.add('font-bold', 'text-blue-800');
+        link.classList.remove('text-blue-600');
+      }
+    });
+  });
+</script>
+  
+
+<!-- Copy to Clipboard Script -->
+<script>
+  function copyToClipboard() {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      alert("Link copied to clipboard!");
+    });
+  }
+
+
+  <!-- Auto-scroll with looping -->
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const el = document.getElementById("carousel-breaking");
+      setInterval(function () {
+        if (el) {
+          if (el.scrollLeft + el.clientWidth >= el.scrollWidth) {
+            // reached end → jump back
+            el.scrollTo({ left: 0, behavior: "smooth" });
+          } else {
+            // keep scrolling forward
+            el.scrollBy({ left: 250, behavior: "smooth" });
+          }
+        }
+      }, 4000); // scroll every 4s
+    });
+  </script>
+  
+</script>
+<script>
+// Show loading indicator on navigation (page load, link click, form submit)
+function showLoading() {
+  document.getElementById('loading-indicator').style.display = 'flex';
+}
+function hideLoading() {
+  document.getElementById('loading-indicator').style.display = 'none';
+}
+// Show on page load until DOM ready
+document.addEventListener('DOMContentLoaded', function() {
+  hideLoading();
+  // Intercept all link clicks (except anchors and JS links)
+  document.body.addEventListener('click', function(e) {
+    let t = e.target;
+    while (t && t.tagName !== 'A' && t !== document.body) t = t.parentElement;
+    if (t && t.tagName === 'A' && t.target !== '_blank' && t.href && !t.href.startsWith('javascript:') && t.href !== window.location.href && !t.href.startsWith('#')) {
+      showLoading();
+    }
+  }, true);
+  // Intercept all form submits
+  document.body.addEventListener('submit', function(e) {
+    showLoading();
+  }, true);
+});
+// Optional: hide loading on error or after navigation
+window.addEventListener('pageshow', hideLoading);
+</script>
+</body>
+</html>

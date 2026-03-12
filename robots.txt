@@ -1,0 +1,9 @@
+Disallow:
+Sitemap: https://www.pulselinedaily.com/sitemap.xml
+
+User-agent: *
+Disallow:
+# Allow all bots to crawl everything
+
+# Sitemap location
+Sitemap: https://www.pulselinedaily.com/sitemap.xml

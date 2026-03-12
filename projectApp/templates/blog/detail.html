@@ -1,0 +1,253 @@
+
+{% extends 'base.html' %}
+{% load static %}
+{% block canonical %}<link rel="canonical" href="{{request.build_absolute_uri}}">{% endblock %}
+{% block title %}{{ post.title }} | PulseLineDaily{% endblock title %}
+{% block meta_description %}{% if post.summary%} {{ post.summary }} {% else %} {{ post.body|truncatewords:30 }} {% endif %} {% endblock %}
+{% block og_title %}{{ post.title }}{% endblock %}
+{% block og_description %}{{ post.body|truncatewords:30 }}{% endblock %}
+{% block og_image %}{% if post.image %}{{ post.image.url }}{% else %}{% static 'image/Pulsemainlogo.jpg' %}{% endif %}{% endblock %}
+<script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "NewsArticle",
+        "headline": "{{ post.title|escapejs }}",
+        "description": "{{ post.summary|default:post.body|truncatewords:30|escapejs }}",
+        "image": ["{% if post.image %}{{request.scheme}}://{{request.get_host}}{{ post.image.url }}{% else %}{{request.scheme}}://{{request.get_host}}{% static 'image/Pulsemainlogo.jpg' %}{% endif %}"],
+        "datePublished": "{{ post.date_created|date:'c' }}",
+        "dateModified": "{{ post.last_modified|date:'c' }}",
+        "author": {
+            "@type": "Person",
+            "name": "{% if post.author %}{{ post.author.name|escapejs }}{% else %}{{ post.updated_by|escapejs }}{% endif %}"
+        },
+        "publisher": {
+            "@type": "NewsMediaOrganization",
+            "name": "PulseLineDaily",
+            "logo": {
+                "@type": "ImageObject",
+                "url": "{{request.scheme}}://{{request.get_host}}{% static 'image/Pulsemainlogo.jpg' %}"
+            }
+
+    },
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "{{ request.build_absolute_uri }}"
+        }
+       }
+</script>
+
+{% block content %}
+<article class="bg-white shadow-md rounded-lg mb-6 overflow-hidden dark:bg-gray-900 dark:text-gray-100">
+    <!-- Post Image -->
+    {% if post.image %}
+        <img 
+            src="{{ post.image.url }}?f_auto,q_auto,w_1200" 
+            srcset="
+                {{ post.image.url }}?f_auto,q_auto,w_600 600w,
+                {{ post.image.url }}?f_auto,q_auto,w_900 900w,
+                {{ post.image.url }}?f_auto,q_auto,w_1200 1200w,
+                {{ post.image.url }}?f_auto,q_auto,w_1600 1600w
+            "
+            sizes="(max-width: 640px) 600px, (max-width: 1024px) 900px, (max-width: 1440px) 1200px, 1600px"
+            alt="{{ post.title }}" 
+            class="w-full max-h-96 object-cover"
+            loading="lazy">
+    {% else %}
+        <p class="p-4 text-gray-500 italic">No image</p>
+    {% endif %}
+
+
+    <!-- Post Content -->
+    <div class="p-6 dark:bg-gray-900 dark:text-gray-100">
+        <h1 class="text-2xl md:text-3xl font-semibold mb-2">{{ post.title }}</h1>
+
+        {% if post.summary %}
+        <div class="bg-gray-50 border-l-4 border-blue-600 p-4 mb-4 dark:bg-gray-800 dark:border-blue-400">
+            <h2 class="text-lg font-semibold text-blue-700 dark:text-blue-300 mb-2">Summary</h2>
+            <p class="text-gray-700 dark:text-gray-200">{{ post.summary }}</p>
+        </div>
+        {% endif %}
+
+        <div class="flex flex-wrap items-center gap-3 text-sm text-gray-500 mb-4 dark:text-gray-300">
+            {% if post.reading_time %}
+                <span>🕒 Reading time: {{ post.reading_time }} mins</span>
+            {% endif %}
+            {% if post.word_count %}
+                <span>• {{ post.word_count }} words</span>
+            {% endif %}
+        </div>
+
+        <!-- Post Meta -->
+        <div class="flex flex-wrap gap-2 text-sm text-gray-500 mb-4 dark:text-gray-300">
+            <span>{{ post.date_created|date:"F j, Y, g:i a" }}</span>
+            <span>|</span>
+            <span>Categories:</span>
+            {% for category in post.categories.all %}
+                <a href="{% url 'category' category.name %}" 
+                   class="text-blue-600 hover:underline">
+                    {{ category.name }}
+                </a>
+            {% endfor %}
+            <span>|</span>
+            <span>By 
+                {% if post.author %}
+                    <a href="{% url 'author_profile' post.author.slug %}" class="text-blue-600 hover:underline">{{ post.author.name }}</a>
+                {% else %}
+                    {{ post.updated_by }}
+                {% endif %}
+            </span>
+        </div>
+
+        <!-- Body -->
+        <div class="prose prose-lg max-w-none text-gray-800 mt-4 dark:text-gray-300">
+            {{ post.body|linebreaks }}
+        </div>
+        {% if post.analysis %}
+        <div class="mt-8 bg-gray-50 border-l-4 border-green-600 p-4 dark:bg-gray-800 dark:border-green-400">
+            <h2 class="text-lg font-semibold text-green-700 dark:text-green-300 mb-2">Analysis</h2>
+            <p class="text-gray-700 dark:text-gray-200">{{ post.analysis }}</p>
+        </div>
+        {% if post.tags %}
+        <div class="mt-6">
+            <h3 class="text-lg font-semibold mb-2 dark:text-gray-200">Tags:</h3>
+            <div class="flex flex-wrap gap-2">
+                {% for tag in tags %}
+                    <a href="{% url 'search' %}?query={{ tag }}" 
+                    class="inline-block bg-blue-100 text-blue-700 dark:bg-blue-700 dark:text-white px-3 py-1 rounded-full text-sm hover:bg-blue-200 dark:hover:bg-blue-600 transition">
+                        #{{ tag }}
+                    </a>
+                {% endfor %}
+            </div>
+        </div>
+{% endif %}
+{% endif %}
+
+        <!-- 📹 Post Video -->
+    {% if post.video %}
+        <div class="p-6">
+        <video 
+            controls 
+            preload="metadata" 
+            class="w-69 max-h-96 rounded shadow"
+            poster="{{ post.video.url }}.jpg"
+        >
+            <source src="{{ post.video.url }}?f_auto,q_auto" type="video/mp4">
+            <source src="{{ post.video.url }}?f_auto,q_auto" type="video/webm">
+            Your browser does not support the video tag.
+        </video>
+    </div>
+        </div>
+    {% endif %}
+
+        <!-- 🔗 External Link -->
+        {% if post.link %}
+            <div class="mt-6">
+                <a href="{{ post.link }}" target="_blank" 
+                   class="inline-block text-blue-600 hover:underline font-medium">
+                    🔗 Visit Related Link
+                </a>
+            </div>
+        {% endif %}
+
+        <!-- Share buttons -->
+        <div class="mt-6">
+            <h5 class="text-lg font-medium mb-3 dark:text-gray-200">Share this post:</h5>
+            <div class="flex flex-wrap gap-3">
+                <!-- Facebook -->
+                <a href="http://www.facebook.com/sharer/sharer.php?u={{ request.build_absolute_uri }}" 
+                   target="_blank"
+                   aria-label="Share on Facebook"
+                   class="flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition">
+                    <i class="fab fa-facebook-f"></i><span class="hidden sm:inline">Facebook</span>
+                </a>
+
+                <!-- Twitter -->
+                <a href="http://x.com/intent/tweet?url={{ request.build_absolute_uri }}&text={{ post.title }}" 
+                   target="_blank"
+                   aria-label="Share on x"
+                   class="flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-full bg-sky-500 text-white hover:bg-sky-600 transition">
+                    <i class="fab fa-x-twitter"></i><span class="hidden sm:inline"></span>
+                </a>
+
+                <!-- WhatsApp -->
+                <a href="http://api.whatsapp.com/send?text={{ post.title }} - {{ request.build_absolute_uri }}" 
+                   target="_blank"
+                   aria-label="Share on WhatsApp"
+                   class="flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700 transition">
+                    <i class="fab fa-whatsapp"></i><span class="hidden sm:inline">WhatsApp</span>
+                </a>
+
+                <!-- Copy Link -->
+                <button onclick="copyToClipboard()" 
+                        aria-label="Copy post link"
+                        class="flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-full bg-gray-600 text-white hover:bg-gray-700 transition">
+                    <i class="fas fa-link"></i><span class="hidden sm:inline">Copy Link</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Related Posts -->
+    {% if related_posts %}
+    <div class="mt-10">
+        <h3 class="text-xl font-bold mb-4">Related Posts</h3>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
+            {% for rel in related_posts %}
+                <div class="bg-gray-50 rounded shadow p-4 flex flex-col shadow rounded-lg overflow-hidden hover:shadow-lg active:shadow-lg hover:scale-105 active:scale-105 transition-all duration-300 dark:bg-gray-800 dark:text-gray-100">
+                    {% if rel.image %}
+                        <a href="{{ rel.get_absolute_url }}">
+                            <img src="{{ rel.image.url }}" alt="{{ rel.title }}" class="h-32 w-full object-cover rounded mb-2" loading="lazy" />
+                        </a>
+                    {% endif %}
+                    <a href="{{ rel.get_absolute_url }}" class="font-semibold text-blue-700 hover:underline text-lg mb-1">{{ rel.title }}</a>
+                    <p class="text-gray-500 text-sm mb-2">{{ rel.date_created|date:"M d, Y" }}</p>
+                    <p class="text-gray-700 text-sm">{{ rel.body|truncatewords:20 }}</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</article>
+
+<!-- Comment form -->
+<h3 class="text-xl font-semibold mb-4">Leave a comment:</h3>
+<form method="post" class="mb-6 space-y-4">
+    {% csrf_token %}
+    <input type="text" name="author" placeholder="Your name"
+           class="w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2"
+           required>
+    <textarea name="body" placeholder="Your comment..."
+              class="w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2"
+              required></textarea>
+    <button type="submit" 
+            class="px-4 py-2 rounded-md bg-gray-800 text-white hover:bg-blue-700 transition">
+        Submit
+    </button>
+</form>
+
+<!-- Comments -->
+<h3 class="text-xl font-semibold mb-4">Comments:</h3>
+<div class="space-y-4">
+    {% if comments %}
+        {% for comment in comments %}
+            <div class="p-4 bg-gray-100 rounded-md hover:bg-gray-200 transition">
+                <div class="flex items-center space-x-3">
+                    <!-- Avatar Circle (Initials as fallback) -->
+                    <div class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-400 text-white font-bold">
+                        {{ comment.author|first|upper }}
+                    </div>
+                    <p class="text-sm text-gray-600">
+                        On {{ comment.comment_made_on|date:"F j, Y, g:i a" }} 
+                        <b class="text-gray-800">{{ comment.author }}</b> :
+                    </p>
+                </div>
+                <p class="mt-2 text-gray-700">{{ comment.comment|linebreaks }}</p>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p class="text-gray-500 italic">No comments yet. Be the first to comment!</p>
+    {% endif %}
+</div>
+
+
+{% endblock content %}

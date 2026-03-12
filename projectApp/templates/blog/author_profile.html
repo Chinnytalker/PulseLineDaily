@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}Author Profile{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto mt-10 p-6 bg-white dark:bg-gray-900 rounded shadow">
+    <div class="flex items-center mb-4">
+        {% if author.photo %}
+           <img 
+                src="{{ author.photo.url }}?f_auto,q_auto,w_80,h_80,c_fill,g_face,r_max" 
+                alt="{{ author.name }}" 
+                class="h-20 w-20 rounded-full object-cover mr-4 border" 
+                loading="lazy" />
+        {% endif %}
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{{ author.name }}</h1>
+            {% if author.email %}
+                <p class="text-gray-500 dark:text-gray-300 text-sm">{{ author.email }}</p>
+            {% endif %}
+            {% if author.social_profile %}
+            <a href="{{ author.social_profile }}" class="text-gray-500 dark:text-gray-300 text-sm" rel="noopener noreferrer" target="_blank">
+                Follow {{ author.name }}
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% if author.bio %}
+        <p class="mb-6 text-gray-700 dark:text-gray-200">{{ author.bio }}</p>
+    {% endif %}
+    <h2 class="text-xl font-semibold mt-8 mb-4 text-gray-800 dark:text-gray-100">Recent Posts by {{ author.name }}</h2>
+    <ul>
+        {% for post in recent_posts %}
+            <li class="mb-2">
+                <a href="{{ post.get_absolute_url }}" class="text-blue-600 dark:text-blue-400 hover:underline">{{ post.title }}</a>
+                <span class="text-xs text-gray-400 ml-2">{{ post.date_created|date:"M d, Y" }}</span>
+            </li>
+        {% empty %}
+            <li class="text-gray-500">No posts yet.</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}

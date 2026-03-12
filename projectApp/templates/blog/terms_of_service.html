@@ -1,0 +1,182 @@
+{% extends 'base.html' %}
+
+
+{% block title %}Terms of Service{% endblock title %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-10 bg-white shadow-lg rounded-lg space-y-8">
+
+  <!-- Page Header -->
+  <header class="space-y-2">
+    <h1 class="text-4xl font-bold text-gray-800 dark:text-gray-300">Terms of Service – PulseLineDaily</h1>
+    <p class="text-gray-600 dark:text-gray-300">Effective Date: <span class="font-medium">10/03/2024</span></p>
+  </header>
+
+  <div class="md:flex md:space-x-6">
+
+    <!-- Desktop Sticky TOC -->
+    <nav class="hidden md:block md:w-1/4 sticky top-20 h-max bg-gray-50 p-4 rounded-md shadow-inner">
+      <h2 class="text-xl font-semibold text-gray-800 mb-2">Table of Contents</h2>
+      <ul class="list-disc list-inside text-gray-700 space-y-1 text-sm">
+        <li><a href="#acceptance" class="toc-link text-blue-600 underline">1. Acceptance of Terms</a></li>
+        <li><a href="#use-of-service" class="toc-link text-blue-600 underline">2. Use of Service</a></li>
+        <li><a href="#user-conduct" class="toc-link text-blue-600 underline">3. User Conduct</a></li>
+        <li><a href="#account-creation" class="toc-link text-blue-600 underline">4. Account Creation</a></li>
+        <li><a href="#content-ownership" class="toc-link text-blue-600 underline">5. Content Ownership</a></li>
+        <li><a href="#third-party-links" class="toc-link text-blue-600 underline">6. Third-Party Links</a></li>
+        <li><a href="#disclaimer" class="toc-link text-blue-600 underline">7. Disclaimer of Warranties</a></li>
+        <li><a href="#limitation" class="toc-link text-blue-600 underline">8. Limitation of Liability</a></li>
+        <li><a href="#termination" class="toc-link text-blue-600 underline">9. Termination</a></li>
+        <li><a href="#privacy" class="toc-link text-blue-600 underline">10. Privacy Policy</a></li>
+        <li><a href="#modifications" class="toc-link text-blue-600 underline">11. Modifications to Terms</a></li>
+        <li><a href="#governing-law" class="toc-link text-blue-600 underline">12. Governing Law</a></li>
+        <li><a href="#contact" class="toc-link text-blue-600 underline">13. Contact Us</a></li>
+      </ul>
+    </nav>
+
+    <!-- Mobile Collapsible TOC -->
+    <div class="md:hidden mb-6" x-data="{ open: false }">
+      <button @click="open = !open" class="w-full bg-blue-600 text-white px-4 py-2 rounded-md font-semibold flex justify-between items-center">
+        Table of Contents
+        <svg x-show="!open" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+        <svg x-show="open" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+        </svg>
+      </button>
+      <ul x-show="open" x-transition class="mt-2 list-disc list-inside text-gray-700 space-y-1 text-sm">
+        <li><a href="#acceptance" class="toc-link text-blue-600 underline">1. Acceptance of Terms</a></li>
+        <li><a href="#use-of-service" class="toc-link text-blue-600 underline">2. Use of Service</a></li>
+        <li><a href="#user-conduct" class="toc-link text-blue-600 underline">3. User Conduct</a></li>
+        <li><a href="#account-creation" class="toc-link text-blue-600 underline">4. Account Creation</a></li>
+        <li><a href="#content-ownership" class="toc-link text-blue-600 underline">5. Content Ownership</a></li>
+        <li><a href="#third-party-links" class="toc-link text-blue-600 underline">6. Third-Party Links</a></li>
+        <li><a href="#disclaimer" class="toc-link text-blue-600 underline">7. Disclaimer of Warranties</a></li>
+        <li><a href="#limitation" class="toc-link text-blue-600 underline">8. Limitation of Liability</a></li>
+        <li><a href="#termination" class="toc-link text-blue-600 underline">9. Termination</a></li>
+        <li><a href="#privacy" class="toc-link text-blue-600 underline">10. Privacy Policy</a></li>
+        <li><a href="#modifications" class="toc-link text-blue-600 underline">11. Modifications to Terms</a></li>
+        <li><a href="#governing-law" class="toc-link text-blue-600 underline">12. Governing Law</a></li>
+        <li><a href="#contact" class="toc-link text-blue-600 underline">13. Contact Us</a></li>
+      </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="md:w-3/4 space-y-8">
+
+      <!-- 1. Acceptance of Terms -->
+      <section id="acceptance" class="space-y-2">
+        <h2 class="text-2xl font-semibold text-gray-800 dark:text-gray-300">1. Acceptance of Terms</h2>
+        <p class="text-gray-700">
+          By accessing or using PulseLineDaily ("the Service"), you agree to comply with these Terms of Service and all applicable laws. If you do not agree, you must not use the Service.
+        </p>
+      </section>
+
+      <!-- 2. Use of Service -->
+      <section id="use-of-service" class="space-y-2">
+        <h2 class="text-2xl font-semibold text-gray-800 dark:text-gray-300">2. Use of Service</h2>
+        <p class="text-gray-700">
+          You may use the Service only for lawful purposes and in accordance with these Terms. You agree not to use the Service in any way that could damage, disable, overburden, or impair the Service.
+        </p>
+      </section>
+
+      <!-- 3. User Conduct -->
+      <section id="user-conduct" class="space-y-2">
+        <h2 class="text-2xl font-semibold text-gray-800 dark:text-gray-300">3. User Conduct</h2>
+        <p class="text-gray-700">
+          You agree not to:
+        </p>
+        <ul class="list-disc list-inside text-gray-700 space-y-1">
+          <li>Post, transmit, or distribute any unlawful, harmful, or offensive content.</li>
+          <li>Attempt to gain unauthorized access to any part of the Service.</li>
+          <li>Use automated systems to access or collect data from the Service.</li>
+        </ul>
+      </section>
+
+      <!-- 4. Account Creation -->
+      <section id="account-creation" class="space-y-2">
+        <h2 class="text-2xl font-semibold text-gray-800 dark:text-gray-300">4. Account Creation</h2>
+        <p class="text-gray-700">
+          Certain features may require creating an account. You agree to provide accurate information and keep your account credentials secure. You are responsible for all activity under your account.
+        </p>
+      </section>
+
+      <!-- 5. Content Ownership -->
+      <section id="content-ownership" class="space-y-2">
+        <h2 class="text-2xl font-semibold text-gray-800 dark:text-gray-300">5. Content Ownership</h2>
+        <p class="text-gray-700">
+          All content on PulseLineDaily, including articles, graphics, and images, is the property of PulseLineDaily or its content providers and is protected by copyright. You may not reproduce, distribute, or create derivative works without permission.
+        </p>
+      </section>
+
+      <!-- 6. Third-Party Links -->
+      <section id="third-party-links" class="space-y-2">
+        <h2 class="text-2xl font-semibold text-gray-800 dark:text-gray-300">6. Third-Party Links</h2>
+        <p class="text-gray-700">
+          The Service may include links to third-party websites. We do not control or endorse these sites and are not responsible for their content or privacy practices. Users should review third-party terms and policies before using those sites.
+        </p>
+      </section>
+
+      <!-- 7. Disclaimer of Warranties -->
+      <section id="disclaimer" class="space-y-2">
+        <h2 class="text-2xl font-semibold text-gray-800 dark:text-gray-300">7. Disclaimer of Warranties</h2>
+        <p class="text-gray-700">
+          The Service is provided "as is" and "as available" without warranties of any kind, whether express or implied. PulseLineDaily does not guarantee accuracy, completeness, or reliability of any content.
+        </p>
+      </section>
+
+      <!-- 8. Limitation of Liability -->
+      <section id="limitation" class="space-y-2">
+        <h2 class="text-2xl font-semibold text-gray-800 dark:text-gray-300">8. Limitation of Liability</h2>
+        <p class="text-gray-700">
+          To the maximum extent permitted by law, PulseLineDaily shall not be liable for any direct, indirect, incidental, consequential, or punitive damages arising from your use of the Service.
+        </p>
+      </section>
+
+      <!-- 9. Termination -->
+      <section id="termination" class="space-y-2">
+        <h2 class="text-2xl font-semibold text-gray-800 dark:text-gray-300">9. Termination</h2>
+        <p class="text-gray-700">
+          We may suspend or terminate your access to the Service at any time for violation of these Terms or for any reason deemed appropriate by PulseLineDaily.
+        </p>
+      </section>
+
+      <!-- 10. Privacy Policy -->
+      <section id="privacy" class="space-y-2">
+        <h2 class="text-2xl font-semibold text-gray-800 dark:text-gray-300">10. Privacy Policy</h2>
+        <p class="text-gray-700">
+          Your use of the Service is also governed by our <a href="{% url 'Privacy' %}" class="text-blue-600 underline">Privacy Policy</a>, which explains how we collect, use, and protect personal information.
+        </p>
+      </section>
+
+      <!-- 11. Modifications to Terms -->
+      <section id="modifications" class="space-y-2">
+        <h2 class="text-2xl font-semibold text-gray-800 dark:text-gray-300">11. Modifications to Terms</h2>
+        <p class="text-gray-700">
+          We may modify these Terms at any time. Changes will be posted on this page with an updated effective date. Continued use of the Service after modifications constitutes acceptance of the new Terms.
+        </p>
+      </section>
+
+      <!-- 12. Governing Law -->
+      <section id="governing-law" class="space-y-2">
+        <h2 class="text-2xl font-semibold text-gray-800 dark:text-gray-300">12. Governing Law</h2>
+        <p class="text-gray-700">
+          These Terms are governed by the laws of [Your Country/State], without regard to its conflict of law provisions. Any disputes arising under these Terms shall be resolved in the courts of [Your Jurisdiction].
+        </p>
+      </section>
+
+      <!-- 13. Contact Us -->
+      <section id="contact" class="space-y-2">
+        <h2 class="text-2xl font-semibold text-gray-800 dark:text-gray-300">13. Contact Us</h2>
+        <p class="text-gray-700">
+          If you have questions or concerns regarding these Terms, please <a href="{% url 'Contact us' %}" class="text-blue-600 underline">contact us</a>.
+        </p>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+
+{% endblock content %}

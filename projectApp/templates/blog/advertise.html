@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% load widget_tweaks %}
+
+{% block title %}Advertise With Us{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+
+  <!-- Page Header -->
+  <header class="mb-10 text-center">
+    <h1 class="text-3xl font-bold text-gray-800 mb-2">Advertise With PulseLineDaily</h1>
+    <p class="text-gray-700 text-lg">Reach our audience by submitting your advertising request below.</p>
+  </header>
+
+  <!-- Form Container -->
+  <div class="bg-gray-100 p-8 rounded-lg shadow-lg">
+    <form method="post" enctype="multipart/form-data" class="space-y-6">
+      {% csrf_token %}
+
+      <!-- Advertiser Name -->
+      <div>
+        <label for="{{ form.advertiser_name.id_for_label }}" class="block text-gray-700 font-medium mb-1">Name</label>
+        {{ form.advertiser_name|add_class:"w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2" }}
+        {% if form.advertiser_name.errors %}
+          <p class="text-red-600 text-sm mt-1">{{ form.advertiser_name.errors|striptags }}</p>
+        {% endif %}
+      </div>
+
+      <!-- Advertiser Email -->
+      <div>
+        <label for="{{ form.advertiser_email.id_for_label }}" class="block text-gray-700 font-medium mb-1">Email</label>
+        {{ form.advertiser_email|add_class:"w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2" }}
+        {% if form.advertiser_email.errors %}
+          <p class="text-red-600 text-sm mt-1">{{ form.advertiser_email.errors|striptags }}</p>
+        {% endif %}
+      </div>
+
+      <!-- Preferred Location (Custom Select) -->
+      <div class="relative">
+        <label for="{{ form.preferred_location.id_for_label }}" class="block text-gray-700 font-medium mb-1">Preferred Location</label>
+        <div class="relative">
+          {{ form.preferred_location|add_class:"w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 appearance-none pr-10" }}
+          <!-- Dropdown Arrow -->
+          <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+            <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+        {% if form.preferred_location.errors %}
+          <p class="text-red-600 text-sm mt-1">{{ form.preferred_location.errors|striptags }}</p>
+        {% endif %}
+      </div>
+
+      <!-- Advertisement Image with Preview -->
+      <div>
+        <label for="{{ form.ad_image.id_for_label }}" class="block text-gray-700 font-medium mb-1">Upload Image (optional)</label>
+        {{ form.ad_image|add_class:"w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2" }}
+        {% if form.ad_image.errors %}
+          <p class="text-red-600 text-sm mt-1">{{ form.ad_image.errors|striptags }}</p>
+        {% endif %}
+        <!-- Image Preview -->
+        <div class="mt-4">
+          <img id="imagePreview" class="max-h-48 rounded-lg hidden border" src="#" alt="Image Preview">
+        </div>
+      </div>
+
+      <!-- Advertisement URL -->
+      <div>
+        <label for="{{ form.ad_url.id_for_label }}" class="block text-gray-700 font-medium mb-1">Website URL (optional)</label>
+        {{ form.ad_url|add_class:"w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2" }}
+        {% if form.ad_url.errors %}
+          <p class="text-red-600 text-sm mt-1">{{ form.ad_url.errors|striptags }}</p>
+        {% endif %}
+      </div>
+
+      <!-- Message -->
+      <div>
+        <label for="{{ form.message.id_for_label }}" class="block text-gray-700 font-medium mb-1">Message (optional)</label>
+        {{ form.message|add_class:"w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 h-32 resize-none" }}
+        {% if form.message.errors %}
+          <p class="text-red-600 text-sm mt-1">{{ form.message.errors|striptags }}</p>
+        {% endif %}
+      </div>
+
+      <!-- Submit Button -->
+      <button type="submit" class="w-full sm:w-auto bg-gray-700 text-white font-semibold px-6 py-2 rounded hover:bg-blue-700 transition-colors duration-300">
+        Submit Request
+      </button>
+
+    </form>
+  </div>
+
+  <!-- Optional Note -->
+  <p class="mt-6 text-gray-900 text-sm text-center">
+    We will review your request and get back to you within 2 business days.
+  </p>
+
+</div>
+
+{% endblock %}

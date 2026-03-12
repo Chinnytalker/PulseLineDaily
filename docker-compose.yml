@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    command: gunicorn MaxDiscoverHub.wsgi:application --bind 0.0.0.0:2001
+    volumes:
+      - .:/app
+    ports:
+      - "2001:2001"
+    env_file:
+      - .env
+    depends_on:
+      - redis
+#      - db
+    expose:
+      - "2001"
+  
+  celery:
+    build: .
+    command: celery -A MaxDiscoverHub worker -l info
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - redis
+#      - db
+
+  celery-beat:
+    build: .
+    command: celery -A MaxDiscoverHub beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    depends_on:
+      - redis
+#      - db
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+#    Uncomment below for PostgreSQL (if you use it)
+#  db:
+#     image: postgres:15
+#     environment:
+#       POSTGRES_DB: yourdbname
+#       POSTGRES_USER: yourdbuser
+#       POSTGRES_PASSWORD: yourdbpassword
+#     ports:
+#       - "5432:5432"
+#     volumes:
+#       - pgdata:/var/lib/postgresql/data
+
+
+#         Nginx service to serve static files and reverse proxy to Gunicorn
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./static:/app/static
+#      uncomment to enable SSL
+#      - ./ssl/fullchain.pem:/etc/ssl/certs/fullchain.pem
+#      - ./ssl/privkey.pem:/etc/ssl/private/privkey.pem
+    depends_on:
+      - web
+volumes:
+    pgdata:

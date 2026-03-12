@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}Apply for Job{% endblock %}
+{% block content %}
+<div class="max-w-xl mx-auto py-10 px-4">
+  <h1 class="text-2xl font-bold mb-6">Apply for {{ job.title }}</h1>
+  <form method="post" enctype="multipart/form-data" class="space-y-4 bg-gray-200 p-6 rounded shadow">
+    {% csrf_token %}
+     <div>
+          <label for="applicant_name" class="block text-sm font-medium text-gray-700 mb-1  dark:text-gray-300">Name:</label>
+          <input type="text" name="applicant_name" id="applicant_name" placeholder="Your Name"
+                 class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+     </div>
+    <div>
+      <label for="applicant_email" class="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Email:</label>
+    <input type="email" name="applicant_email" id="applicant_email" placeholder="Your Email"
+           class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+    </div>
+    <div>
+      <label for="cover_letter" class="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Cover Letter:</label>
+      <textarea name="cover_letter" id="cover_letter" rows="6" placeholder="Your Cover Letter"
+                class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required></textarea>
+    </div>
+    <div>
+      <label for="resume" class="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Upload Resume:</label>
+      <input type="file" name="resume" id="resume" accept=".pdf,.doc,.docx"
+             class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+    </div>
+    <div>
+      <label for="role" class="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Select Job:</label>
+      <select name="role" id="role" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+        <option value="{{ job.id }}">{{ job.title }}</option>
+      </select>
+
+    </div>
+
+    <button type="submit" class="bg-gray-800 text-white px-4 py-2 rounded hover:bg-blue-700">Submit Application</button>
+  </form>
+</div>
+{% endblock %}
