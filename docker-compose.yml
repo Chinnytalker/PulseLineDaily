@@ -1,47 +1,61 @@
-version: '3.8'
-
 services:
   web:
     build: .
-    command: gunicorn MaxDiscoverHub.wsgi:application --bind 0.0.0.0:2001
-    volumes:
-      - .:/app
-    ports:
-      - "2001:2001"
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+      python manage.py collectstatic --noinput &&
+      gunicorn MaxDiscoverHub.wsgi:application --bind 0.0.0.0:2001 --workers 3 --timeout 120"
+    restart: unless-stopped
     env_file:
-      - .env
+      - ${APP_ENV_FILE:-.env}
+    environment:
+      DEBUG: "False"
+      DJANGO_ENV: production
     depends_on:
       - redis
 #      - db
     expose:
       - "2001"
+    volumes:
+      - staticfiles:/app/staticfiles
+      - media:/app/media
   
   celery:
     build: .
     command: celery -A MaxDiscoverHub worker -l info
-    volumes:
-      - .:/app
+    restart: unless-stopped
     env_file:
-      - .env
+      - ${APP_ENV_FILE:-.env}
+    environment:
+      DEBUG: "False"
+      DJANGO_ENV: production
     depends_on:
       - redis
+      - web
 #      - db
+    volumes:
+      - media:/app/media
 
   celery-beat:
     build: .
     command: celery -A MaxDiscoverHub beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
-    volumes:
-      - .:/app
+    restart: unless-stopped
     env_file:
-      - .env
+      - ${APP_ENV_FILE:-.env}
+    environment:
+      DEBUG: "False"
+      DJANGO_ENV: production
     depends_on:
       - redis
+      - web
 #      - db
 
   redis:
     image: redis:7
-    ports:
-      - "6379:6379"
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
 
 #    Uncomment below for PostgreSQL (if you use it)
 #  db:
@@ -59,16 +73,20 @@ services:
 #         Nginx service to serve static files and reverse proxy to Gunicorn
   nginx:
     image: nginx:latest
+    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf
-      - ./static:/app/static
-#      uncomment to enable SSL
-#      - ./ssl/fullchain.pem:/etc/ssl/certs/fullchain.pem
-#      - ./ssl/privkey.pem:/etc/ssl/private/privkey.pem
+      - staticfiles:/app/staticfiles:ro
+      - media:/app/media:ro
+      - ./ssl/fullchain.pem:/etc/ssl/certs/fullchain.pem:ro
+      - ./ssl/privkey.pem:/etc/ssl/private/privkey.pem:ro
     depends_on:
       - web
 volumes:
     pgdata:
+    staticfiles:
+    media:
+    redis_data:

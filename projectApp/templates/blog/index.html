@@ -16,15 +16,15 @@
   <!-- 🔴 Breaking News Strip -->
   {% if breaking_news %}
   <section>
-  <h2 class="text-lg font-bold mb-2 text-red-600 dark:text-red-400">Breaking News</h2>
-  <div class="relative bg-red-600 text-white py-2 rounded shadow overflow-hidden dark:bg-red-700 dark:text-white">
+    <h2 class="text-lg font-bold mb-2 text-red-600 dark:text-red-400">Breaking News</h2>
+    <div class="relative bg-red-600 text-white py-2 rounded shadow overflow-hidden dark:bg-red-700 dark:text-white">
       <div class="marquee-content flex items-center space-x-8" id="breaking-news">
         {% for post in breaking_news %}
           <a href="{{ post.get_absolute_url }}" class="hover:underline font-medium">
             {{ post.title }}
           </a>
         {% endfor %}
-        <!-- duplicate for seamless infinite scroll -->
+
         {% for post in breaking_news %}
           <a href="{{ post.get_absolute_url }}" class="hover:underline font-medium">
             {{ post.title }}
@@ -35,159 +35,165 @@
   </section>
   {% endif %}
 
+
   <!-- 🟢 Trending -->
   <section>
     <h2 class="text-lg font-bold mb-4">Trending</h2>
+
     <div class="relative group">
       <div class="flex overflow-x-auto space-x-5 pb-2 scrollbar-hide" id="carousel-trending">
+
         {% for post in trending_posts %}
-  <div class="flex-none w-80 bg-gray-100 rounded-lg shadow hover:shadow-lg active:shadow-lg hover:scale-105 active:scale-105 transition-all duration-300 p-4 dark:bg-gray-800 dark:text-gray-100">
+        <div class="flex-none w-[85vw] sm:w-80 md:w-72 lg:w-80 bg-gray-100 rounded-lg shadow hover:shadow-lg active:shadow-lg hover:scale-105 active:scale-105 transition-all duration-300 p-4 dark:bg-gray-800 dark:text-gray-100 snap-start">
+
           {% if post.image %}
+          <a href="{{ post.get_absolute_url }}">
+            <img
+              src="{{ post.image.url }}?f_auto,q_auto,w_400"
+              srcset="
+                {{ post.image.url }}?f_auto,q_auto,w_400 400w,
+                {{ post.image.url }}?f_auto,q_auto,w_800 800w,
+                {{ post.image.url }}?f_auto,q_auto,w_1200 1200w
+              "
+              sizes="(max-width: 600px) 400px, (max-width: 1024px) 800px, 1200px"
+              alt="{{ post.title }}"
+              class="h-48 w-full object-cover rounded mb-3"
+              loading="lazy" />
+          </a>
+          {% endif %}
+
+          <a href="{{ post.get_absolute_url }}" class="block text-lg font-semibold text-gray-900 hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400">
+            {{ post.title|truncatewords:15 }}
+          </a>
+
+          <p class="text-xs text-gray-500 mt-1">
+            <a href="{% url 'author_profile' post.author.slug %}" class="hover:underline">
+              {{ post.author.name }}
+            </a>
+            • {{ post.date_created|date:"M d, Y" }}
+          </p>
+
+          <a href="{{ post.get_absolute_url }}" class="block text-gray-600 text-sm mt-3 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400">
+            {{ post.body|truncatewords:30 }}
+          </a>
+
+        </div>
+        {% endfor %}
+
+      </div>
+
+      <button onclick="scrollCarousel('carousel-trending', -350)"
+              class="absolute left-0 top-1/2 -translate-y-1/2 bg-white shadow rounded-full p-3 opacity-70 group-hover:opacity-100">
+        ‹
+      </button>
+
+      <button onclick="scrollCarousel('carousel-trending', 350)"
+              class="absolute right-0 top-1/2 -translate-y-1/2 bg-white shadow rounded-full p-3 opacity-70 group-hover:opacity-100">
+        ›
+      </button>
+    </div>
+  </section>
+
+
+  <!-- 🟣 Categories -->
+  <section class="space-y-10">
+
+    {% for category, posts in category_posts.items %}
+    <div class="shadow-md hover:shadow-lg active:shadow-lg transition-all duration-300 rounded-lg p-4">
+
+      <div class="flex justify-between items-center mb-5">
+        <h2 class="text-xl font-bold text-gray-800 dark:text-gray-300">
+          {{ category.name }}
+        </h2>
+        <a href="{% url 'category' category.name %}" class="text-blue-600 text-sm hover:underline">
+          View all
+        </a>
+      </div>
+
+      <div class="relative group">
+        <div class="flex overflow-x-auto space-x-5 pb-2 scrollbar-hide" id="carousel-{{ category.id }}">
+
+          {% for post in posts %}
+          <div class="flex-none w-[85vw] sm:w-80 md:w-72 lg:w-80 bg-gray-100 rounded-lg shadow hover:shadow-lg transition p-4 dark:bg-gray-800 dark:text-gray-100 snap-start">
+
+            {% if post.image %}
             <a href="{{ post.get_absolute_url }}">
-              <img 
-                src="{{ post.image.url }}?f_auto,q_auto,w_400" 
+              <img
+                src="{{ post.image.url }}?f_auto,q_auto,w_400"
                 srcset="
                   {{ post.image.url }}?f_auto,q_auto,w_400 400w,
                   {{ post.image.url }}?f_auto,q_auto,w_800 800w,
                   {{ post.image.url }}?f_auto,q_auto,w_1200 1200w
                 "
-                sizes="(max-width: 600px) 400px, (max-width: 1024px) 800px, 1200px"
-                alt="{{ post.title }}" 
-                class="h-48 w-full object-cover rounded mb-3" 
+                sizes="(max-width: 640px) 400px, (max-width: 1024px) 800px, 1200px"
+                alt="{{ post.title }}"
+                class="h-52 w-full object-cover rounded mb-3"
                 loading="lazy" />
             </a>
-          {% endif %}
-          <a href="{{ post.get_absolute_url }}" class="block text-lg font-semibold text-gray-900 hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400">
-            {{ post.title|truncatewords:15 }}
-          </a>
-          <p class="text-xs text-gray-500 mt-1"><a href="{% url 'author_profile' post.author.slug %}" class=hover:underline">{{ post.author.name }}</a> • {{ post.date_created|date:"M d, Y" }}</p>
-          <a href="{{ post.get_absolute_url }}" class="block text-gray-600 text-sm mt-3 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400">
-            {{ post.body|truncatewords:30 }}
-          </a>
-        </div>
-        {% endfor %}
-      </div>
-      <button onclick="scrollCarousel('carousel-trending', -350)" 
-              class="absolute left-0 top-1/2 -translate-y-1/2 bg-white shadow rounded-full p-3 opacity-70 group-hover:opacity-100" aria-label="Scroll trending left">‹</button>
-      <button onclick="scrollCarousel('carousel-trending', 350)" 
-              class="absolute right-0 top-1/2 -translate-y-1/2 bg-white shadow rounded-full p-3 opacity-70 group-hover:opacity-100" aria-label="Scroll trending right">›</button>
-    </div>
-  </section>
-
-  <!-- 🟣 Categories -->
-  <section class="space-y-10">
-    {% for category, posts in category_posts.items %}
-    <div class=" shadow-md hover:shadow-lg active:shadow-lg hover:scale-105 active:scale-105 transition-all duration-300rounded-lg p-5">
-      <div class="flex justify-between items-center mb-5">
-        <h2 class="text-xl font-bold text-gray-800 dark:text-gray-300 dark:hover:text-blue-400">{{ category.name }}</h2>
-        <a href="{% url 'category' category.name %}" class="text-blue-600 text-sm hover:underline">View all</a>
-      </div>
-      <div class="relative group">
-        <div class="flex overflow-x-auto space-x-5 pb-2 scrollbar-hide" id="carousel-{{ category.id }}">
-          {% for post in posts %}
-          <div class="flex-none w-96 bg-gray-100 rounded-lg shadow hover:shadow-lg transition p-4 dark:bg-gray-800 dark:text-gray-100">
-            {% if post.image %}
-              <a href="{{ post.get_absolute_url }}">
-                <img 
-                  src="{{ post.image.url }}?f_auto,q_auto,w_400" 
-                  srcset="
-                    {{ post.image.url }}?f_auto,q_auto,w_400 400w,
-                    {{ post.image.url }}?f_auto,q_auto,w_800 800w,
-                    {{ post.image.url }}?f_auto,q_auto,w_1200 1200w
-                  "
-                  sizes="(max-width: 640px) 400px, (max-width: 1024px) 800px, 1200px"
-                  alt="{{ post.title }}" 
-                  class="h-52 w-full object-cover rounded mb-3" 
-                  loading="lazy" />
-              </a>
             {% endif %}
-            <a href="{{ post.get_absolute_url }}" class="block text-lg font-semibold text-gray-900 hover:text-blue-600 ">
+
+            <a href="{{ post.get_absolute_url }}" class="block text-lg font-semibold text-gray-900 hover:text-blue-600 dark:text-gray-100">
               {{ post.title|truncatewords:15 }}
             </a>
-            <p class="text-xs text-gray-500 mt-1 dark:text-gray-300 dark:hover:text-blue-400">
-              {{ post.category.name }} • <a href="{% url 'author_profile' post.author.slug %}" class=hover:underline">{{ post.author.name }}</a> • {{ post.date_created|date:"M d, Y" }}
+
+            <p class="text-xs text-gray-500 mt-1 dark:text-gray-300">
+              {{ post.category.name }} •
+              <a href="{% url 'author_profile' post.author.slug %}" class="hover:underline">
+                {{ post.author.name }}
+              </a>
+              • {{ post.date_created|date:"M d, Y" }}
             </p>
-            <a href="{{ post.get_absolute_url }}" class="block text-gray-600 text-sm mt-3 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400">
+
+            <a href="{{ post.get_absolute_url }}" class="block text-gray-600 text-sm mt-3 hover:text-blue-600 dark:text-gray-300">
               {{ post.body|truncatewords:35 }}
             </a>
+
           </div>
           {% endfor %}
+
         </div>
+
         <button onclick="scrollCarousel('carousel-{{ category.id }}', -350)"
-                class="absolute left-0 top-1/2 -translate-y-1/2 bg-white shadow rounded-full p-3 opacity-70 group-hover:opacity-100 active:opacity-100 active:scale-105 transition-all duration-200" aria-label="Scroll category left">‹</button>
+                class="absolute left-0 top-1/2 -translate-y-1/2 bg-white shadow rounded-full p-3 opacity-70 group-hover:opacity-100">
+          ‹
+        </button>
+
         <button onclick="scrollCarousel('carousel-{{ category.id }}', 350)"
-                class="absolute right-0 top-1/2 -translate-y-1/2 bg-white shadow rounded-full p-3 opacity-70 group-hover:opacity-100 active:opacity-100 active:scale-105 transition-all duration-200" aria-label="Scroll category right">›</button>
+                class="absolute right-0 top-1/2 -translate-y-1/2 bg-white shadow rounded-full p-3 opacity-70 group-hover:opacity-100">
+          ›
+        </button>
+
       </div>
     </div>
     {% endfor %}
+
   </section>
 
-  <!-- 📰 Newsletter + 🎥 Video -->
-  <section class="grid grid-cols-1 md:grid-cols-2 gap-6 ">
-    <div class="bg-gray-100 h-40 flex items-center justify-center dark:text-gray-300 dark:hover:text-blue-400">
-      <div>
-        <h3 class="font-semibold mb-3 dark:text-gray-300 dark:hover:text-blue-400">Newsletter</h3>
-        <p class="text-sm text-gray-900 mb-3 dark:text-gray-300 dark:hover:text-blue-400">Stay updated with our latest news.</p>
-        <form class="flex" method="POST" action="{% url 'subscribe'%}">
-          {% csrf_token %}
-          <input type="email" name="email" placeholder="Enter Your email"
-                 class="w-full px-3 py-2 bg-white text-gray-900 rounded-l-md focus:outline-none">
-          <button type="submit"
-                  class="px-4 bg-gray-700 text-white rounded-r-md hover:bg-blue-700">
-            Subscribe
-          </button>
-        </form>
-      </div>
-    </div>
-    <div class="bg-gray-100 h-40 flex items-center justify-center dark:text-gray-300 dark:hover:text-blue-400">
-      <section class="my-10">
-        {% if videos %}
-          <h2 class="font-semibold mb-3 dark:text-gray-300 dark:hover:text-blue-400">{{ videos.title }}</h2>
-          <div class="aspect-w-16 aspect-h-9">
-            <iframe src="{{ videos.video_url }}" 
-                    class="w-full h-full rounded-lg" frameborder="0" allowfullscreen></iframe>
-          </div>
-        {% else %}
-          <p>No video available right now.</p>
-        {% endif %}
-      </section>
-    </div>
+</div>
   </section>
 </div>
 
 <!-- 🔧 Styles & Scripts -->
-<style>
-/* 🔴 Breaking News */
-@keyframes marquee {
-  0% { transform: translateX(0) }
-  100% { transform: translateX(-50%) }
-}
-.marquee-content {
-  display: flex;
-  min-width: max-content; /* double for infinite loop */
-  animation: marquee 30s linear infinite;
-}
-</style>
-
 <script>
 function scrollCarousel(id, amount) {
-  document.getElementById(id).scrollBy({ left: amount, behavior: 'smooth' });
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  el.scrollBy({ left: amount, behavior: 'smooth' });
 }
 
-// Auto-scroll + infinite loop + pause on hover
-function setupInfiniteScroll(id, step = 350, intervalTime = 5000) {
+// 🔄 Safe infinite auto-scroll
+function setupInfiniteScroll(id, step = 350, intervalTime = 10000) {
   const el = document.getElementById(id);
+  if (!el) return; // IMPORTANT SAFETY CHECK
 
-  let interval = setInterval(() => {
-    if (el.scrollLeft + el.clientWidth >= el.scrollWidth) {
-      el.scrollTo({ left: 0, behavior: 'smooth' });
-    } else {
-      el.scrollBy({ left: step, behavior: 'smooth' });
-    }
-  }, intervalTime);
+  let interval;
+  let running = false;
 
-  el.addEventListener('mouseenter', () => clearInterval(interval));
-  el.addEventListener('mouseleave', () => {
+  function start() {
+    if (running) return;
+    running = true;
+
     interval = setInterval(() => {
       if (el.scrollLeft + el.clientWidth >= el.scrollWidth) {
         el.scrollTo({ left: 0, behavior: 'smooth' });
@@ -195,18 +201,41 @@ function setupInfiniteScroll(id, step = 350, intervalTime = 5000) {
         el.scrollBy({ left: step, behavior: 'smooth' });
       }
     }, intervalTime);
-  });
+  }
+
+  function stop() {
+    running = false;
+    clearInterval(interval);
+  }
+
+  el.addEventListener('mouseenter', stop);
+  el.addEventListener('mouseleave', start);
+
+  start();
 }
 
-// 🔄 Apply auto infinite scroll
-setupInfiniteScroll('carousel-trending', 350, 4000);
-{% for category, posts in category_posts.items %}
-setupInfiniteScroll('carousel-{{ category.id }}', 350, 5000);
-{% endfor %}
+// 🔄 Init after DOM is ready
+document.addEventListener('DOMContentLoaded', function () {
 
-// 🛑 Pause marquee on hover
-const marquee = document.getElementById("breaking-news");
-marquee.addEventListener("mouseenter", () => marquee.style.animationPlayState = "paused");
-marquee.addEventListener("mouseleave", () => marquee.style.animationPlayState = "running");
+  setupInfiniteScroll('carousel-trending', 350, 15000);
+
+  {% for category, posts in category_posts.items %}
+  setupInfiniteScroll('carousel-{{ category.id }}', 350, 10000);
+  {% endfor %}
+
+  // 🛑 Safe marquee control
+  const marquee = document.getElementById("breaking-news");
+
+  if (marquee) {
+    marquee.addEventListener("mouseenter", function () {
+      marquee.style.animationPlayState = "paused";
+    });
+
+    marquee.addEventListener("mouseleave", function () {
+      marquee.style.animationPlayState = "running";
+    });
+  }
+
+});
 </script>
 {% endblock %}

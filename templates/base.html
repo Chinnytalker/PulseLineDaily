@@ -1,4 +1,3 @@
-{% load static tailwind_tags %}
 {% load static %}
 
 <!DOCTYPE html>
@@ -23,7 +22,7 @@
     {% block canonical %}
     <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
     {% endblock %}
-    {% tailwind_css %}
+    <link rel="stylesheet" href="{% static 'css/dist/styles.css' %}?v=20260411">
     <link rel="icon" href="{% static 'favicon/favicon.ico' %}">
     <link rel="apple-touch-icon" sizes="180x180" href="{% static 'favicon/apple-touch-icon.png' %}">
     <link rel="icon" type="image/png" sizes="32x32" href="{% static 'favicon/favicon-32x32.png' %}">
@@ -346,228 +345,259 @@
 
 {% comment %} vanilla js {% endcomment %}
 <script>
-// Cookie Consent Banner
-if (!localStorage.getItem('cookiesAccepted')) {
-  document.getElementById('cookie-consent-banner').style.display = 'flex';
-}
-document.getElementById('accept-cookies').onclick = function() {
-  localStorage.setItem('cookiesAccepted', 'true');
-  document.getElementById('cookie-consent-banner').style.display = 'none';
-};
+(function () {
 
-// Newsletter Popup (shows after 10s if not dismissed)
-if (!localStorage.getItem('newsletterDismissed')) {
-  setTimeout(() => {
-    document.getElementById('newsletter-popup').style.display = 'flex';
-  }, 10000);
-}
-document.getElementById('close-newsletter').onclick = function() {
-  localStorage.setItem('newsletterDismissed', 'true');
-  document.getElementById('newsletter-popup').style.display = 'none';
-};
-document.getElementById('newsletter-form').onsubmit = function(e) {
-  e.preventDefault();
-  localStorage.setItem('newsletterDismissed', 'true');
-  document.getElementById('newsletter-popup').style.display = 'none';
-  alert('Thank you for subscribing!');
-};
+  // =========================
+  // 🔔 TOAST (GLOBAL SAFE)
+  // =========================
+  function showToast(msg) {
+    const el = document.createElement("div");
+    el.innerText = msg;
+    el.className =
+      "fixed bottom-5 left-1/2 -translate-x-1/2 bg-black text-white px-4 py-2 rounded shadow z-50";
 
-// Return to Last Page (store last visited page)
-window.addEventListener('beforeunload', function() {
-  localStorage.setItem('lastPage', window.location.pathname + window.location.search);
-});
-window.addEventListener('DOMContentLoaded', function() {
-  const lastPage = localStorage.getItem('lastPage');
-  if (lastPage && lastPage !== window.location.pathname + window.location.search) {
-    // Optionally, show a banner or button to return to last page
-    // Example: Uncomment below to show an alert
-    // if (confirm('Return to your last visited page?')) window.location.href = lastPage;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2000);
   }
-});
-// Dark mode toggle logic
-const darkModeToggle = document.getElementById('dark-mode-toggle');
-const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-const storedTheme = localStorage.getItem('theme');
-if (storedTheme === 'dark' || (!storedTheme && prefersDark)) {
-  document.body.classList.add('dark-mode');
-}
-darkModeToggle.addEventListener('click', () => {
-  document.body.classList.toggle('dark-mode');
-  if (document.body.classList.contains('dark-mode')) {
-    localStorage.setItem('theme', 'dark');
-  } else {
-    localStorage.setItem('theme', 'light');
+
+  // =========================
+  // 📋 COPY FUNCTION (GLOBAL SAFE)
+  // =========================
+  window.copyToClipboard = function (text) {
+    if (!text) return;
+
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text)
+        .then(() => showToast("Link copied!"))
+        .catch(() => fallbackCopy(text));
+    } else {
+      fallbackCopy(text);
+    }
+  };
+
+  function fallbackCopy(text) {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+
+    document.body.appendChild(textarea);
+    textarea.select();
+
+    try {
+      document.execCommand("copy");
+      showToast("Link copied!");
+    } catch (err) {
+      showToast("Copy failed");
+    }
+
+    document.body.removeChild(textarea);
   }
-});
-    // Mobile menu toggle
-    document.addEventListener('DOMContentLoaded', function() {
-      var btn = document.getElementById('mobile-menu-button');
-      var menu = document.getElementById('mobile-menu');
-      btn.addEventListener('click', function() {
+
+  // =========================
+  // 🚀 MAIN INIT
+  // =========================
+  document.addEventListener('DOMContentLoaded', function () {
+
+    // 🍪 Cookie Banner
+    const banner = document.getElementById('cookie-consent-banner');
+    const acceptBtn = document.getElementById('accept-cookies');
+
+    if (banner && acceptBtn) {
+      if (!localStorage.getItem('app_cookiesAccepted')) {
+        banner.style.display = 'flex';
+      }
+
+      acceptBtn.addEventListener('click', function () {
+        localStorage.setItem('app_cookiesAccepted', 'true');
+        banner.style.display = 'none';
+      });
+    }
+
+    // 📩 Newsletter
+    const popup = document.getElementById('newsletter-popup');
+    const closeBtn = document.getElementById('close-newsletter');
+    const form = document.getElementById('newsletter-form');
+
+    if (popup && !localStorage.getItem('app_newsletterDismissed')) {
+      setTimeout(function () {
+        popup.style.display = 'flex';
+      }, 10000);
+    }
+
+    if (closeBtn && popup) {
+      closeBtn.addEventListener('click', function () {
+        localStorage.setItem('app_newsletterDismissed', 'true');
+        popup.style.display = 'none';
+      });
+    }
+
+    if (form && popup) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        localStorage.setItem('app_newsletterDismissed', 'true');
+        popup.style.display = 'none';
+        alert('Thank you for subscribing!');
+      });
+    }
+
+    // 🌙 Dark Mode
+    const toggle = document.getElementById('dark-mode-toggle');
+
+    if (toggle) {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const storedTheme = localStorage.getItem('app_theme');
+
+      if (storedTheme === 'dark' || (!storedTheme && prefersDark)) {
+        document.body.classList.add('dark-mode');
+      }
+
+      toggle.addEventListener('click', function () {
+        document.body.classList.toggle('dark-mode');
+
+        const theme = document.body.classList.contains('dark-mode') ? 'dark' : 'light';
+        localStorage.setItem('app_theme', theme);
+      });
+    }
+
+    // 📱 Mobile Menu
+    const menuBtn = document.getElementById('mobile-menu-button');
+    const menu = document.getElementById('mobile-menu');
+
+    if (menuBtn && menu) {
+      menuBtn.addEventListener('click', function () {
         menu.classList.toggle('hidden');
       });
-      // Optional: Close menu when clicking outside
-      document.addEventListener('click', function(e) {
-        if (!btn.contains(e.target) && !menu.contains(e.target)) {
+
+      document.addEventListener('click', function (e) {
+        if (!menuBtn.contains(e.target) && !menu.contains(e.target)) {
           menu.classList.add('hidden');
         }
       });
-    });
-
-
-    // JS for Carousel 
-    function scrollCarousel(id, offset) {
-  const el = document.getElementById(id);
-  el.scrollBy({ left: offset, behavior: 'smooth' });
-  }
-
-function copyToClipboard() {
-  navigator.clipboard.writeText(window.location.href);
-  alert("Link copied to clipboard!");
-}
-</script>
-
-<!-- JS for Image Preview -->
-<script>
-  const adImageInput = document.getElementById('{{ form.ad_image.id_for_label }}');
-  const imagePreview = document.getElementById('imagePreview');
-
-  adImageInput.addEventListener('change', function() {
-    const file = this.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        imagePreview.src = e.target.result;
-        imagePreview.classList.remove('hidden');
-      }
-      reader.readAsDataURL(file);
-    } else {
-      imagePreview.src = "#";
-      imagePreview.classList.add('hidden');
-    }
-  });
-</script>
-
-
-
-<!-- ScrollSpy for TOC (optional) -->
-<script>
-  // Back to Top button functionality
-  const backToTopBtn = document.getElementById('backToTop');
-
-  window.addEventListener('scroll', () => {
-    // Show button after 300px
-    if (window.pageYOffset > 300) {
-      backToTopBtn.classList.remove('opacity-0', 'pointer-events-none');
-      backToTopBtn.classList.add('opacity-100', 'pointer-events-auto');
-    } else {
-      backToTopBtn.classList.add('opacity-0', 'pointer-events-none');
-      backToTopBtn.classList.remove('opacity-100', 'pointer-events-auto');
     }
 
-    // ScrollSpy functionality (only if TOC exists)
+    // 🖼 Image Preview
+    const imageInput = document.querySelector('[data-image-input]');
+    const preview = document.getElementById('imagePreview');
+
+    if (imageInput && preview) {
+      imageInput.addEventListener('change', function () {
+        const file = this.files[0];
+
+        if (!file) {
+          preview.classList.add('hidden');
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          preview.src = e.target.result;
+          preview.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // 🔍 ScrollSpy + Back to Top
     const sections = document.querySelectorAll('section');
-    const tocLinks = document.querySelectorAll('.toc-link');
-    if (sections.length && tocLinks.length) {
-      let current = '';
-      sections.forEach(section => {
-        const sectionTop = section.offsetTop - 100;
-        if (window.pageYOffset >= sectionTop) {
-          current = section.getAttribute('id');
+    const links = document.querySelectorAll('.toc-link');
+    const backToTop = document.getElementById('backToTop');
+
+    window.addEventListener('scroll', function () {
+
+      if (backToTop) {
+        if (window.pageYOffset > 300) {
+          backToTop.classList.remove('opacity-0', 'pointer-events-none');
+          backToTop.classList.add('opacity-100', 'pointer-events-auto');
+        } else {
+          backToTop.classList.add('opacity-0', 'pointer-events-none');
+          backToTop.classList.remove('opacity-100', 'pointer-events-auto');
         }
-      });
-      tocLinks.forEach(link => {
-        link.classList.remove('font-bold', 'text-blue-800');
-        link.classList.add('text-blue-600');
-        if (link.getAttribute('href') === '#' + current) {
-          link.classList.add('font-bold', 'text-blue-800');
-          link.classList.remove('text-blue-600');
-        }
-      });
-    }
-  });
-</script>
-
-<!-- ScrollSpy JS -->
-<script>
-  const tocLinks = document.querySelectorAll('.toc-link');
-  const sections = document.querySelectorAll('section');
-
-  window.addEventListener('scroll', () => {
-    let current = '';
-    sections.forEach(section => {
-      const sectionTop = section.offsetTop - 150; // adjust for navbar height
-      if (window.pageYOffset >= sectionTop) {
-        current = section.getAttribute('id');
       }
-    });
 
-    tocLinks.forEach(link => {
-      link.classList.remove('font-bold', 'text-blue-800');
-      link.classList.add('text-blue-600');
-      if (link.getAttribute('href') === '#' + current) {
-        link.classList.add('font-bold', 'text-blue-800');
-        link.classList.remove('text-blue-600');
-      }
-    });
-  });
-</script>
-  
+      if (sections.length && links.length) {
+        let current = '';
 
-<!-- Copy to Clipboard Script -->
-<script>
-  function copyToClipboard() {
-    navigator.clipboard.writeText(window.location.href).then(() => {
-      alert("Link copied to clipboard!");
-    });
-  }
-
-
-  <!-- Auto-scroll with looping -->
-  <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      const el = document.getElementById("carousel-breaking");
-      setInterval(function () {
-        if (el) {
-          if (el.scrollLeft + el.clientWidth >= el.scrollWidth) {
-            // reached end → jump back
-            el.scrollTo({ left: 0, behavior: "smooth" });
-          } else {
-            // keep scrolling forward
-            el.scrollBy({ left: 250, behavior: "smooth" });
+        sections.forEach(function (section) {
+          const top = section.offsetTop - 120;
+          if (window.pageYOffset >= top) {
+            current = section.getAttribute('id');
           }
-        }
-      }, 4000); // scroll every 4s
+        });
+
+        links.forEach(function (link) {
+          link.classList.remove('font-bold', 'text-blue-800');
+          link.classList.add('text-blue-600');
+
+          if (link.getAttribute('href') === '#' + current) {
+            link.classList.add('font-bold', 'text-blue-800');
+            link.classList.remove('text-blue-600');
+          }
+        });
+      }
     });
-  </script>
-  
-</script>
-<script>
-// Show loading indicator on navigation (page load, link click, form submit)
-function showLoading() {
-  document.getElementById('loading-indicator').style.display = 'flex';
-}
-function hideLoading() {
-  document.getElementById('loading-indicator').style.display = 'none';
-}
-// Show on page load until DOM ready
-document.addEventListener('DOMContentLoaded', function() {
-  hideLoading();
-  // Intercept all link clicks (except anchors and JS links)
-  document.body.addEventListener('click', function(e) {
+
+    // 🔄 Carousel
+    const carousel = document.getElementById('carousel-breaking');
+
+    if (carousel) {
+      setInterval(function () {
+        if (carousel.scrollLeft + carousel.clientWidth >= carousel.scrollWidth) {
+          carousel.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          carousel.scrollBy({ left: 250, behavior: 'smooth' });
+        }
+      }, 4000);
+    }
+
+    // ⏳ Loading
+const loader = document.getElementById('loading-indicator');
+
+if (loader) {
+
+  const show = () => loader.style.display = 'flex';
+  const hide = () => loader.style.display = 'none';
+
+  // ✅ Hide when page fully loads
+  window.addEventListener('load', hide);
+
+  // ✅ Also hide on pageshow (back/forward cache)
+  window.addEventListener('pageshow', hide);
+
+  // ✅ Safety timeout (never get stuck)
+  setTimeout(hide, 5000);
+
+  // 🔗 Show loader on valid link clicks
+  document.body.addEventListener('click', function (e) {
     let t = e.target;
-    while (t && t.tagName !== 'A' && t !== document.body) t = t.parentElement;
-    if (t && t.tagName === 'A' && t.target !== '_blank' && t.href && !t.href.startsWith('javascript:') && t.href !== window.location.href && !t.href.startsWith('#')) {
-      showLoading();
+
+    while (t && t.tagName !== 'A' && t !== document.body) {
+      t = t.parentElement;
+    }
+
+    if (
+      t &&
+      t.tagName === 'A' &&
+      t.href &&
+      !t.href.startsWith('#') &&
+      !t.href.startsWith('javascript:') &&
+      t.target !== '_blank' &&
+      !t.hasAttribute('download')
+    ) {
+      show();
     }
   }, true);
-  // Intercept all form submits
-  document.body.addEventListener('submit', function(e) {
-    showLoading();
+
+  // 📝 Show on form submit
+  document.body.addEventListener('submit', function () {
+    show();
   }, true);
-});
-// Optional: hide loading on error or after navigation
-window.addEventListener('pageshow', hideLoading);
+
+}
+
+  });
+
+})();
 </script>
 </body>
 </html>

@@ -178,11 +178,12 @@
                 </a>
 
                 <!-- Copy Link -->
-                <button onclick="copyToClipboard()" 
-                        aria-label="Copy post link"
-                        class="flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-full bg-gray-600 text-white hover:bg-gray-700 transition">
-                    <i class="fas fa-link"></i><span class="hidden sm:inline">Copy Link</span>
-                </button>
+                <button onclick="copyToClipboard('{{ request.build_absolute_uri }}')"
+        aria-label="Copy post link"
+        class="flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-full bg-gray-600 text-white hover:bg-gray-700 transition">
+    <i class="fas fa-link"></i>
+    <span class="hidden sm:inline">Copy Link</span>
+</button>
             </div>
         </div>
     </div>

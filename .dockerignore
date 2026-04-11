@@ -1,0 +1,14 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.git/
+.idea/
+media/
+staticfiles/
+theme/static/css/dist/
+theme/static_src/node_modules/
+node_modules/
+ssl/fullchain.pem
+ssl/privkey.pem

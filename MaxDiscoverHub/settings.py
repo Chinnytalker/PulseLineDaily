@@ -13,14 +13,13 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
-from .decouple_patch import config
 import os
+
 import cloudinary
-import cloudinary.uploader
 import cloudinary.api
-from cloudinary import CloudinaryImage
+import cloudinary.uploader
 import dj_database_url
-from decouple import config, Csv
+from decouple import Csv, config
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -35,8 +34,18 @@ SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
+ENVIRONMENT = config('DJANGO_ENV', default='development').lower()
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', cast=Csv())
+ALLOWED_HOSTS = config(
+    'ALLOWED_HOSTS',
+    default='127.0.0.1,localhost',
+    cast=Csv(),
+)
+CSRF_TRUSTED_ORIGINS = config(
+    'CSRF_TRUSTED_ORIGINS',
+    default='http://127.0.0.1,http://localhost',
+    cast=Csv(),
+)
 
 
 # Application definition
@@ -51,24 +60,30 @@ INSTALLED_APPS = [
     'projectApp',
     'tailwind',
     'theme',
-    'django_browser_reload',
     'widget_tweaks',
     'django_celery_beat', # Celery Beat
     'cloudinary_storage',
     'cloudinary',
 ]
 
+if DEBUG:
+    INSTALLED_APPS += [
+        'django_browser_reload',
+    ]
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    "django_browser_reload.middleware.BrowserReloadMiddleware",
-    'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
+
+if DEBUG:
+    MIDDLEWARE.append('django_browser_reload.middleware.BrowserReloadMiddleware')
 
 ROOT_URLCONF = 'MaxDiscoverHub.urls'
 
@@ -96,22 +111,22 @@ WSGI_APPLICATION = 'MaxDiscoverHub.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 
-# Determine the environment
-ENVIRONMENT = config('DJANGO_ENV', default='development')
-
 if ENVIRONMENT == 'production':
-    DATABASE_URL = os.getenv('DATABASE_URL')
-    if DATABASE_URL:
-        DATABASES = {
-            'default': dj_database_url.config(
-                default=DATABASE_URL,
-                conn_max_age=3600,
-                ssl_require=True
-            )
-        }
-    else:
-        raise ValueError("DATABASE_URL environment variable is not set in production.")
-else:  # Development environment
+    DATABASE_URL = config('DATABASE_URL', default='').strip().strip("'").strip('"')
+    if DATABASE_URL.startswith('psql '):
+        DATABASE_URL = DATABASE_URL[5:].strip().strip("'").strip('"')
+
+    if not DATABASE_URL:
+        raise ValueError('DATABASE_URL must be set when DJANGO_ENV=production.')
+
+    DATABASES = {
+        'default': dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=True,
+        )
+    }
+else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -181,7 +196,35 @@ TAILWIND_APP_NAME = 'theme'
 INTERNAL_IPS = ["127.0.0.1"]  # Needed for tailwind dev server
 
 
-NPM_BIN_PATH = "C:/Program Files/nodejs/npm.cmd"
+DEFAULT_NPM_BIN_PATH = (
+    "C:/Program Files/nodejs/npm.cmd" if os.name == "nt" else "npm"
+)
+NPM_BIN_PATH = config('NPM_BIN_PATH', default=DEFAULT_NPM_BIN_PATH)
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = 'same-origin'
+X_FRAME_OPTIONS = 'DENY'
+
+if ENVIRONMENT == 'production':
+    SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=True, cast=bool)
+    SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', default=True, cast=bool)
+    CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', default=True, cast=bool)
+    SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=31536000, cast=int)
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = config(
+        'SECURE_HSTS_INCLUDE_SUBDOMAINS',
+        default=True,
+        cast=bool,
+    )
+    SECURE_HSTS_PRELOAD = config('SECURE_HSTS_PRELOAD', default=True, cast=bool)
+else:
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+    SECURE_HSTS_SECONDS = 0
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = False
+    SECURE_HSTS_PRELOAD = False
 
 
 # Celery settings

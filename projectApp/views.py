@@ -182,7 +182,7 @@ def contact_us(request):
                 subject=f"New Contact: {contact_message.subject}",
                 message=f"From: {contact_message.name} <{contact_message.email}>\n\n{contact_message.message}",
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=['nwachukwuclinton2@gmail.com'],  # your email
+                recipient_list=['contact@pulselinedaily.com'],  # your email
                 fail_silently=False,
             )
 
@@ -204,7 +204,7 @@ def subscribe(request):
                 NewsletterSubscriber.objects.create(email=email)
                 messages.success(request, "Subscribed successfully ✅")
     # Always redirect back to where the form was submitted from
-    return redirect(request.META.get("HTTP_REFERER", "/"))
+    return redirect(request.META.get("HTTP_REFERER") or "/")
 
 
 
