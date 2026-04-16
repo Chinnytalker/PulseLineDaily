@@ -173,26 +173,34 @@ def privacy(request):
 def contact_us(request):
     if request.method == 'POST':
         form = ContactForm(request.POST)
-        if form.is_valid():
-            # Save to database
-            contact_message = form.save()
 
-            # Send notification email
+        if form.is_valid():
+            print("FORM IS VALID")  # DEBUG
+
+            contact_message = form.save()
+            print("SAVED TO DB")  # DEBUG
+
             send_mail(
-                subject=f"New Contact: {contact_message.subject}",
-                message=f"From: {contact_message.name} <{contact_message.email}>\n\n{contact_message.message}",
+                subject=f"New Contact Message from {contact_message.name}",
+                message=f"{contact_message.message}",
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=['contact@pulselinedaily.com'],  # your email
+                recipient_list=['contact@pulselinedaily.com'],
                 fail_silently=False,
             )
 
-            # Success feedback
-            messages.success(request, "Your message has been sent successfully ✅")
-            return redirect("contact_us")  # prevents form resubmission
+            print("EMAIL SENT")  # DEBUG
+
+            messages.success(request, "Message sent successfully")
+            return redirect("Contact us")
+
+        else:
+            print(form.errors)  # IMPORTANT DEBUG
+
     else:
         form = ContactForm()
 
     return render(request, "blog/contact_us.html", {"form": form})
+
 
 
 def subscribe(request):
