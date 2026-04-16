@@ -3,8 +3,8 @@ services:
     build: .
     command: >
       sh -c "python manage.py migrate --noinput &&
-      python manage.py collectstatic --noinput &&
-      gunicorn MaxDiscoverHub.wsgi:application --bind 0.0.0.0:2001 --workers 3 --timeout 120"
+             python manage.py collectstatic --noinput &&
+             gunicorn MaxDiscoverHub.wsgi:application --bind 0.0.0.0:2001 --workers 3 --timeout 120"
     restart: unless-stopped
     env_file:
       - ${APP_ENV_FILE:-.env}
@@ -13,13 +13,12 @@ services:
       DJANGO_ENV: production
     depends_on:
       - redis
-#      - db
     expose:
       - "2001"
     volumes:
       - staticfiles:/app/staticfiles
       - media:/app/media
-  
+
   celery:
     build: .
     command: celery -A MaxDiscoverHub worker -l info
@@ -31,8 +30,6 @@ services:
       DJANGO_ENV: production
     depends_on:
       - redis
-      - web
-#      - db
     volumes:
       - media:/app/media
 
@@ -47,8 +44,6 @@ services:
       DJANGO_ENV: production
     depends_on:
       - redis
-      - web
-#      - db
 
   redis:
     image: redis:7
@@ -57,36 +52,19 @@ services:
     volumes:
       - redis_data:/data
 
-#    Uncomment below for PostgreSQL (if you use it)
-#  db:
-#     image: postgres:15
-#     environment:
-#       POSTGRES_DB: yourdbname
-#       POSTGRES_USER: yourdbuser
-#       POSTGRES_PASSWORD: yourdbpassword
-#     ports:
-#       - "5432:5432"
-#     volumes:
-#       - pgdata:/var/lib/postgresql/data
-
-
-#         Nginx service to serve static files and reverse proxy to Gunicorn
   nginx:
     image: nginx:latest
     restart: unless-stopped
     ports:
       - "80:80"
-      - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
       - staticfiles:/app/staticfiles:ro
       - media:/app/media:ro
-      - ./ssl/fullchain.pem:/etc/ssl/certs/fullchain.pem:ro
-      - ./ssl/privkey.pem:/etc/ssl/private/privkey.pem:ro
     depends_on:
       - web
+
 volumes:
-    pgdata:
-    staticfiles:
-    media:
-    redis_data:
+  staticfiles:
+  media:
+  redis_data:
