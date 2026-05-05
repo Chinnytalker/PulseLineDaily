@@ -267,3 +267,8 @@ EMAIL_HOST_PASSWORD = config("EMAIL_PASSWORD")   # Gmail app password
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 # EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+
+
+
+INTERNAL_API_TOKEN = config("INTERNAL_API_TOKEN", default="")

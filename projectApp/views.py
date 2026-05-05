@@ -15,6 +15,16 @@ from django.utils import timezone
 # from projectApp.tasks import scrape_domains_every_8hrs
 
 
+import logging
+from django.utils.crypto import constant_time_compare
+from django.utils.dateparse import parse_datetime
+
+
+logger = logging.getLogger(__name__)
+
+
+
+
 
 
 def blog_index(request):
@@ -25,7 +35,7 @@ def blog_index(request):
     posts = paginator.get_page(page_number)
 
     # Just trending posts based on views
-    trending_posts = Post.objects.filter(is_published=True).order_by("-views")[:5]
+    trending_posts = Post.objects.filter(is_published=True).order_by("-date_created")[:10]
 
     # Categories section
     categories = Category.objects.all()
@@ -259,4 +269,69 @@ def advertise(request):
 
 
 
+
+
+def posts_for_x_api(request):
+    request_token = request.headers.get("X-Internal-Token", "")
+    expected_token = getattr(settings, "INTERNAL_API_TOKEN", "")
+
+    if not request_token or not expected_token:
+        logger.warning("X API denied: missing token or server token not configured.")
+        return HttpResponseForbidden("Forbidden")
+
+    if not constant_time_compare(request_token, expected_token):
+        logger.warning("X API denied: invalid token.")
+        return HttpResponseForbidden("Forbidden")
+
+    since = request.GET.get("since")
+    limit_raw = request.GET.get("limit", "20")
+
+    try:
+        limit = min(max(int(limit_raw), 1), 50)
+    except ValueError:
+        limit = 20
+
+    posts = (
+        Post.objects
+        .filter(
+            is_published=True,
+            slug__isnull=False,
+        )
+        .exclude(slug="")
+        .only("id", "title", "slug", "summary", "date_created")
+    )
+
+    if since:
+        parsed_since = parse_datetime(since)
+        if parsed_since:
+            if timezone.is_naive(parsed_since):
+                parsed_since = timezone.make_aware(parsed_since, timezone.get_current_timezone())
+            posts = posts.filter(date_created__gt=parsed_since)
+
+    posts = posts.order_by("date_created")[:limit]
+
+    data = [
+        {
+            "id": post.id,
+            "title": post.title,
+            "slug": post.slug,
+            "summary": post.summary or "",
+            "link": request.build_absolute_uri(post.get_absolute_url()),
+            "date_created": post.date_created.isoformat() if post.date_created else None,
+        }
+        for post in posts
+    ]
+
+    logger.info(
+        "X API served posts: since=%s limit=%s returned=%s",
+        since,
+        limit,
+        len(data),
+    )
+
+    return JsonResponse({
+        "success": True,
+        "count": len(data),
+        "posts": data,
+    })
 

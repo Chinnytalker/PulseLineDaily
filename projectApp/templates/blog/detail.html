@@ -51,7 +51,8 @@
             sizes="(max-width: 640px) 600px, (max-width: 1024px) 900px, (max-width: 1440px) 1200px, 1600px"
             alt="{{ post.title }}" 
             class="w-full max-h-96 object-cover"
-            loading="lazy">
+            loading="eager"
+            fetchpriority="high">
     {% else %}
         <p class="p-4 text-gray-500 italic">No image</p>
     {% endif %}
@@ -99,9 +100,11 @@
         </div>
 
         <!-- Body -->
-        <div class="prose prose-lg max-w-none text-gray-800 mt-4 dark:text-gray-300">
-            {{ post.body|linebreaks }}
-        </div>
+        div class="prose prose-lg max-w-none mt-6 leading-8 space-y-6
+            prose-p:mb-4 prose-headings:mt-6 prose-headings:mb-3
+            text-gray-800 dark:text-gray-300">
+    {{ post.body|linebreaks }}
+</div>
         {% if post.analysis %}
         <div class="mt-8 bg-gray-50 border-l-4 border-green-600 p-4 dark:bg-gray-800 dark:border-green-400">
             <h2 class="text-lg font-semibold text-green-700 dark:text-green-300 mb-2">Analysis</h2>

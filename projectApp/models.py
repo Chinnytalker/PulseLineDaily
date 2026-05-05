@@ -64,7 +64,7 @@ class Post(models.Model):
     source_domain = models.CharField(max_length=100, blank=True, null=True)
     reading_time = models.PositiveIntegerField(blank=True, null=True, help_text="Estimated reading time in minutes")
     word_count = models.PositiveIntegerField(blank=True, null=True, help_text="Total word count")
-    date_created = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+    date_created = models.DateTimeField(auto_now_add=True, blank=True, null=True, db_index=True)
     last_modified = models.DateTimeField(auto_now=True)
     views = models.PositiveIntegerField(default=0)
     categories = models.ManyToManyField("Category", related_name='posts')

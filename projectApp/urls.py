@@ -1,5 +1,4 @@
 from django.urls import path
-
 from . import views
 
 urlpatterns = [
@@ -18,5 +17,6 @@ urlpatterns = [
     path("careers/", views.careers, name="careers"),
     path("careers/apply/<int:job_id>/", views.job_apply, name="job_apply"),
     path("advertise/", views.advertise, name="advertise"),
+    path("internal/posts-for-x/", views.posts_for_x_api, name="posts_for_x_api"),
 ]
 
