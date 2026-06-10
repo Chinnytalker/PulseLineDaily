@@ -21,6 +21,7 @@ services:
     build: .
     command: >
       sh -c "python manage.py migrate --noinput &&
+             python manage.py tailwind build &&
              python manage.py collectstatic --noinput"
     restart: "no"
     profiles:
