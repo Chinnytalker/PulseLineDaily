@@ -5,6 +5,13 @@ __pycache__/
 *.pyd
 .git/
 .idea/
+.env
+.env.*
+!.env.*.example
+db.sqlite3
+*.sqlite3
+*.key
+*.pem
 media/
 staticfiles/
 theme/static/css/dist/

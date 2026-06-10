@@ -2,9 +2,7 @@ services:
   web:
     build: .
     command: >
-      sh -c "python manage.py migrate --noinput &&
-             python manage.py collectstatic --noinput &&
-             gunicorn MaxDiscoverHub.wsgi:application --bind 0.0.0.0:2001 --workers 3 --timeout 120"
+      gunicorn MaxDiscoverHub.wsgi:application --bind 0.0.0.0:2001 --workers 3 --timeout 120
     restart: unless-stopped
     env_file:
       - ${APP_ENV_FILE:-.env}
@@ -15,6 +13,23 @@ services:
       - redis
     expose:
       - "2001"
+    volumes:
+      - staticfiles:/app/staticfiles
+      - media:/app/media
+
+  release:
+    build: .
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput"
+    restart: "no"
+    profiles:
+      - release
+    env_file:
+      - ${APP_ENV_FILE:-.env}
+    environment:
+      DEBUG: "False"
+      DJANGO_ENV: production
     volumes:
       - staticfiles:/app/staticfiles
       - media:/app/media
@@ -46,19 +61,21 @@ services:
       - redis
 
   redis:
-    image: redis:7
+    image: redis:7.4-alpine
     restart: unless-stopped
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
 
   nginx:
-    image: nginx:latest
+    image: nginx:1.27-alpine
     restart: unless-stopped
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./ssl:/etc/nginx/ssl:ro
       - staticfiles:/app/staticfiles:ro
       - media:/app/media:ro
     depends_on:
