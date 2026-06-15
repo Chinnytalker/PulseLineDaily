@@ -12,7 +12,9 @@
     </title>
 
     <meta name="description" content="{% block meta_description %}Latest breaking news, politics, sports, entertainment, and international stories. Trusted daily news from PulseLineDaily.{% endblock %}">
-    <meta name="robots" content="index, follow, max-image-preview:large">
+    {% block meta_robots %}
+     <meta name="robots" content="index, follow, max-image-preview:large">
+    {% endblock meta_robots %}
     <meta property="og:site_name" content="PulseLineDaily">
     <meta property="og:title" content="{% block og_title %}PulseLineDaily - Trusted Global News{% endblock %}">
     <meta property="og:description" content="{% block og_description %}Breaking news, analysis, and stories from around the world.{% endblock %}">
@@ -71,6 +73,15 @@
       body.dark-mode .dark\:text-gray-300 {
         color: #d1d5db !important;
       }
+        /* Ensure light-gray cards/containers turn dark in dark mode */
+      body.dark-mode .bg-gray-50 {
+          background-color: #27272a !important; /* Lighter gray/zinc so cards "pop" off the dark body background */
+        }
+
+        /* Ensure the fallback "No Image" placeholder also turns dark nicely */
+      body.dark-mode .bg-gray-200 {
+          background-color: #3f3f46 !important;
+        }
     </style>
     <!-- Font Awesome (Icons) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
@@ -153,32 +164,33 @@
     <i class="fa fa-moon"></i>
   </button>
   <header class="bg-gray-200 sticky shadow rounded-sm p-3 flex justify-between items-center z-50 hover:shadow-lg active:shadow-lg hover:scale-105 active:scale-105 transition-all duration-300">
-    <!-- Logo -->
+    <!-- Logo wrapper restored -->
     <div class="flex items-center">
       <a href="{% url 'Home' %}">
-       <svg xmlns="http://www.w3.org/2000/svg" 
-     width="200" height="75 "
-     viewBox="0 0 500 120" 
-     role="img" aria-labelledby="pulseLineLogoTitle">
-  <title id="pulseLineLogoTitle">PulseLineDaily Logo</title>
-  
-  <!-- Heartbeat Line -->
-  <path d="M10 60 H60 L75 30 L90 90 L110 20 L130 90 L150 60 H180" 
-        fill="none" 
-        stroke="black" 
-        stroke-width="8" 
-        stroke-linecap="round" 
-        stroke-linejoin="round"/>
-  
-  <!-- Text: PulseLineDaily -->
-  <text x="200" y="75"
-        font-family="Arial, Helvetica, sans-serif" 
-        font-size="40" 
-        font-weight="bold" 
-        fill="black">
-    PulseLineDaily
-  </text>
-</svg>
+        <svg xmlns="http://www.w3.org/2000/svg"
+             width="200" height="75"
+             viewBox="0 0 500 120"
+             role="img" aria-labelledby="pulseLineLogoTitle"
+             class="text-gray-900 dark:text-gray-100 transition-colors duration-300">
+          <title id="pulseLineLogoTitle">PulseLineDaily Logo</title>
+
+          <!-- Heartbeat Line -->
+          <path d="M10 60 H60 L75 30 L90 90 L110 20 L130 90 L150 60 H180"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="8"
+                stroke-linecap="round"
+                stroke-linejoin="round"/>
+
+          <!-- Text: PulseLineDaily -->
+          <text x="200" y="75"
+                font-family="Arial, Helvetica, sans-serif"
+                font-size="40"
+                font-weight="bold"
+                fill="currentColor">
+            PulseLineDaily
+          </text>
+        </svg>
       </a>
     </div>
     <!-- Navigation Links (Desktop) -->
@@ -291,7 +303,7 @@
   <!-- Bottom bar -->
   <div class="border-t border-gray-700 mt-8">
   <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center">
-    <p class="text-sm text-gray-400">© 2025 PulseLineDaily. All rights reserved.</p>
+    <p class="text-sm text-gray-400">© 2026 PulseLineDaily. All rights reserved.</p>
 
     <div class="flex space-x-4 mt-3 md:mt-0">
       <!-- Facebook -->
