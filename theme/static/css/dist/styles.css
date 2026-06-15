@@ -44,6 +44,7 @@
     --color-gray-700: oklch(37.3% 0.034 259.733);
     --color-gray-800: oklch(27.8% 0.033 256.848);
     --color-gray-900: oklch(21% 0.034 264.665);
+    --color-zinc-600: oklch(44.2% 0.017 285.786);
     --color-zinc-700: oklch(37% 0.013 285.805);
     --color-zinc-800: oklch(27.4% 0.006 286.033);
     --color-black: #000;
@@ -673,6 +674,81 @@
     background-color: transparent;
     border: var(--border) solid currentColor;
   }
+  .card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--radius-box);
+    outline-width: 2px;
+    transition: outline 0.2s ease-in-out;
+    outline: 0 solid #0000;
+    outline-offset: 2px;
+  }
+  .card:focus {
+    --tw-outline-style: none;
+    outline-style: none;
+  }
+  @media (forced-colors: active) {
+    .card:focus {
+      outline: 2px solid transparent;
+      outline-offset: 2px;
+    }
+  }
+  .card:focus-visible {
+    outline-color: currentColor;
+  }
+  .card :where(figure:first-child) {
+    overflow: hidden;
+    border-start-start-radius: inherit;
+    border-start-end-radius: inherit;
+    border-end-start-radius: unset;
+    border-end-end-radius: unset;
+  }
+  .card :where(figure:last-child) {
+    overflow: hidden;
+    border-start-start-radius: unset;
+    border-start-end-radius: unset;
+    border-end-start-radius: inherit;
+    border-end-end-radius: inherit;
+  }
+  .card:where(.card-border) {
+    border: var(--border) solid var(--color-base-200);
+  }
+  .card:where(.card-dash) {
+    border: var(--border) dashed var(--color-base-200);
+  }
+  .card.image-full {
+    display: grid;
+  }
+  .card.image-full > * {
+    grid-column-start: 1;
+    grid-row-start: 1;
+  }
+  .card.image-full > .card-body {
+    position: relative;
+    color: var(--color-neutral-content);
+  }
+  .card.image-full :where(figure) {
+    overflow: hidden;
+    border-radius: inherit;
+  }
+  .card.image-full > figure img {
+    height: 100%;
+    object-fit: cover;
+    filter: brightness(28%);
+  }
+  .card figure {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .card:has(> input:is(input[type="checkbox"], input[type="radio"])) {
+    cursor: pointer;
+    user-select: none;
+  }
+  .card:has(> :checked) {
+    outline: 2px solid currentColor;
+  }
   .absolute {
     position: absolute;
   }
@@ -1232,9 +1308,6 @@
   .h-64 {
     height: calc(var(--spacing) * 64);
   }
-  .h-full {
-    height: 100%;
-  }
   .h-max {
     height: max-content;
   }
@@ -1264,9 +1337,6 @@
   }
   .w-64 {
     width: calc(var(--spacing) * 64);
-  }
-  .w-69 {
-    width: calc(var(--spacing) * 69);
   }
   .w-\[85vw\] {
     width: 85vw;
@@ -1508,6 +1578,9 @@
   }
   .border-blue-600 {
     border-color: var(--color-blue-600);
+  }
+  .border-gray-200 {
+    border-color: var(--color-gray-200);
   }
   .border-gray-300 {
     border-color: var(--color-gray-300);
@@ -2151,6 +2224,16 @@
     }
   }
   @media (prefers-color-scheme: dark) {
+    .dark\:border-zinc-600 {
+      border-color: var(--color-zinc-600);
+    }
+  }
+  @media (prefers-color-scheme: dark) {
+    .dark\:border-zinc-700 {
+      border-color: var(--color-zinc-700);
+    }
+  }
+  @media (prefers-color-scheme: dark) {
     .dark\:bg-blue-700 {
       background-color: var(--color-blue-700);
     }
@@ -2236,6 +2319,11 @@
     }
   }
   @media (prefers-color-scheme: dark) {
+    .dark\:text-zinc-600 {
+      color: var(--color-zinc-600);
+    }
+  }
+  @media (prefers-color-scheme: dark) {
     @media (hover: hover) {
       .dark\:hover\:bg-blue-600:hover {
         background-color: var(--color-blue-600);
@@ -2251,8 +2339,8 @@
   }
   @media (prefers-color-scheme: dark) {
     @media (hover: hover) {
-      .dark\:hover\:bg-gray-700:hover {
-        background-color: var(--color-gray-700);
+      .dark\:hover\:bg-zinc-600:hover {
+        background-color: var(--color-zinc-600);
       }
     }
   }
