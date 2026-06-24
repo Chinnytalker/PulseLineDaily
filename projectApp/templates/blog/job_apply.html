@@ -1,39 +1,149 @@
 {% extends 'base.html' %}
-{% block title %}Apply for Job{% endblock %}
+{% load static %}
+
+{% block title %}Apply — {{ job.title }} | PulseLineDaily{% endblock %}
+{% block meta_robots %}<meta name="robots" content="noindex, follow">{% endblock %}
+
 {% block content %}
-<div class="max-w-xl mx-auto py-10 px-4">
-  <h1 class="text-2xl font-bold mb-6">Apply for {{ job.title }}</h1>
-  <form method="post" enctype="multipart/form-data" class="space-y-4 bg-gray-200 p-6 rounded shadow">
-    {% csrf_token %}
-     <div>
-          <label for="applicant_name" class="block text-sm font-medium text-gray-700 mb-1  dark:text-gray-300">Name:</label>
-          <input type="text" name="applicant_name" id="applicant_name" placeholder="Your Name"
-                 class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-     </div>
-    <div>
-      <label for="applicant_email" class="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Email:</label>
-    <input type="email" name="applicant_email" id="applicant_email" placeholder="Your Email"
-           class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-    </div>
-    <div>
-      <label for="cover_letter" class="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Cover Letter:</label>
-      <textarea name="cover_letter" id="cover_letter" rows="6" placeholder="Your Cover Letter"
-                class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required></textarea>
-    </div>
-    <div>
-      <label for="resume" class="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Upload Resume:</label>
-      <input type="file" name="resume" id="resume" accept=".pdf,.doc,.docx"
-             class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-    </div>
-    <div>
-      <label for="role" class="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">Select Job:</label>
-      <select name="role" id="role" class="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
-        <option value="{{ job.id }}">{{ job.title }}</option>
-      </select>
+<div class="max-w-screen-xl mx-auto px-4 py-10">
 
+  <!-- Breadcrumb -->
+  <nav class="text-sm text-gray-500 dark:text-gray-400 mb-6 flex items-center gap-1.5">
+    <a href="{% url 'careers' %}" class="hover:text-blue-600 dark:hover:text-blue-400 transition">Careers</a>
+    <i class="fas fa-chevron-right text-xs"></i>
+    <span class="text-gray-800 dark:text-gray-200 font-medium truncate">{{ job.title }}</span>
+  </nav>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="mb-6 p-4 rounded-xl border
+          {% if 'success' in message.tags %}bg-green-50 border-green-200 text-green-800 dark:bg-green-900/30 dark:border-green-700 dark:text-green-300
+          {% else %}bg-red-50 border-red-200 text-red-800{% endif %}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+    <!-- Application form -->
+    <div class="lg:col-span-2 bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-700 p-6 md:p-8">
+      <h1 class="text-2xl font-extrabold text-gray-900 dark:text-gray-100 mb-1">Apply for this position</h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Fill in the form below. All fields marked with <span class="text-red-500">*</span> are required.</p>
+
+      <form method="post" enctype="multipart/form-data" class="space-y-5">
+        {% csrf_token %}
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div>
+            <label for="applicant_name" class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
+              Full Name <span class="text-red-500">*</span>
+            </label>
+            <input type="text" name="applicant_name" id="applicant_name" placeholder="Your full name"
+                   class="w-full px-4 py-2.5 rounded-lg border border-gray-200 dark:border-zinc-600 bg-gray-50 dark:bg-zinc-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                   required>
+            {% if form.applicant_name.errors %}
+              <p class="text-red-500 text-xs mt-1">{{ form.applicant_name.errors.0 }}</p>
+            {% endif %}
+          </div>
+          <div>
+            <label for="applicant_email" class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
+              Email Address <span class="text-red-500">*</span>
+            </label>
+            <input type="email" name="applicant_email" id="applicant_email" placeholder="you@example.com"
+                   class="w-full px-4 py-2.5 rounded-lg border border-gray-200 dark:border-zinc-600 bg-gray-50 dark:bg-zinc-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                   required>
+            {% if form.applicant_email.errors %}
+              <p class="text-red-500 text-xs mt-1">{{ form.applicant_email.errors.0 }}</p>
+            {% endif %}
+          </div>
+        </div>
+
+        <div>
+          <label for="cover_letter" class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
+            Cover Letter <span class="text-red-500">*</span>
+          </label>
+          <textarea name="cover_letter" id="cover_letter" rows="7"
+                    placeholder="Tell us why you're the right person for this role…"
+                    class="w-full px-4 py-2.5 rounded-lg border border-gray-200 dark:border-zinc-600 bg-gray-50 dark:bg-zinc-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none"
+                    required></textarea>
+          {% if form.cover_letter.errors %}
+            <p class="text-red-500 text-xs mt-1">{{ form.cover_letter.errors.0 }}</p>
+          {% endif %}
+        </div>
+
+        <div>
+          <label for="resume" class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
+            Resume / CV <span class="text-red-500">*</span>
+          </label>
+          <label for="resume"
+                 class="flex items-center gap-3 w-full px-4 py-3 rounded-lg border-2 border-dashed border-gray-200 dark:border-zinc-600 bg-gray-50 dark:bg-zinc-700 cursor-pointer hover:border-blue-400 transition group">
+            <i class="fas fa-cloud-upload-alt text-blue-500 text-lg group-hover:text-blue-600"></i>
+            <span class="text-sm text-gray-500 dark:text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200" id="resume-label">
+              Click to upload PDF, DOC, or DOCX
+            </span>
+          </label>
+          <input type="file" name="resume" id="resume" accept=".pdf,.doc,.docx"
+                 class="sr-only" required
+                 onchange="document.getElementById('resume-label').textContent = this.files[0]?.name || 'Click to upload PDF, DOC, or DOCX'">
+          {% if form.resume.errors %}
+            <p class="text-red-500 text-xs mt-1">{{ form.resume.errors.0 }}</p>
+          {% endif %}
+        </div>
+
+        <div class="pt-2">
+          <button type="submit"
+                  class="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 active:bg-blue-800 transition text-sm shadow-sm">
+            <i class="fas fa-paper-plane text-xs"></i> Submit Application
+          </button>
+        </div>
+      </form>
     </div>
 
-    <button type="submit" class="bg-gray-800 text-white px-4 py-2 rounded hover:bg-blue-700">Submit Application</button>
-  </form>
+    <!-- Job details sidebar -->
+    <div class="space-y-5">
+      <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-700 p-6">
+        <p class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">Position</p>
+        <h2 class="text-lg font-extrabold text-gray-900 dark:text-gray-100 mb-4">{{ job.title }}</h2>
+
+        <ul class="space-y-3 text-sm mb-5">
+          {% if job.location %}
+            <li class="flex items-center gap-2.5 text-gray-600 dark:text-gray-300">
+              <i class="fas fa-map-marker-alt text-blue-500 w-4 text-center flex-shrink-0"></i>
+              {{ job.location }}
+            </li>
+          {% endif %}
+          <li class="flex items-center gap-2.5 text-gray-600 dark:text-gray-300">
+            <i class="fas fa-briefcase text-blue-500 w-4 text-center flex-shrink-0"></i>
+            {{ job.get_employment_type_display }}
+          </li>
+          <li class="flex items-center gap-2.5 text-gray-600 dark:text-gray-300">
+            <i class="far fa-calendar text-blue-500 w-4 text-center flex-shrink-0"></i>
+            Posted {{ job.posted_on|date:"M d, Y" }}
+          </li>
+        </ul>
+
+        {% if job.description %}
+          <div class="border-t border-gray-100 dark:border-zinc-700 pt-4">
+            <p class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Description</p>
+            <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{{ job.description }}</p>
+          </div>
+        {% endif %}
+
+        {% if job.requirements %}
+          <div class="border-t border-gray-100 dark:border-zinc-700 pt-4 mt-4">
+            <p class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Requirements</p>
+            <p class="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{{ job.requirements }}</p>
+          </div>
+        {% endif %}
+      </div>
+
+      <a href="{% url 'careers' %}"
+         class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition">
+        <i class="fas fa-arrow-left text-xs"></i> View all open positions
+      </a>
+    </div>
+
+  </div>
 </div>
 {% endblock %}

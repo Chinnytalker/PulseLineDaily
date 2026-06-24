@@ -1,11 +1,21 @@
 
 from django.db import models
+from django.db.models import Q
 from django.urls import reverse
 from django.utils.text import slugify
 from django.contrib.auth.models import User
 from django.utils import timezone
 from datetime import timedelta
 from cloudinary.models import CloudinaryField
+
+
+class PublishedPostManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(
+            is_published=True
+        ).filter(
+            Q(publish_at__isnull=True) | Q(publish_at__lte=timezone.now())
+        )
 
 
 
@@ -57,7 +67,7 @@ class Post(models.Model):
     video = CloudinaryField('video', resource_type='video', blank=True, null=True)
     link = models.URLField(blank=True, null=True)
     body = models.TextField()
-    is_published = models.BooleanField(default=True)
+    is_published = models.BooleanField(default=True, db_index=True)
     summary = models.TextField(blank=True, null=True)
     analysis = models.TextField(blank=True, null=True)
     tags = models.CharField(max_length=300, blank=True, null=True, help_text="Comma-separated keywords/tags")
@@ -79,16 +89,35 @@ class Post(models.Model):
     source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default='manual')
 
     # 🔥 Breaking news fields
-    is_breaking = models.BooleanField(default=False, help_text="Mark as breaking news")
+    is_breaking = models.BooleanField(default=False, db_index=True, help_text="Mark as breaking news")
     breaking_expiry = models.DateTimeField(blank=True, null=True, help_text="Breaking news expiry time")
+
+    publish_at = models.DateTimeField(
+        null=True, blank=True, db_index=True,
+        help_text="Schedule publish date/time. Leave blank to publish immediately."
+    )
+
+    objects = models.Manager()
+    published = PublishedPostManager()
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.title)
+            base = slugify(self.title)
+            slug, counter = base, 1
+            while Post.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base}-{counter}"
+                counter += 1
+            self.slug = slug
+
+        # Auto-compute word count and reading time from body (~200 wpm)
+        if self.body:
+            words = len(self.body.split())
+            self.word_count = words
+            self.reading_time = max(1, round(words / 200))
 
         # Auto set expiry if breaking news but no expiry set
         if self.is_breaking and not self.breaking_expiry:
-            self.breaking_expiry = timezone.now() + timedelta(hours=6)  # stays for 6 hrs
+            self.breaking_expiry = timezone.now() + timedelta(hours=6)
 
         super().save(*args, **kwargs)
 
@@ -112,6 +141,7 @@ class Comment(models.Model):
     comment = models.TextField()
     comment_made_on = models.DateTimeField(auto_now_add=True)
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
+    is_approved = models.BooleanField(default=False, db_index=True, help_text="Only approved comments are shown publicly")
 
     def __str__(self):
         return self.author
@@ -121,7 +151,8 @@ class Comment(models.Model):
 class NewsletterSubscriber(models.Model):
     email = models.EmailField(unique=True)
     subscribed_on = models.DateTimeField(auto_now_add=True)
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=False, help_text="True only after email confirmation")
+    confirmation_token = models.CharField(max_length=64, blank=True, null=True, unique=True)
 
     def __str__(self):
         return self.email

@@ -5,237 +5,297 @@
 {% block og_title %}PulseLineDaily - Your Source for Breaking News and Trending Stories{% endblock og_title %}
 {% block og_description %}Stay updated with the latest breaking news, trending stories, and in-depth articles across various categories on PulseLineDaily.{% endblock og_description %}
 {% block og_image %}{% static 'image/Pulsemainlogo.jpg' %}{% endblock og_image %}
-<link rel="canonical" href="https://www.pulselinedaily.com/">
+{% block canonical %}<link rel="canonical" href="https://www.pulselinedaily.com/">{% endblock %}
 
-
-
- 
 {% block content %}
-<div class="container max-w-full mx-auto px-2 py-6 space-y-12 dark:bg-gray-900 dark:text-gray-100">
+<div class="max-w-screen-xl mx-auto px-4 py-6 space-y-10 dark:bg-gray-900 dark:text-gray-100">
 
-  <!-- 🔴 Breaking News Strip -->
+  <!-- ━━━ HERO: Featured + sidebar ━━━ -->
+  {% if trending_posts %}
+  <section class="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-5">
+
+    <!-- Large featured post -->
+    {% with trending_posts|first as featured %}
+    <a href="{{ featured.get_absolute_url }}"
+       class="group lg:col-span-3 relative block rounded-2xl overflow-hidden shadow-xl min-h-[340px] sm:min-h-[440px]">
+      {% if featured.image %}
+        <img src="{{ featured.image.url }}?f_auto,q_auto,w_1000"
+             alt="{{ featured.title }}"
+             class="w-full h-full min-h-[340px] sm:min-h-[440px] object-cover group-hover:scale-105 transition-transform duration-700 ease-in-out"
+             loading="eager" fetchpriority="high" />
+      {% else %}
+        <div class="w-full h-full min-h-[340px] bg-gray-800 flex items-center justify-center">
+          <i class="far fa-newspaper text-gray-600 text-5xl"></i>
+        </div>
+      {% endif %}
+      <div class="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-900/60 to-transparent"></div>
+      <div class="absolute bottom-0 p-5 md:p-8">
+        <div class="flex flex-wrap gap-2 mb-3">
+          {% for cat in featured.categories.all %}
+            <span class="bg-blue-600 text-white text-xs font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide">{{ cat.name }}</span>
+          {% endfor %}
+          {% if featured.is_still_breaking %}
+            <span class="bg-red-600 text-white text-xs font-bold px-2.5 py-0.5 rounded-full uppercase animate-pulse">Breaking</span>
+          {% endif %}
+        </div>
+        <h2 class="text-white text-xl sm:text-2xl md:text-3xl font-extrabold leading-tight line-clamp-3 group-hover:text-blue-300 transition mb-3">
+          {{ featured.title }}
+        </h2>
+        {% if featured.summary %}
+          <p class="text-gray-300 text-sm line-clamp-2 hidden sm:block mb-4">{{ featured.summary }}</p>
+        {% endif %}
+        <div class="flex flex-wrap gap-4 text-xs text-gray-400">
+          {% if featured.author %}
+            <span class="flex items-center gap-1.5">
+              <i class="far fa-user"></i><span class="text-gray-300 font-medium">{{ featured.author.name }}</span>
+            </span>
+          {% endif %}
+          <span class="flex items-center gap-1.5"><i class="far fa-clock"></i>{{ featured.date_created|date:"M d, Y" }}</span>
+          {% if featured.reading_time %}
+            <span class="flex items-center gap-1.5"><i class="fas fa-book-open"></i>{{ featured.reading_time }} min</span>
+          {% endif %}
+        </div>
+      </div>
+    </a>
+    {% endwith %}
+
+    <!-- Sidebar: 4 smaller recent posts -->
+    <div class="lg:col-span-2 flex flex-col gap-3">
+      {% for post in trending_posts|slice:"1:5" %}
+      <a href="{{ post.get_absolute_url }}"
+         class="group flex gap-3 bg-white dark:bg-zinc-800 rounded-xl p-3 shadow-sm hover:shadow-md border border-gray-100 dark:border-zinc-700 transition-shadow">
+        {% if post.image %}
+          <div class="w-24 h-[70px] flex-shrink-0 rounded-lg overflow-hidden">
+            <img src="{{ post.image.url }}?f_auto,q_auto,w_240,h_160,c_fill"
+                 alt="{{ post.title }}"
+                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                 loading="lazy" />
+          </div>
+        {% else %}
+          <div class="w-24 h-[70px] flex-shrink-0 rounded-lg bg-gray-100 dark:bg-zinc-700 flex items-center justify-center">
+            <i class="far fa-newspaper text-gray-400 text-lg"></i>
+          </div>
+        {% endif %}
+        <div class="min-w-0 flex flex-col justify-center">
+          {% for cat in post.categories.all|slice:":1" %}
+            <span class="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wide">{{ cat.name }}</span>
+          {% endfor %}
+          <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition leading-snug line-clamp-2 mt-0.5">
+            {{ post.title }}
+          </h3>
+          <p class="text-xs text-gray-400 mt-1">{{ post.date_created|date:"M d, Y" }}</p>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+
+  </section>
+  {% endif %}
+
+
+  <!-- ━━━ BREAKING NEWS TICKER ━━━ -->
   {% if breaking_news %}
   <section>
-    <h2 class="text-lg font-bold mb-2 text-red-600 dark:text-red-400">Breaking News</h2>
-    <div class="relative bg-red-600 text-white py-2 rounded shadow overflow-hidden dark:bg-red-700 dark:text-white">
-      <div class="marquee-content flex items-center space-x-8" id="breaking-news">
-        {% for post in breaking_news %}
-          <a href="{{ post.get_absolute_url }}" class="hover:underline font-medium">
-            {{ post.title }}
-          </a>
-        {% endfor %}
-
-        {% for post in breaking_news %}
-          <a href="{{ post.get_absolute_url }}" class="hover:underline font-medium">
-            {{ post.title }}
-          </a>
-        {% endfor %}
+    <div class="flex items-stretch rounded-xl overflow-hidden shadow-sm border border-red-200 dark:border-red-900">
+      <div class="flex-shrink-0 bg-red-600 text-white px-4 py-2.5 flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-white animate-pulse inline-block"></span>
+        <span class="font-extrabold text-xs uppercase tracking-widest whitespace-nowrap">Breaking</span>
+      </div>
+      <div class="flex-1 overflow-hidden bg-white dark:bg-zinc-800">
+        <div class="marquee-content flex items-center gap-10 py-2.5 px-4" id="breaking-news">
+          {% for post in breaking_news %}
+            <a href="{{ post.get_absolute_url }}"
+               class="text-gray-800 dark:text-gray-100 hover:text-red-600 dark:hover:text-red-400 font-semibold whitespace-nowrap text-sm transition flex items-center gap-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block flex-shrink-0"></span>{{ post.title }}
+            </a>
+          {% endfor %}
+          {% for post in breaking_news %}
+            <a href="{{ post.get_absolute_url }}"
+               class="text-gray-800 dark:text-gray-100 hover:text-red-600 dark:hover:text-red-400 font-semibold whitespace-nowrap text-sm transition flex items-center gap-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-red-500 inline-block flex-shrink-0"></span>{{ post.title }}
+            </a>
+          {% endfor %}
+        </div>
       </div>
     </div>
   </section>
   {% endif %}
 
 
-  <!-- 🟢 Trending -->
+  <!-- ━━━ TRENDING ━━━ -->
   <section>
-    <h2 class="text-lg font-bold mb-4">Trending</h2>
+    <div class="flex items-center justify-between mb-5 pb-3 border-b border-gray-200 dark:border-zinc-700">
+      <div class="flex items-center gap-2">
+        <div class="w-1 h-6 bg-blue-600 rounded-full"></div>
+        <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">Trending</h2>
+      </div>
+    </div>
 
-    <div class="relative group">
-      <div class="flex overflow-x-auto space-x-5 pb-2 scrollbar-hide" id="carousel-trending">
-
+    <div class="relative">
+      <!-- scroll track -->
+      <div class="flex overflow-x-auto gap-4 pb-3 scrollbar-hide snap-x snap-proximity" id="carousel-trending">
         {% for post in trending_posts %}
-        <div class="flex-none w-[85vw] sm:w-80 md:w-72 lg:w-80 bg-gray-100 rounded-lg shadow hover:shadow-lg active:shadow-lg hover:scale-105 active:scale-105 transition-all duration-300 p-4 dark:bg-gray-800 dark:text-gray-100 snap-start">
-
+        <div class="group flex-none w-[82vw] sm:w-72 md:w-72 relative rounded-xl overflow-hidden h-64 shadow-md snap-start">
           {% if post.image %}
-          <a href="{{ post.get_absolute_url }}">
-            <img
-              src="{{ post.image.url }}?f_auto,q_auto,w_400"
-              srcset="
-                {{ post.image.url }}?f_auto,q_auto,w_400 400w,
-                {{ post.image.url }}?f_auto,q_auto,w_800 800w,
-                {{ post.image.url }}?f_auto,q_auto,w_1200 1200w
-              "
-              sizes="(max-width: 600px) 400px, (max-width: 1024px) 800px, 1200px"
-              alt="{{ post.title }}"
-              class="h-48 w-full object-cover rounded mb-3"
-              loading="lazy" />
-          </a>
+            <img src="{{ post.image.url }}?f_auto,q_auto,w_500"
+                 alt="{{ post.title }}"
+                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-in-out"
+                 loading="lazy" />
+          {% else %}
+            <div class="w-full h-full bg-gray-700 dark:bg-zinc-700 flex items-center justify-center">
+              <i class="far fa-newspaper text-gray-600 text-3xl"></i>
+            </div>
           {% endif %}
-
-          <a href="{{ post.get_absolute_url }}" class="block text-lg font-semibold text-gray-900 hover:text-blue-600 dark:text-gray-100 dark:hover:text-blue-400">
-            {{ post.title|truncatewords:15 }}
-          </a>
-
-          <p class="text-xs text-gray-500 mt-1">
-            <a href="{% url 'author_profile' post.author.slug %}" class="hover:underline">
-              {{ post.author.name }}
+          <!-- gradient overlay -->
+          <div class="absolute inset-0 bg-gradient-to-t from-gray-950/95 via-gray-900/40 to-transparent"></div>
+          <!-- category badge -->
+          <div class="absolute top-3 left-3 flex flex-wrap gap-1.5">
+            {% for cat in post.categories.all|slice:":1" %}
+              <a href="{% url 'category' cat.name %}"
+                 class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wide transition"
+                 onclick="event.stopPropagation()">{{ cat.name }}</a>
+            {% endfor %}
+          </div>
+          <!-- content -->
+          <div class="absolute bottom-0 p-4">
+            <a href="{{ post.get_absolute_url }}">
+              <h3 class="text-white font-bold text-base leading-snug line-clamp-3 hover:text-blue-300 transition">{{ post.title }}</h3>
             </a>
-            • {{ post.date_created|date:"M d, Y" }}
-          </p>
-
-          <a href="{{ post.get_absolute_url }}" class="block text-gray-600 text-sm mt-3 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400">
-            {{ post.body|truncatewords:30 }}
-          </a>
-
+            <p class="text-gray-400 text-xs mt-2 flex items-center gap-2">
+              {% if post.author %}
+                <span>{{ post.author.name }}</span><span>&middot;</span>
+              {% endif %}
+              <span>{{ post.date_created|date:"M d, Y" }}</span>
+            </p>
+          </div>
         </div>
         {% endfor %}
-
       </div>
 
-      <button onclick="scrollCarousel('carousel-trending', -350)"
-              class="absolute left-0 top-1/2 -translate-y-1/2 bg-white shadow rounded-full p-3 opacity-70 group-hover:opacity-100">
-        ‹
+      <!-- nav arrows — always visible on desktop -->
+      <button onclick="scrollCarousel('carousel-trending', -300)"
+              aria-label="Scroll left"
+              class="hidden md:flex absolute -left-4 top-1/2 -translate-y-1/2 w-10 h-10 items-center justify-center bg-white dark:bg-zinc-700 shadow-lg rounded-full border border-gray-200 dark:border-zinc-600 text-gray-700 dark:text-gray-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition z-10 text-xl font-light">
+        &#8249;
       </button>
-
-      <button onclick="scrollCarousel('carousel-trending', 350)"
-              class="absolute right-0 top-1/2 -translate-y-1/2 bg-white shadow rounded-full p-3 opacity-70 group-hover:opacity-100">
-        ›
+      <button onclick="scrollCarousel('carousel-trending', 300)"
+              aria-label="Scroll right"
+              class="hidden md:flex absolute -right-4 top-1/2 -translate-y-1/2 w-10 h-10 items-center justify-center bg-white dark:bg-zinc-700 shadow-lg rounded-full border border-gray-200 dark:border-zinc-600 text-gray-700 dark:text-gray-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition z-10 text-xl font-light">
+        &#8250;
       </button>
     </div>
   </section>
 
 
-  <!-- 🟣 Categories -->
-  <section class="space-y-10">
-
+  <!-- ━━━ CATEGORIES ━━━ -->
+  <section class="space-y-12">
     {% for category, posts in category_posts.items %}
-    <div class="shadow-md hover:shadow-lg active:shadow-lg transition-all duration-300 rounded-lg p-4">
-
-      <div class="flex justify-between items-center mb-5">
-        <h2 class="text-xl font-bold text-gray-800 dark:text-gray-300">
-          {{ category.name }}
-        </h2>
-        <a href="{% url 'category' category.name %}" class="text-blue-600 text-sm hover:underline">
-          View all
+    <div>
+      <!-- Section header -->
+      <div class="flex items-center justify-between mb-5 pb-3 border-b border-gray-200 dark:border-zinc-700">
+        <div class="flex items-center gap-2">
+          <div class="w-1 h-6 bg-blue-600 rounded-full"></div>
+          <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100">{{ category.name }}</h2>
+        </div>
+        <a href="{% url 'category' category.name %}"
+           class="text-sm font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+          View all <i class="fas fa-arrow-right text-xs"></i>
         </a>
       </div>
 
-      <div class="relative group">
-        <div class="flex overflow-x-auto space-x-5 pb-2 scrollbar-hide" id="carousel-{{ category.id }}">
-
+      <!-- Carousel -->
+      <div class="relative">
+        <div class="flex overflow-x-auto gap-4 pb-3 scrollbar-hide snap-x snap-proximity" id="carousel-{{ category.id }}">
           {% for post in posts %}
-          <div class="flex-none w-[85vw] sm:w-80 md:w-72 lg:w-80 bg-gray-100 rounded-lg shadow hover:shadow-lg transition p-4 dark:bg-gray-800 dark:text-gray-100 snap-start">
-
+          <div class="group flex-none w-[82vw] sm:w-72 md:w-72 relative rounded-xl overflow-hidden h-60 shadow-md snap-start">
             {% if post.image %}
-            <a href="{{ post.get_absolute_url }}">
-              <img
-                src="{{ post.image.url }}?f_auto,q_auto,w_400"
-                srcset="
-                  {{ post.image.url }}?f_auto,q_auto,w_400 400w,
-                  {{ post.image.url }}?f_auto,q_auto,w_800 800w,
-                  {{ post.image.url }}?f_auto,q_auto,w_1200 1200w
-                "
-                sizes="(max-width: 640px) 400px, (max-width: 1024px) 800px, 1200px"
-                alt="{{ post.title }}"
-                class="h-52 w-full object-cover rounded mb-3"
-                loading="lazy" />
-            </a>
+              <img src="{{ post.image.url }}?f_auto,q_auto,w_500"
+                   alt="{{ post.title }}"
+                   class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-in-out"
+                   loading="lazy" />
+            {% else %}
+              <div class="w-full h-full bg-gray-700 dark:bg-zinc-700 flex items-center justify-center">
+                <i class="far fa-newspaper text-gray-600 text-3xl"></i>
+              </div>
             {% endif %}
-
-            <a href="{{ post.get_absolute_url }}" class="block text-lg font-semibold text-gray-900 hover:text-blue-600 dark:text-gray-100">
-              {{ post.title|truncatewords:15 }}
-            </a>
-
-            <p class="text-xs text-gray-500 mt-1 dark:text-gray-300">
-              {{ post.category.name }} •
-              <a href="{% url 'author_profile' post.author.slug %}" class="hover:underline">
-                {{ post.author.name }}
+            <div class="absolute inset-0 bg-gradient-to-t from-gray-950/95 via-gray-900/30 to-transparent"></div>
+            <div class="absolute bottom-0 p-4">
+              <a href="{{ post.get_absolute_url }}">
+                <h3 class="text-white font-bold text-base leading-snug line-clamp-3 hover:text-blue-300 transition">{{ post.title }}</h3>
               </a>
-              • {{ post.date_created|date:"M d, Y" }}
-            </p>
-
-            <a href="{{ post.get_absolute_url }}" class="block text-gray-600 text-sm mt-3 hover:text-blue-600 dark:text-gray-300">
-              {{ post.body|truncatewords:35 }}
-            </a>
-
+              <p class="text-gray-400 text-xs mt-2">
+                {% if post.author %}{{ post.author.name }} &middot; {% endif %}{{ post.date_created|date:"M d, Y" }}
+              </p>
+            </div>
           </div>
           {% endfor %}
-
         </div>
 
-        <button onclick="scrollCarousel('carousel-{{ category.id }}', -350)"
-                class="absolute left-0 top-1/2 -translate-y-1/2 bg-white shadow rounded-full p-3 opacity-70 group-hover:opacity-100">
-          ‹
+        <!-- nav arrows -->
+        <button onclick="scrollCarousel('carousel-{{ category.id }}', -300)"
+                aria-label="Scroll left"
+                class="hidden md:flex absolute -left-4 top-1/2 -translate-y-1/2 w-10 h-10 items-center justify-center bg-white dark:bg-zinc-700 shadow-lg rounded-full border border-gray-200 dark:border-zinc-600 text-gray-700 dark:text-gray-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition z-10 text-xl font-light">
+          &#8249;
         </button>
-
-        <button onclick="scrollCarousel('carousel-{{ category.id }}', 350)"
-                class="absolute right-0 top-1/2 -translate-y-1/2 bg-white shadow rounded-full p-3 opacity-70 group-hover:opacity-100">
-          ›
+        <button onclick="scrollCarousel('carousel-{{ category.id }}', 300)"
+                aria-label="Scroll right"
+                class="hidden md:flex absolute -right-4 top-1/2 -translate-y-1/2 w-10 h-10 items-center justify-center bg-white dark:bg-zinc-700 shadow-lg rounded-full border border-gray-200 dark:border-zinc-600 text-gray-700 dark:text-gray-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition z-10 text-xl font-light">
+          &#8250;
         </button>
-
       </div>
     </div>
     {% endfor %}
-
   </section>
 
 </div>
-  </section>
-</div>
 
-<!-- 🔧 Styles & Scripts -->
 <script>
 function scrollCarousel(id, amount) {
   const el = document.getElementById(id);
-  if (!el) return;
-
-  el.scrollBy({ left: amount, behavior: 'smooth' });
+  if (el) el.scrollBy({ left: amount, behavior: 'smooth' });
 }
 
-// 🔄 Safe infinite auto-scroll
-function setupInfiniteScroll(id, step = 350, intervalTime = 10000) {
+function setupAutoScroll(id, step, delay) {
   const el = document.getElementById(id);
-  if (!el) return; // IMPORTANT SAFETY CHECK
-
-  let interval;
+  if (!el) return;
+  let timer = null;
   let running = false;
 
   function start() {
     if (running) return;
     running = true;
-
-    interval = setInterval(() => {
-      if (el.scrollLeft + el.clientWidth >= el.scrollWidth) {
+    timer = setInterval(function () {
+      if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 4) {
         el.scrollTo({ left: 0, behavior: 'smooth' });
       } else {
         el.scrollBy({ left: step, behavior: 'smooth' });
       }
-    }, intervalTime);
+    }, delay);
   }
 
   function stop() {
     running = false;
-    clearInterval(interval);
+    if (timer) { clearInterval(timer); timer = null; }
   }
 
   el.addEventListener('mouseenter', stop);
   el.addEventListener('mouseleave', start);
-
+  el.addEventListener('touchstart', stop, { passive: true });
+  el.addEventListener('touchend', function () { setTimeout(start, 2500); }, { passive: true });
   start();
 }
 
-// 🔄 Init after DOM is ready
 document.addEventListener('DOMContentLoaded', function () {
-
-  setupInfiniteScroll('carousel-trending', 350, 15000);
-
+  setupAutoScroll('carousel-trending', 300, 4500);
   {% for category, posts in category_posts.items %}
-  setupInfiniteScroll('carousel-{{ category.id }}', 350, 10000);
+  setupAutoScroll('carousel-{{ category.id }}', 300, 6000);
   {% endfor %}
 
-  // 🛑 Safe marquee control
-  const marquee = document.getElementById("breaking-news");
-
+  var marquee = document.getElementById('breaking-news');
   if (marquee) {
-    marquee.addEventListener("mouseenter", function () {
-      marquee.style.animationPlayState = "paused";
-    });
-
-    marquee.addEventListener("mouseleave", function () {
-      marquee.style.animationPlayState = "running";
-    });
+    marquee.addEventListener('mouseenter', function () { marquee.style.animationPlayState = 'paused'; });
+    marquee.addEventListener('mouseleave', function () { marquee.style.animationPlayState = 'running'; });
   }
-
 });
 </script>
 {% endblock %}

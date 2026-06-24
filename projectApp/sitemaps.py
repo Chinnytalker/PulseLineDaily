@@ -31,7 +31,8 @@ class PostSitemap(Sitemap):
 
     def items(self):
         return (
-            Post.objects.filter(is_published=True, slug__isnull=False)
+            Post.published
+            .filter(slug__isnull=False)
             .exclude(slug="")
             .order_by("-date_created")
         )

@@ -1,101 +1,172 @@
 {% extends 'base.html' %}
-{% load widget_tweaks %}
+{% load static widget_tweaks %}
 
-{% block title %}Advertise With Us{% endblock %}
+{% block title %}Advertise With Us | PulseLineDaily{% endblock %}
+{% block meta_description %}Reach thousands of engaged Nigerian readers. Advertise with PulseLineDaily across our header, sidebar, and footer placements.{% endblock %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+<div class="max-w-screen-xl mx-auto px-4 py-10">
 
-  <!-- Page Header -->
-  <header class="mb-10 text-center">
-    <h1 class="text-3xl font-bold text-gray-800 mb-2">Advertise With PulseLineDaily</h1>
-    <p class="text-gray-700 text-lg">Reach our audience by submitting your advertising request below.</p>
-  </header>
-
-  <!-- Form Container -->
-  <div class="bg-gray-100 p-8 rounded-lg shadow-lg">
-    <form method="post" enctype="multipart/form-data" class="space-y-6">
-      {% csrf_token %}
-
-      <!-- Advertiser Name -->
-      <div>
-        <label for="{{ form.advertiser_name.id_for_label }}" class="block text-gray-700 font-medium mb-1">Name</label>
-        {{ form.advertiser_name|add_class:"w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2" }}
-        {% if form.advertiser_name.errors %}
-          <p class="text-red-600 text-sm mt-1">{{ form.advertiser_name.errors|striptags }}</p>
-        {% endif %}
-      </div>
-
-      <!-- Advertiser Email -->
-      <div>
-        <label for="{{ form.advertiser_email.id_for_label }}" class="block text-gray-700 font-medium mb-1">Email</label>
-        {{ form.advertiser_email|add_class:"w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2" }}
-        {% if form.advertiser_email.errors %}
-          <p class="text-red-600 text-sm mt-1">{{ form.advertiser_email.errors|striptags }}</p>
-        {% endif %}
-      </div>
-
-      <!-- Preferred Location (Custom Select) -->
-      <div class="relative">
-        <label for="{{ form.preferred_location.id_for_label }}" class="block text-gray-700 font-medium mb-1">Preferred Location</label>
-        <div class="relative">
-          {{ form.preferred_location|add_class:"w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 appearance-none pr-10" }}
-          <!-- Dropdown Arrow -->
-          <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-            <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
-        </div>
-        {% if form.preferred_location.errors %}
-          <p class="text-red-600 text-sm mt-1">{{ form.preferred_location.errors|striptags }}</p>
-        {% endif %}
-      </div>
-
-      <!-- Advertisement Image with Preview -->
-      <div>
-        <label for="{{ form.ad_image.id_for_label }}" class="block text-gray-700 font-medium mb-1">Upload Image (optional)</label>
-        {{ form.ad_image|add_class:"w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2" }}
-        {% if form.ad_image.errors %}
-          <p class="text-red-600 text-sm mt-1">{{ form.ad_image.errors|striptags }}</p>
-        {% endif %}
-        <!-- Image Preview -->
-        <div class="mt-4">
-          <img id="imagePreview" class="max-h-48 rounded-lg hidden border" src="#" alt="Image Preview">
-        </div>
-      </div>
-
-      <!-- Advertisement URL -->
-      <div>
-        <label for="{{ form.ad_url.id_for_label }}" class="block text-gray-700 font-medium mb-1">Website URL (optional)</label>
-        {{ form.ad_url|add_class:"w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2" }}
-        {% if form.ad_url.errors %}
-          <p class="text-red-600 text-sm mt-1">{{ form.ad_url.errors|striptags }}</p>
-        {% endif %}
-      </div>
-
-      <!-- Message -->
-      <div>
-        <label for="{{ form.message.id_for_label }}" class="block text-gray-700 font-medium mb-1">Message (optional)</label>
-        {{ form.message|add_class:"w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2 h-32 resize-none" }}
-        {% if form.message.errors %}
-          <p class="text-red-600 text-sm mt-1">{{ form.message.errors|striptags }}</p>
-        {% endif %}
-      </div>
-
-      <!-- Submit Button -->
-      <button type="submit" class="w-full sm:w-auto bg-gray-700 text-white font-semibold px-6 py-2 rounded hover:bg-blue-700 transition-colors duration-300">
-        Submit Request
-      </button>
-
-    </form>
+  <!-- Page header -->
+  <div class="mb-8 border-b border-gray-200 dark:border-zinc-700 pb-4">
+    <div class="flex items-center gap-2 mb-1">
+      <div class="w-1 h-7 bg-blue-600 rounded-full"></div>
+      <h1 class="text-3xl font-extrabold text-gray-900 dark:text-gray-100">Advertise With Us</h1>
+    </div>
+    <p class="text-gray-500 dark:text-gray-400 ml-3 text-sm">
+      Connect your brand with thousands of engaged readers across Nigeria.
+    </p>
   </div>
 
-  <!-- Optional Note -->
-  <p class="mt-6 text-gray-900 text-sm text-center">
-    We will review your request and get back to you within 2 business days.
-  </p>
+  {% if messages %}
+    {% for message in messages %}
+      <div class="mb-6 p-4 rounded-xl border
+          {% if 'success' in message.tags %}bg-green-50 border-green-200 text-green-800 dark:bg-green-900/30 dark:border-green-700 dark:text-green-300
+          {% else %}bg-red-50 border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-700 dark:text-red-300{% endif %}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
 
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+    <!-- Form -->
+    <div class="lg:col-span-2 bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-700 p-6 md:p-8">
+      <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100 mb-6">Submit an Ad Request</h2>
+
+      <form method="post" class="space-y-5">
+        {% csrf_token %}
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div>
+            <label for="{{ form.advertiser_name.id_for_label }}"
+                   class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
+              Name / Company <span class="text-red-500">*</span>
+            </label>
+            {{ form.advertiser_name|add_class:"w-full px-4 py-2.5 rounded-lg border border-gray-200 dark:border-zinc-600 bg-gray-50 dark:bg-zinc-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" }}
+            {% if form.advertiser_name.errors %}
+              <p class="text-red-500 text-xs mt-1">{{ form.advertiser_name.errors|striptags }}</p>
+            {% endif %}
+          </div>
+          <div>
+            <label for="{{ form.advertiser_email.id_for_label }}"
+                   class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
+              Email Address <span class="text-red-500">*</span>
+            </label>
+            {{ form.advertiser_email|add_class:"w-full px-4 py-2.5 rounded-lg border border-gray-200 dark:border-zinc-600 bg-gray-50 dark:bg-zinc-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" }}
+            {% if form.advertiser_email.errors %}
+              <p class="text-red-500 text-xs mt-1">{{ form.advertiser_email.errors|striptags }}</p>
+            {% endif %}
+          </div>
+        </div>
+
+        <div>
+          <label for="{{ form.preferred_location.id_for_label }}"
+                 class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
+            Preferred Placement <span class="text-red-500">*</span>
+          </label>
+          <div class="relative">
+            {{ form.preferred_location|add_class:"w-full px-4 py-2.5 rounded-lg border border-gray-200 dark:border-zinc-600 bg-gray-50 dark:bg-zinc-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition appearance-none pr-10" }}
+            <div class="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+              <i class="fas fa-chevron-down text-gray-400 text-xs"></i>
+            </div>
+          </div>
+          {% if form.preferred_location.errors %}
+            <p class="text-red-500 text-xs mt-1">{{ form.preferred_location.errors|striptags }}</p>
+          {% endif %}
+        </div>
+
+        <div>
+          <label for="{{ form.ad_url.id_for_label }}"
+                 class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
+            Website URL <span class="text-gray-400 font-normal">(optional)</span>
+          </label>
+          {{ form.ad_url|add_class:"w-full px-4 py-2.5 rounded-lg border border-gray-200 dark:border-zinc-600 bg-gray-50 dark:bg-zinc-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" }}
+          {% if form.ad_url.errors %}
+            <p class="text-red-500 text-xs mt-1">{{ form.ad_url.errors|striptags }}</p>
+          {% endif %}
+        </div>
+
+        <div>
+          <label for="{{ form.message.id_for_label }}"
+                 class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
+            Additional Details <span class="text-gray-400 font-normal">(optional)</span>
+          </label>
+          {{ form.message|add_class:"w-full px-4 py-2.5 rounded-lg border border-gray-200 dark:border-zinc-600 bg-gray-50 dark:bg-zinc-700 text-gray-900 dark:text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition resize-none" }}
+          {% if form.message.errors %}
+            <p class="text-red-500 text-xs mt-1">{{ form.message.errors|striptags }}</p>
+          {% endif %}
+        </div>
+
+        <button type="submit"
+                class="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 active:bg-blue-800 transition text-sm shadow-sm">
+          <i class="fas fa-paper-plane text-xs"></i> Submit Request
+        </button>
+      </form>
+    </div>
+
+    <!-- Sidebar: why advertise + placements -->
+    <div class="space-y-5">
+
+      <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-700 p-6">
+        <p class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">Why PulseLineDaily?</p>
+        <ul class="space-y-3 text-sm text-gray-700 dark:text-gray-300">
+          <li class="flex items-start gap-3">
+            <i class="fas fa-users text-blue-500 mt-0.5 flex-shrink-0"></i>
+            <span>Engaged Nigerian and diaspora readership</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <i class="fas fa-newspaper text-blue-500 mt-0.5 flex-shrink-0"></i>
+            <span>News, politics, sports &amp; entertainment coverage</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <i class="fas fa-mobile-alt text-blue-500 mt-0.5 flex-shrink-0"></i>
+            <span>Mobile-first, fast-loading experience</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <i class="fas fa-check-circle text-blue-500 mt-0.5 flex-shrink-0"></i>
+            <span>Flexible placements — header, sidebar, footer</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-700 p-6">
+        <p class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">Ad Placements</p>
+        <div class="space-y-3">
+          <div class="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-zinc-700">
+            <i class="fas fa-window-maximize text-blue-500"></i>
+            <div>
+              <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">Header</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Maximum visibility, top of every page</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-zinc-700">
+            <i class="fas fa-columns text-blue-500"></i>
+            <div>
+              <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">Sidebar</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Contextual, beside articles</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-zinc-700">
+            <i class="fas fa-window-minimize text-blue-500"></i>
+            <div>
+              <p class="text-sm font-semibold text-gray-800 dark:text-gray-100">Footer</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Brand awareness, site-wide</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-2xl p-5">
+        <p class="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-1">
+          <i class="fas fa-clock mr-1"></i> Response Time
+        </p>
+        <p class="text-sm text-blue-700 dark:text-blue-300">
+          We'll review your request and respond within <strong>2 business days</strong>.
+        </p>
+      </div>
+
+    </div>
+  </div>
 </div>
-
 {% endblock %}

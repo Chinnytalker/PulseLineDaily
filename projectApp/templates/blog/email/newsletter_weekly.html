@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PulseLineDaily Weekly Digest</title>
+  <style>
+    body { margin: 0; padding: 0; background: #f3f4f6; font-family: Arial, Helvetica, sans-serif; }
+    .wrapper { max-width: 600px; margin: 32px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { background: #1d4ed8; padding: 28px 32px; }
+    .header h1 { color: #ffffff; font-size: 22px; margin: 0 0 4px; }
+    .header p { color: #bfdbfe; font-size: 13px; margin: 0; }
+    .intro { padding: 24px 32px 0; color: #374151; font-size: 15px; line-height: 1.6; }
+    .intro p { margin: 0; }
+    .divider { border: none; border-top: 1px solid #e5e7eb; margin: 24px 32px; }
+    .section-label { padding: 0 32px 12px; font-size: 11px; font-weight: bold; color: #6b7280; text-transform: uppercase; letter-spacing: 0.08em; }
+    .story { padding: 0 32px 20px; }
+    .story-num { display: inline-block; background: #eff6ff; color: #1d4ed8; font-size: 12px; font-weight: bold; border-radius: 9999px; padding: 2px 9px; margin-bottom: 6px; }
+    .story h2 { margin: 0 0 6px; font-size: 16px; line-height: 1.4; }
+    .story h2 a { color: #111827; text-decoration: none; }
+    .story h2 a:hover { color: #1d4ed8; text-decoration: underline; }
+    .story p { margin: 0 0 8px; font-size: 13px; color: #6b7280; line-height: 1.6; }
+    .story .read-more { font-size: 13px; color: #1d4ed8; text-decoration: none; font-weight: bold; }
+    .story-divider { border: none; border-top: 1px solid #f3f4f6; margin: 0 32px 20px; }
+    .cta-block { background: #eff6ff; margin: 0 32px 24px; border-radius: 10px; padding: 20px 24px; text-align: center; }
+    .cta-block p { font-size: 14px; color: #1e40af; margin: 0 0 12px; }
+    .cta-block a { display: inline-block; background: #1d4ed8; color: #ffffff; text-decoration: none; padding: 10px 28px; border-radius: 9999px; font-size: 13px; font-weight: bold; }
+    .footer { background: #f9fafb; border-top: 1px solid #e5e7eb; padding: 20px 32px; text-align: center; font-size: 12px; color: #9ca3af; line-height: 1.7; }
+    .footer a { color: #6b7280; text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+
+    <div class="header">
+      <h1>PulseLineDaily</h1>
+      <p>Your weekly digest &mdash; {{ week_label }}</p>
+    </div>
+
+    <div class="intro">
+      <p>Hi there, here are this week's top stories handpicked for you.</p>
+    </div>
+
+    <hr class="divider">
+    <div class="section-label">Top Stories This Week</div>
+
+    {% for post in posts %}
+    <div class="story">
+      <span class="story-num">{{ forloop.counter }}</span>
+      <h2><a href="{{ post.url }}">{{ post.title }}</a></h2>
+      {% if post.summary %}
+        <p>{{ post.summary }}</p>
+      {% endif %}
+      <a class="read-more" href="{{ post.url }}">Read full story &rarr;</a>
+    </div>
+    {% if not forloop.last %}<hr class="story-divider">{% endif %}
+    {% endfor %}
+
+    <hr class="divider">
+
+    <div class="cta-block">
+      <p>Stay ahead of every story — visit PulseLineDaily for the latest breaking news.</p>
+      <a href="https://www.pulselinedaily.com">Visit PulseLineDaily</a>
+    </div>
+
+    <div class="footer">
+      You're receiving this because you confirmed your subscription at
+      <a href="https://www.pulselinedaily.com">pulselinedaily.com</a>.<br>
+      &copy; 2026 PulseLineDaily &middot; Federal University Otuoke, Bayelsa, Nigeria<br><br>
+      <a href="{{ unsubscribe_url }}">Unsubscribe</a> &middot;
+      <a href="https://www.pulselinedaily.com/privacy/">Privacy Policy</a>
+    </div>
+
+  </div>
+</body>
+</html>

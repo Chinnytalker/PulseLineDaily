@@ -37,7 +37,7 @@ services:
 
   celery:
     build: .
-    command: celery -A MaxDiscoverHub worker -l info
+    command: celery -A MaxDiscoverHub worker -l info --concurrency=2
     restart: unless-stopped
     env_file:
       - ${APP_ENV_FILE:-.env}
@@ -46,6 +46,7 @@ services:
       DJANGO_ENV: production
     depends_on:
       - redis
+      - web
     volumes:
       - media:/app/media
 
@@ -60,6 +61,7 @@ services:
       DJANGO_ENV: production
     depends_on:
       - redis
+      - web
 
   redis:
     image: redis:7.4-alpine

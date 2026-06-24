@@ -2,34 +2,21 @@
 {% load static %}
 
 {% block canonical %}
-{% if results.number == 1 %}
+{% if posts.number == 1 %}
 <link rel="canonical" href="{{ request.build_absolute_uri|cut:'?page=' }}">
 {% else %}
 <link rel="canonical" href="{{ request.build_absolute_uri }}">
 {% endif %}
 {% endblock canonical %}
 
-{% block title %}Search: {{ query }} | PulseLineDaily{% endblock title %}
-{% block meta_description %}Search results for '{{ query }}' on PulseLineDaily.{% endblock %}
-{% block og_title %}Search: {{ query }}{% endblock %}
-{% block og_description %}Search results for '{{ query }}' on PulseLineDaily.{% endblock %}
+{% block title %}#{{ tag }} | PulseLineDaily{% endblock %}
+{% block meta_description %}Articles tagged "{{ tag }}" on PulseLineDaily — the latest news and stories.{% endblock %}
+{% block og_title %}#{{ tag }} — PulseLineDaily{% endblock %}
+{% block og_description %}Articles tagged "{{ tag }}" on PulseLineDaily.{% endblock %}
 {% block og_image %}{% static 'image/Pulsemainlogo.jpg' %}{% endblock %}
-
-{% block meta_robots %}
-<meta name="robots" content="noindex, follow">
-{% endblock meta_robots %}
+{% block meta_robots %}<meta name="robots" content="index, follow, max-image-preview:large">{% endblock %}
 
 {% block content %}
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "SearchResultsPage",
-  "name": "Search results for '{{ query }}' on PulseLineDaily",
-  "url": "{{ request.build_absolute_uri|cut:'?page=' }}",
-  "query": "{{ query }}"
-}
-</script>
-
 <div class="max-w-screen-xl mx-auto px-4 py-8 dark:bg-gray-900 dark:text-gray-100">
 
   <!-- Header -->
@@ -37,24 +24,21 @@
     <div class="flex items-center gap-2 mb-1">
       <div class="w-1 h-7 bg-blue-600 rounded-full"></div>
       <h1 class="text-2xl md:text-3xl font-extrabold text-gray-900 dark:text-gray-100">
-        {% if query %}Search Results{% else %}Search{% endif %}
+        #{{ tag }}
       </h1>
     </div>
-    {% if query %}
-      <p class="text-gray-500 dark:text-gray-400 text-sm ml-3 mt-1">
-        {% if results.object_list %}
-          {{ results.paginator.count }} result{{ results.paginator.count|pluralize }} for
-        {% else %}
-          No results for
-        {% endif %}
-        <strong class="text-gray-800 dark:text-gray-200">&ldquo;{{ query }}&rdquo;</strong>
-      </p>
-    {% endif %}
+    <p class="text-gray-500 dark:text-gray-400 ml-3 text-sm mt-1">
+      {% if posts.paginator.count %}
+        {{ posts.paginator.count }} article{{ posts.paginator.count|pluralize }} tagged &ldquo;{{ tag }}&rdquo;
+      {% else %}
+        No articles found for this tag.
+      {% endif %}
+    </p>
   </div>
 
-  {% if results.object_list %}
+  {% if posts.object_list %}
     <div class="space-y-5">
-      {% for post in results.object_list %}
+      {% for post in posts %}
       <a href="{% url 'details' post.slug %}"
          class="group flex flex-col md:flex-row bg-white dark:bg-zinc-800 border border-gray-100 dark:border-zinc-700 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300">
 
@@ -109,23 +93,23 @@
     </div>
 
     <!-- Pagination -->
-    {% if results.paginator.num_pages > 1 %}
+    {% if posts.paginator.num_pages > 1 %}
     <nav class="flex justify-center mt-10">
       <ul class="flex items-center gap-1">
-        {% if results.has_previous %}
-          <li><a href="?query={{ query }}&page=1" class="px-3 py-1.5 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg hover:bg-blue-600 hover:text-white hover:border-blue-600 transition">First</a></li>
-          <li><a href="?query={{ query }}&page={{ results.previous_page_number }}" class="px-3 py-1.5 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg hover:bg-blue-600 hover:text-white hover:border-blue-600 transition">Prev</a></li>
+        {% if posts.has_previous %}
+          <li><a href="?page=1" class="px-3 py-1.5 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg hover:bg-blue-600 hover:text-white hover:border-blue-600 transition">First</a></li>
+          <li><a href="?page={{ posts.previous_page_number }}" class="px-3 py-1.5 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg hover:bg-blue-600 hover:text-white hover:border-blue-600 transition">Prev</a></li>
         {% endif %}
-        {% for num in results.paginator.page_range %}
-          {% if results.number == num %}
+        {% for num in posts.paginator.page_range %}
+          {% if posts.number == num %}
             <li><span class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg font-semibold">{{ num }}</span></li>
-          {% elif num > results.number|add:"-3" and num < results.number|add:"3" %}
-            <li><a href="?query={{ query }}&page={{ num }}" class="px-3 py-1.5 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg hover:bg-blue-600 hover:text-white hover:border-blue-600 transition">{{ num }}</a></li>
+          {% elif num > posts.number|add:"-3" and num < posts.number|add:"3" %}
+            <li><a href="?page={{ num }}" class="px-3 py-1.5 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg hover:bg-blue-600 hover:text-white hover:border-blue-600 transition">{{ num }}</a></li>
           {% endif %}
         {% endfor %}
-        {% if results.has_next %}
-          <li><a href="?query={{ query }}&page={{ results.next_page_number }}" class="px-3 py-1.5 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg hover:bg-blue-600 hover:text-white hover:border-blue-600 transition">Next</a></li>
-          <li><a href="?query={{ query }}&page={{ results.paginator.num_pages }}" class="px-3 py-1.5 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg hover:bg-blue-600 hover:text-white hover:border-blue-600 transition">Last</a></li>
+        {% if posts.has_next %}
+          <li><a href="?page={{ posts.next_page_number }}" class="px-3 py-1.5 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg hover:bg-blue-600 hover:text-white hover:border-blue-600 transition">Next</a></li>
+          <li><a href="?page={{ posts.paginator.num_pages }}" class="px-3 py-1.5 text-sm bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-lg hover:bg-blue-600 hover:text-white hover:border-blue-600 transition">Last</a></li>
         {% endif %}
       </ul>
     </nav>
@@ -133,13 +117,9 @@
 
   {% else %}
     <div class="text-center py-20">
-      <i class="fas fa-search text-5xl text-gray-200 dark:text-zinc-700 mb-5 block"></i>
-      {% if query %}
-        <p class="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No results for &ldquo;{{ query }}&rdquo;</p>
-        <p class="text-gray-500 dark:text-gray-400 text-sm">Try a different keyword or browse a category.</p>
-      {% else %}
-        <p class="text-xl font-semibold text-gray-700 dark:text-gray-300">Enter a search term above.</p>
-      {% endif %}
+      <i class="fas fa-tag text-5xl text-gray-200 dark:text-zinc-700 mb-5 block"></i>
+      <p class="text-xl font-semibold text-gray-700 dark:text-gray-300">No articles for &ldquo;{{ tag }}&rdquo; yet.</p>
+      <p class="text-gray-500 dark:text-gray-400 text-sm mt-2">Try browsing a category instead.</p>
     </div>
   {% endif %}
 

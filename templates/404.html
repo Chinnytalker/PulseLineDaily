@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Page Not Found | PulseLineDaily{% endblock %}
+{% block meta_robots %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+
+{% block content %}
+<div class="min-h-[70vh] flex items-center justify-center px-4 py-16">
+  <div class="max-w-lg w-full text-center">
+    <p class="text-8xl font-black text-blue-600 dark:text-blue-400 leading-none mb-4">404</p>
+    <h1 class="text-2xl md:text-3xl font-extrabold text-gray-900 dark:text-gray-100 mb-3">
+      Page Not Found
+    </h1>
+    <p class="text-gray-500 dark:text-gray-400 mb-8 leading-relaxed">
+      The page you're looking for has been moved, deleted, or never existed.
+      Try searching for what you need, or head back to the homepage.
+    </p>
+    <div class="flex flex-col sm:flex-row gap-3 justify-center mb-10">
+      <a href="{% url 'Home' %}"
+         class="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-blue-600 text-white font-semibold rounded-full hover:bg-blue-700 transition text-sm">
+        <i class="fas fa-home text-xs"></i> Back to Homepage
+      </a>
+      <a href="{% url 'search' %}"
+         class="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-white dark:bg-zinc-800 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-zinc-700 font-semibold rounded-full hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 transition text-sm">
+        <i class="fas fa-search text-xs"></i> Search Articles
+      </a>
+    </div>
+    <p class="text-xs text-gray-400 dark:text-gray-500">
+      If you believe this is a mistake, <a href="{% url 'Contact us' %}" class="text-blue-500 hover:underline">contact us</a>.
+    </p>
+  </div>
+</div>
+{% endblock %}

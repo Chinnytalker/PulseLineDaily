@@ -1,0 +1,25 @@
+{% if breaking_posts %}
+<div class="bg-red-600 text-white overflow-hidden flex items-stretch" style="min-height:2.1rem;">
+  <span class="flex-shrink-0 bg-white text-red-600 text-xs font-black px-3 flex items-center uppercase tracking-wider">
+    <i class="fas fa-bolt mr-1.5 text-xs"></i>Breaking
+  </span>
+  <div class="overflow-hidden flex-1 flex items-center">
+    <div class="marquee-content flex items-center gap-0">
+      {% for post in breaking_posts %}
+        <a href="{{ post.get_absolute_url }}"
+           class="text-xs sm:text-sm font-medium hover:underline whitespace-nowrap px-4 py-1.5 hover:bg-red-700 transition-colors">
+          {{ post.title }}
+        </a>
+        <span class="text-red-300 flex-shrink-0 select-none">&#x2022;</span>
+      {% endfor %}
+      {% for post in breaking_posts %}
+        <a href="{{ post.get_absolute_url }}"
+           class="text-xs sm:text-sm font-medium hover:underline whitespace-nowrap px-4 py-1.5 hover:bg-red-700 transition-colors">
+          {{ post.title }}
+        </a>
+        <span class="text-red-300 flex-shrink-0 select-none">&#x2022;</span>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}

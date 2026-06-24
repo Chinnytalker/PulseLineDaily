@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block title %}Unsubscribed | PulseLineDaily{% endblock %}
+{% block meta_robots %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+
+{% block content %}
+<div class="min-h-[60vh] flex items-center justify-center px-4 py-16">
+  <div class="max-w-md w-full text-center">
+    <div class="w-20 h-20 rounded-full bg-gray-100 dark:bg-zinc-700 flex items-center justify-center mx-auto mb-6">
+      <i class="far fa-envelope text-gray-400 dark:text-zinc-400 text-3xl"></i>
+    </div>
+    <h1 class="text-2xl md:text-3xl font-extrabold text-gray-900 dark:text-gray-100 mb-3">
+      You've been unsubscribed
+    </h1>
+    <p class="text-gray-600 dark:text-gray-300 mb-2">
+      <span class="font-semibold text-gray-800 dark:text-gray-100">{{ email }}</span> has been removed from our newsletter.
+    </p>
+    <p class="text-gray-500 dark:text-gray-400 text-sm mb-8">
+      You won't receive any more emails from PulseLineDaily. Changed your mind?
+      You can re-subscribe at any time from our homepage.
+    </p>
+    <a href="{% url 'Home' %}"
+       class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-full hover:bg-blue-700 transition text-sm">
+      <i class="fas fa-home text-xs"></i> Back to Homepage
+    </a>
+  </div>
+</div>
+{% endblock %}

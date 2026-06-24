@@ -1,258 +1,336 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load static post_filters %}
 
-{% block canonical %}<link rel="canonical" href="{{request.build_absolute_uri}}">{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ request.build_absolute_uri }}">{% endblock %}
 {% block title %}{{ post.title }} | PulseLineDaily{% endblock title %}
-{% block meta_description %}{% if post.summary %} {{ post.summary }} {% else %} {{ post.body|truncatewords:30 }} {% endif %} {% endblock %}
+{% block meta_description %}{% if post.summary %}{{ post.summary }}{% else %}{{ post.body|truncatewords:30 }}{% endif %}{% endblock %}
+{% block og_type %}article{% endblock %}
 {% block og_title %}{{ post.title }}{% endblock %}
-{% block og_description %}{{ post.body|truncatewords:30 }}{% endblock %}
-
-
+{% block og_description %}{% if post.summary %}{{ post.summary }}{% else %}{{ post.body|truncatewords:30 }}{% endif %}{% endblock %}
 {% block og_image %}{% if post.image %}{{ request.scheme }}://{{ request.get_host }}{{ post.image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/Pulsemainlogo.jpg' %}{% endif %}{% endblock %}
+{% block twitter_title %}{{ post.title }}{% endblock %}
+{% block twitter_description %}{% if post.summary %}{{ post.summary }}{% else %}{{ post.body|truncatewords:30 }}{% endif %}{% endblock %}
+{% block twitter_image %}{% if post.image %}{{ request.scheme }}://{{ request.get_host }}{{ post.image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/Pulsemainlogo.jpg' %}{% endif %}{% endblock %}
 
 {% block content %}
 <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "NewsArticle",
-        "headline": "{{ post.title|escapejs }}",
-        "description": "{{ post.summary|default:post.body|truncatewords:30|escapejs }}",
-        "image": ["{% if post.image %}{{request.scheme}}://{{request.get_host}}{{ post.image.url }}{% else %}{{request.scheme}}://{{request.get_host}}{% static 'image/Pulsemainlogo.jpg' %}{% endif %}"],
-        "datePublished": "{{ post.date_created|date:'c' }}",
-        "dateModified": "{{ post.last_modified|date:'c' }}",
-        "author": {
-            "@type": "Person",
-            "name": "{% if post.author %}{{ post.author.name|escapejs }}{% else %}{{ post.updated_by|escapejs }}{% endif %}"
-        },
-        "publisher": {
-            "@type": "NewsMediaOrganization",
-            "name": "PulseLineDaily",
-            "logo": {
-                "@type": "ImageObject",
-                "url": "{{request.scheme}}://{{request.get_host}}{% static 'image/Pulsemainlogo.jpg' %}"
-            }
-        },
-        "mainEntityOfPage": {
-            "@type": "WebPage",
-            "@id": "{{ request.build_absolute_uri }}"
-        }
-    }
+{
+  "@context": "https://schema.org",
+  "@type": "NewsArticle",
+  "headline": "{{ post.title|escapejs }}",
+  "description": "{{ post.summary|default:post.body|truncatewords:30|escapejs }}",
+  "image": ["{% if post.image %}{{ request.scheme }}://{{ request.get_host }}{{ post.image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/Pulsemainlogo.jpg' %}{% endif %}"],
+  "datePublished": "{{ post.date_created|date:'c' }}",
+  "dateModified": "{{ post.last_modified|date:'c' }}",
+  "author": {
+    "@type": "Person",
+    "name": "{% if post.author %}{{ post.author.name|escapejs }}{% else %}{{ post.updated_by|escapejs }}{% endif %}"
+  },
+  "publisher": {
+    "@type": "NewsMediaOrganization",
+    "name": "PulseLineDaily",
+    "logo": { "@type": "ImageObject", "url": "{{ request.scheme }}://{{ request.get_host }}{% static 'image/Pulsemainlogo.jpg' %}" }
+  },
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "{{ request.build_absolute_uri }}" }
+}
 </script>
 
-<article class="bg-white shadow-md rounded-lg mb-6 overflow-hidden dark:bg-zinc-800 dark:text-gray-100">
-    <!-- Post Image -->
-    {% if post.image %}
-        <img
-            src="{{ post.image.url }}?f_auto,q_auto,w_1200"
-            srcset="
-                {{ post.image.url }}?f_auto,q_auto,w_600 600w,
-                {{ post.image.url }}?f_auto,q_auto,w_900 900w,
-                {{ post.image.url }}?f_auto,q_auto,w_1200 1200w,
-                {{ post.image.url }}?f_auto,q_auto,w_1600 1600w
-            "
-            sizes="(max-width: 640px) 600px, (max-width: 1024px) 900px, (max-width: 1440px) 1200px, 1600px"
-            alt="{{ post.title }}"
-            class="w-full max-h-96 object-cover"
-            loading="eager"
-            fetchpriority="high">
-    {% else %}
-        <p class="p-4 text-gray-500 italic dark:text-gray-400">No image</p>
-    {% endif %}
+<div class="max-w-screen-xl mx-auto px-4 py-6">
+  <div class="flex flex-col xl:flex-row gap-8">
 
-    <!-- Post Content -->
-    <div class="p-6">
-        <h1 class="text-2xl md:text-3xl font-semibold mb-2 text-gray-900 dark:text-gray-100">{{ post.title }}</h1>
+    <!-- ━━━ MAIN ARTICLE ━━━ -->
+    <main class="w-full xl:max-w-3xl min-w-0">
 
-        {% if post.summary %}
-        <div class="bg-gray-50 border-l-4 border-blue-600 p-4 mb-4 dark:bg-zinc-700 dark:border-blue-400">
-            <h2 class="text-lg font-semibold text-blue-700 dark:text-blue-300 mb-2">Summary</h2>
-            <p class="text-gray-700 dark:text-gray-200">{{ post.summary }}</p>
+      <!-- Hero image -->
+      {% if post.image %}
+        <div class="rounded-xl overflow-hidden shadow-lg mb-6">
+          <img src="{{ post.image.url }}?f_auto,q_auto,w_1200"
+               srcset="{{ post.image.url }}?f_auto,q_auto,w_600 600w,
+                       {{ post.image.url }}?f_auto,q_auto,w_900 900w,
+                       {{ post.image.url }}?f_auto,q_auto,w_1200 1200w"
+               sizes="(max-width: 640px) 600px, (max-width: 1024px) 900px, 1200px"
+               alt="{{ post.title }}"
+               class="w-full max-h-96 object-cover"
+               loading="eager" fetchpriority="high" />
         </div>
-        {% endif %}
+      {% endif %}
 
-        <div class="flex flex-wrap items-center gap-3 text-sm text-gray-500 mb-4 dark:text-gray-400">
-            {% if post.reading_time %}
-                <span>🕒 Reading time: {{ post.reading_time }} mins</span>
-            {% endif %}
-            {% if post.word_count %}
-                <span>• {{ post.word_count }} words</span>
-            {% endif %}
+      <article class="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-gray-100 dark:border-zinc-700 p-6 md:p-8 mb-6">
+
+        <!-- Category breadcrumb -->
+        <div class="flex flex-wrap gap-2 mb-4">
+          {% for category in post.categories.all %}
+            <a href="{% url 'category' category.name %}"
+               class="bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide hover:bg-blue-100 dark:hover:bg-blue-800 transition">
+              {{ category.name }}
+            </a>
+          {% endfor %}
+          {% if post.is_still_breaking %}
+            <span class="bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide animate-pulse">Breaking</span>
+          {% endif %}
         </div>
 
-        <!-- Post Meta -->
-        <div class="flex flex-wrap gap-2 text-sm text-gray-500 mb-4 dark:text-gray-400">
-            <span>{{ post.date_created|date:"F j, Y, g:i a" }}</span>
-            <span>|</span>
-            <span>Categories:</span>
-            {% for category in post.categories.all %}
-                <a href="{% url 'category' category.name %}"
-                   class="text-blue-600 dark:text-blue-400 hover:underline">
-                    {{ category.name }}
-                </a>
-            {% endfor %}
-            <span>|</span>
-            <span>By
-                {% if post.author %}
-                    <a href="{% url 'author_profile' post.author.slug %}" class="text-blue-600 dark:text-blue-400 hover:underline">{{ post.author.name }}</a>
-                {% else %}
-                    {{ post.updated_by }}
-                {% endif %}
+        <!-- Title -->
+        <h1 class="text-2xl md:text-3xl lg:text-4xl font-extrabold text-gray-900 dark:text-gray-50 leading-tight mb-4">
+          {{ post.title }}
+        </h1>
+
+        <!-- Byline / meta -->
+        <div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-gray-500 dark:text-gray-400 border-y border-gray-100 dark:border-zinc-700 py-3 mb-6">
+          <span class="flex items-center gap-1.5">
+            <i class="far fa-user text-xs text-blue-500"></i>
+            {% if post.author %}
+              <a href="{% url 'author_profile' post.author.slug %}" class="font-semibold text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition">{{ post.author.name }}</a>
+            {% else %}
+              <span class="font-semibold text-gray-700 dark:text-gray-300">{{ post.updated_by }}</span>
+            {% endif %}
+          </span>
+          <span class="flex items-center gap-1.5">
+            <i class="far fa-calendar text-xs text-blue-500"></i>
+            {{ post.date_created|date:"F j, Y" }}
+          </span>
+          {% if post.reading_time %}
+            <span class="flex items-center gap-1.5">
+              <i class="far fa-clock text-xs text-blue-500"></i>
+              {{ post.reading_time }} min read
             </span>
+          {% endif %}
+          {% if post.word_count %}
+            <span class="flex items-center gap-1.5">
+              <i class="fas fa-align-left text-xs text-blue-500"></i>
+              {{ post.word_count }} words
+            </span>
+          {% endif %}
+          <span class="flex items-center gap-1.5 ml-auto">
+            <i class="far fa-eye text-xs text-blue-500"></i>
+            {{ post.views }} views
+          </span>
         </div>
 
-        <!-- Body  -->
-        <div class="prose prose-lg dark:prose-invert max-w-none mt-6 leading-8 space-y-6
-            prose-p:mb-4 prose-headings:mt-6 prose-headings:mb-3
-            text-gray-800 dark:text-gray-300">
-            {{ post.body|linebreaks }}
+        <!-- Summary block -->
+        {% if post.summary %}
+          <div class="bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-600 dark:border-blue-500 rounded-r-lg p-4 mb-6">
+            <p class="text-sm font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide mb-1">Summary</p>
+            <p class="text-gray-700 dark:text-gray-200 leading-relaxed">{{ post.summary }}</p>
+          </div>
+        {% endif %}
+
+        <!-- Article body -->
+        <div class="prose prose-lg dark:prose-invert max-w-none
+                    prose-headings:font-bold prose-headings:text-gray-900 dark:prose-headings:text-gray-100
+                    prose-p:text-gray-700 dark:prose-p:text-gray-300 prose-p:leading-8 prose-p:mb-5
+                    prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline
+                    prose-img:rounded-lg prose-blockquote:border-blue-600 prose-blockquote:text-gray-600">
+          {{ post.body|render_body }}
         </div>
 
+        <!-- Analysis -->
         {% if post.analysis %}
-        <div class="mt-8 bg-gray-50 border-l-4 border-green-600 p-4 dark:bg-zinc-700 dark:border-green-400">
-            <h2 class="text-lg font-semibold text-green-700 dark:text-green-300 mb-2">Analysis</h2>
-            <p class="text-gray-700 dark:text-gray-200">{{ post.analysis }}</p>
-        </div>
+          <div class="mt-8 bg-green-50 dark:bg-green-900/30 border-l-4 border-green-600 dark:border-green-500 rounded-r-lg p-4">
+            <p class="text-sm font-semibold text-green-700 dark:text-green-300 uppercase tracking-wide mb-1">Analysis</p>
+            <p class="text-gray-700 dark:text-gray-200 leading-relaxed">{{ post.analysis }}</p>
+          </div>
         {% endif %}
 
-
-        {% if post.tags %}
-        <div class="mt-6">
-            <h3 class="text-lg font-semibold mb-2 dark:text-gray-200">Tags:</h3>
-            <div class="flex flex-wrap gap-2">
-                {% for tag in post.tags.all|default:tags %}
-                    <a href="{% url 'search' %}?query={{ tag }}"
-                       class="inline-block bg-blue-100 text-blue-700 dark:bg-blue-700 dark:text-white px-3 py-1 rounded-full text-sm hover:bg-blue-200 dark:hover:bg-blue-600 transition">
-                        #{{ tag }}
-                    </a>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- 📹 Post Video -->
+        <!-- Video -->
         {% if post.video %}
-        <div class="p-6">
-            {# Fixed: Cleaned up trailing and duplicate div layouts #}
-            <video
-                controls
-                preload="metadata"
-                class="w-full max-h-96 rounded shadow"
-                poster="{{ post.video.url }}.jpg"
-            >
-                <source src="{{ post.video.url }}?f_auto,q_auto" type="video/mp4">
-                <source src="{{ post.video.url }}?f_auto,q_auto" type="video/webm">
-                Your browser does not support the video tag.
+          <div class="mt-8 rounded-xl overflow-hidden shadow">
+            <video controls preload="metadata" class="w-full max-h-96 rounded-xl"
+                   poster="{{ post.video.url }}.jpg">
+              <source src="{{ post.video.url }}?f_auto,q_auto" type="video/mp4">
+              <source src="{{ post.video.url }}?f_auto,q_auto" type="video/webm">
+              Your browser does not support the video tag.
             </video>
-        </div>
+          </div>
         {% endif %}
 
-        <!-- 🔗 External Link -->
+        <!-- External link -->
         {% if post.link %}
-            <div class="mt-6">
-                <a href="{{ post.link }}" target="_blank"
-                   class="inline-block text-blue-600 dark:text-blue-400 hover:underline font-medium">
-                    🔗 Visit Related Link
-                </a>
-            </div>
+          <div class="mt-6">
+            <a href="{{ post.link }}" target="_blank" rel="noopener"
+               class="inline-flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:underline font-medium">
+              <i class="fas fa-external-link-alt text-xs"></i> Visit Related Link
+            </a>
+          </div>
         {% endif %}
 
-        <!-- Share buttons -->
-        <div class="mt-6">
-            <h5 class="text-lg font-medium mb-3 dark:text-gray-200">Share this post:</h5>
-            <div class="flex flex-wrap gap-3">
-                <!-- Facebook -->
-                <a href="http://www.facebook.com/sharer/sharer.php?u={{ request.build_absolute_uri }}"
-                   target="_blank"
-                   aria-label="Share on Facebook"
-                   class="flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition">
-                    <i class="fab fa-facebook-f"></i><span class="hidden sm:inline">Facebook</span>
+        <!-- Tags -->
+        {% if tags %}
+          <div class="mt-8 pt-6 border-t border-gray-100 dark:border-zinc-700">
+            <p class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">Tags</p>
+            <div class="flex flex-wrap gap-2">
+              {% for tag in tags %}
+                <a href="{% url 'tag' tag %}"
+                   class="bg-gray-100 dark:bg-zinc-700 text-gray-700 dark:text-gray-200 px-3 py-1 rounded-full text-sm hover:bg-blue-100 hover:text-blue-700 dark:hover:bg-blue-800 dark:hover:text-white transition">
+                  #{{ tag }}
                 </a>
-
-                <!-- Twitter -->
-                <a href="http://x.com/intent/tweet?url={{ request.build_absolute_uri }}&text={{ post.title }}"
-                   target="_blank"
-                   aria-label="Share on x"
-                   class="flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-full bg-sky-500 text-white hover:bg-sky-600 transition">
-                    <i class="fab fa-x-twitter"></i><span class="hidden sm:inline">X</span>
-                </a>
-
-                <!-- WhatsApp -->
-                <a href="http://api.whatsapp.com/send?text={{ post.title }} - {{ request.build_absolute_uri }}"
-                   target="_blank"
-                   aria-label="Share on WhatsApp"
-                   class="flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-full bg-green-600 text-white hover:bg-green-700 transition">
-                    <i class="fab fa-whatsapp"></i><span class="hidden sm:inline">WhatsApp</span>
-                </a>
-
-                <!-- Copy Link -->
-                <button onclick="copyToClipboard('{{ request.build_absolute_uri }}')"
-                        aria-label="Copy post link"
-                        class="flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-full bg-gray-600 text-white hover:bg-gray-700 transition">
-                    <i class="fas fa-link"></i><span class="hidden sm:inline">Copy Link</span>
-                </button>
+              {% endfor %}
             </div>
-        </div>
-    </div>
+          </div>
+        {% endif %}
 
-    <!-- Related Posts -->
-    {% if related_posts %}
-    <div class="mt-10 p-6 border-t border-gray-200 dark:border-zinc-700">
-        <h3 class="text-xl font-bold mb-4 dark:text-gray-100">Related Posts</h3>
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
+        <!-- Bookmark + Share -->
+        <div class="mt-8 pt-6 border-t border-gray-100 dark:border-zinc-700 space-y-4">
+
+          <!-- Bookmark -->
+          <a href="{% url 'toggle_bookmark' post.slug %}"
+             class="inline-flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium transition
+                    {% if is_bookmarked %}bg-blue-600 text-white border-blue-600 hover:bg-blue-700{% else %}bg-white dark:bg-zinc-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-zinc-500 hover:border-blue-600 hover:text-blue-600{% endif %}">
+            <i class="{% if is_bookmarked %}fas{% else %}far{% endif %} fa-bookmark text-xs"></i>
+            {% if is_bookmarked %}Saved{% else %}Save for later{% endif %}
+          </a>
+
+          <!-- Share -->
+          <div>
+            <p class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-3">Share</p>
+            <div class="flex flex-wrap gap-2">
+              <a href="http://www.facebook.com/sharer/sharer.php?u={{ request.build_absolute_uri }}" target="_blank" rel="noopener" aria-label="Share on Facebook"
+                 class="flex items-center gap-2 px-4 py-2 rounded-full bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition">
+                <i class="fab fa-facebook-f text-xs"></i><span class="hidden sm:inline">Facebook</span>
+              </a>
+              <a href="https://x.com/intent/tweet?url={{ request.build_absolute_uri }}&text={{ post.title }}" target="_blank" rel="noopener" aria-label="Share on X"
+                 class="flex items-center gap-2 px-4 py-2 rounded-full bg-sky-500 text-white text-sm font-medium hover:bg-sky-600 transition">
+                <i class="fab fa-x-twitter text-xs"></i><span class="hidden sm:inline">X</span>
+              </a>
+              <a href="https://api.whatsapp.com/send?text={{ post.title }} - {{ request.build_absolute_uri }}" target="_blank" rel="noopener" aria-label="Share on WhatsApp"
+                 class="flex items-center gap-2 px-4 py-2 rounded-full bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition">
+                <i class="fab fa-whatsapp text-xs"></i><span class="hidden sm:inline">WhatsApp</span>
+              </a>
+              <button onclick="copyToClipboard('{{ request.build_absolute_uri }}')" aria-label="Copy link"
+                      class="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-600 text-white text-sm font-medium hover:bg-gray-700 transition">
+                <i class="fas fa-link text-xs"></i><span class="hidden sm:inline">Copy Link</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <!-- ━━━ COMMENTS ━━━ -->
+      <div class="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-gray-100 dark:border-zinc-700 p-6 md:p-8">
+        <h2 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-1">Leave a comment</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-5">Comments are reviewed before appearing publicly.</p>
+
+        {% if messages %}
+          {% for message in messages %}
+            <div class="mb-4 p-3 rounded-lg bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 text-sm">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+
+        <form method="post" class="space-y-4 mb-8">
+          {% csrf_token %}
+          <input type="text" name="author" placeholder="Your name"
+                 class="w-full border border-gray-200 dark:border-zinc-600 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-zinc-700 dark:text-gray-100"
+                 required />
+          <textarea name="body" placeholder="Share your thoughts…" rows="4"
+                    class="w-full border border-gray-200 dark:border-zinc-600 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-zinc-700 dark:text-gray-100 resize-none"
+                    required></textarea>
+          <button type="submit"
+                  class="px-6 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition">
+            Post Comment
+          </button>
+        </form>
+
+        <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">
+          {{ comments|length }} Comment{{ comments|length|pluralize }}
+        </h3>
+        <div class="space-y-4">
+          {% for comment in comments %}
+            <div class="flex gap-3 p-4 bg-gray-50 dark:bg-zinc-700 rounded-lg">
+              <div class="flex-shrink-0 w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
+                {{ comment.author|first|upper }}
+              </div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="font-semibold text-sm text-gray-800 dark:text-gray-100">{{ comment.author }}</span>
+                  <span class="text-xs text-gray-400">{{ comment.comment_made_on|date:"M j, Y" }}</span>
+                </div>
+                <p class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{{ comment.comment }}</p>
+              </div>
+            </div>
+          {% empty %}
+            <p class="text-gray-500 dark:text-gray-400 text-sm italic">No comments yet. Be the first!</p>
+          {% endfor %}
+        </div>
+      </div>
+    </main>
+
+    <!-- ━━━ SIDEBAR ━━━ -->
+    <aside class="w-full xl:w-80 flex-shrink-0 space-y-6">
+
+      <!-- Author card -->
+      {% if post.author %}
+        <div class="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-gray-100 dark:border-zinc-700 p-5">
+          <p class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">About the Author</p>
+          <div class="flex items-center gap-3 mb-3">
+            {% if post.author.photo %}
+              <img src="{{ post.author.photo.url }}?f_auto,q_auto,w_56,h_56,c_fill,g_face,r_max"
+                   alt="{{ post.author.name }}"
+                   class="w-14 h-14 rounded-full object-cover border-2 border-gray-200 dark:border-zinc-600" />
+            {% else %}
+              <div class="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center text-white text-xl font-bold">
+                {{ post.author.name|first|upper }}
+              </div>
+            {% endif %}
+            <div>
+              <a href="{% url 'author_profile' post.author.slug %}"
+                 class="font-bold text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 transition">
+                {{ post.author.name }}
+              </a>
+              {% if post.author.social_profile %}
+                <a href="{{ post.author.social_profile }}" target="_blank" rel="noopener"
+                   class="block text-xs text-blue-600 dark:text-blue-400 hover:underline mt-0.5">Follow</a>
+              {% endif %}
+            </div>
+          </div>
+          {% if post.author.bio %}
+            <p class="text-xs text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-3">{{ post.author.bio }}</p>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      <!-- Related posts -->
+      {% if related_posts %}
+        <div class="bg-white dark:bg-zinc-800 rounded-xl shadow-sm border border-gray-100 dark:border-zinc-700 p-5">
+          <div class="flex items-center gap-2 mb-4">
+            <div class="w-1 h-5 bg-blue-600 rounded-full"></div>
+            <p class="text-sm font-bold text-gray-800 dark:text-gray-100 uppercase tracking-wide">Related Stories</p>
+          </div>
+          <div class="space-y-4">
             {% for rel in related_posts %}
-                <div class="bg-gray-50 p-4 flex flex-col rounded-lg overflow-hidden hover:shadow-lg active:shadow-lg hover:scale-105 active:scale-105 transition-all duration-300 dark:bg-zinc-700 dark:text-gray-100">
-                    {% if rel.image %}
-                        <a href="{{ rel.get_absolute_url }}">
-                            <img src="{{ rel.image.url }}" alt="{{ rel.title }}" class="h-32 w-full object-cover rounded mb-2" loading="lazy" />
-                        </a>
-                    {% endif %}
-                    <a href="{{ rel.get_absolute_url }}" class="font-semibold text-blue-700 dark:text-blue-400 hover:underline text-lg mb-1">{{ rel.title }}</a>
-                    <p class="text-gray-500 dark:text-gray-400 text-sm mb-2">{{ rel.date_created|date:"M d, Y" }}</p>
-                    <p class="text-gray-700 dark:text-gray-300 text-sm">{{ rel.body|truncatewords:20 }}</p>
+              <a href="{{ rel.get_absolute_url }}" class="flex gap-3 group">
+                {% if rel.image %}
+                  <img src="{{ rel.image.url }}?f_auto,q_auto,w_120,h_80,c_fill"
+                       alt="{{ rel.title }}"
+                       class="w-20 h-16 object-cover rounded-lg flex-shrink-0 group-hover:opacity-90 transition" />
+                {% else %}
+                  <div class="w-20 h-16 bg-gray-100 dark:bg-zinc-700 rounded-lg flex-shrink-0"></div>
+                {% endif %}
+                <div class="min-w-0">
+                  <p class="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-snug group-hover:text-blue-600 dark:group-hover:text-blue-400 transition line-clamp-3">{{ rel.title }}</p>
+                  <p class="text-xs text-gray-400 mt-1">{{ rel.date_created|date:"M d, Y" }}</p>
                 </div>
+              </a>
             {% endfor %}
+          </div>
         </div>
-    </div>
-    {% endif %}
-</article>
+      {% endif %}
 
-<!-- Comment form -->
-<h3 class="text-xl font-semibold mb-4 dark:text-gray-100">Leave a comment:</h3>
-<form method="post" class="mb-6 space-y-4">
-    {% csrf_token %}
-    <input type="text" name="author" placeholder="Your name"
-           class="w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 dark:bg-zinc-700 dark:border-zinc-600 dark:text-gray-100"
-           required>
-    <textarea name="body" placeholder="Your comment..."
-              class="w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 p-2 dark:bg-zinc-700 dark:border-zinc-600 dark:text-gray-100"
-              required></textarea>
-    <button type="submit"
-            class="px-4 py-2 rounded-md bg-gray-800 text-white hover:bg-blue-700 transition dark:bg-zinc-700 dark:hover:bg-blue-600">
-        Submit
-    </button>
-</form>
+      <!-- Newsletter CTA -->
+      <div class="bg-blue-600 dark:bg-blue-700 rounded-xl p-5 text-white">
+        <p class="text-xs font-bold uppercase tracking-widest mb-2 text-blue-200">Newsletter</p>
+        <h3 class="text-lg font-bold mb-2 leading-snug">Get the latest news delivered</h3>
+        <p class="text-sm text-blue-100 mb-4">Join thousands of readers who trust PulseLineDaily.</p>
+        <form method="POST" action="{% url 'subscribe' %}" class="flex gap-2">
+          {% csrf_token %}
+          <input type="email" name="email" placeholder="Your email"
+                 class="flex-1 min-w-0 px-3 py-2 rounded-lg text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-white" />
+          <button type="submit" class="px-4 py-2 bg-white text-blue-700 font-bold rounded-lg text-sm hover:bg-blue-50 transition flex-shrink-0">
+            Subscribe
+          </button>
+        </form>
+      </div>
+    </aside>
 
-<!-- Comments -->
-<h3 class="text-xl font-semibold mb-4 dark:text-gray-100">Comments:</h3>
-<div class="space-y-4">
-    {% if comments %}
-        {% for comment in comments %}
-            <div class="p-4 bg-gray-100 rounded-md hover:bg-gray-200 transition dark:bg-zinc-700 dark:hover:bg-zinc-600 dark:text-gray-100">
-                <div class="flex items-center space-x-3">
-                    <!-- Avatar Circle (Initials as fallback) -->
-                    <div class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-400 text-white font-bold">
-                        {{ comment.author|first|upper }}
-                    </div>
-                    <p class="text-sm text-gray-600 dark:text-gray-400">
-                        On {{ comment.comment_made_on|date:"F j, Y, g:i a" }}
-                        <b class="text-gray-800 dark:text-gray-200">{{ comment.author }}</b> :
-                    </p>
-                </div>
-                <p class="mt-2 text-gray-700 dark:text-gray-300">{{ comment.comment|linebreaks }}</p>
-            </div>
-        {% endfor %}
-    {% else %}
-        <p class="text-gray-500 dark:text-gray-400 italic">No comments yet. Be the first to comment!</p>
-    {% endif %}
+  </div>
 </div>
 {% endblock content %}

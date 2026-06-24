@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Submit an Article | PulseLineDaily{% endblock %}
+{% block meta_description %}Contribute to PulseLineDaily — submit your article for editorial review.{% endblock %}
+{% block meta_robots %}<meta name="robots" content="noindex, follow">{% endblock %}
+
+{% block content %}
+<!-- CKEditor 5 Classic Build -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ckeditor/ckeditor5-build-classic@40.2.0/build/ckeditor.css">
+<script src="https://cdn.jsdelivr.net/npm/@ckeditor/ckeditor5-build-classic@40.2.0/build/ckeditor.js" defer></script>
+
+<div class="max-w-3xl mx-auto px-4 py-10 dark:bg-gray-900 dark:text-gray-100">
+
+  <div class="mb-8">
+    <h1 class="text-3xl font-extrabold text-gray-800 dark:text-gray-100 mb-2">Submit an Article</h1>
+    <p class="text-gray-600 dark:text-gray-300 leading-relaxed">
+      Contribute to PulseLineDaily. Your draft will be reviewed by our editorial team before publishing.
+      We typically respond within 48 hours.
+    </p>
+  </div>
+
+  {% if messages %}
+    {% for message in messages %}
+      <div class="mb-6 p-4 rounded-xl border {% if message.tags == 'success' %}bg-green-50 border-green-200 text-green-800 dark:bg-green-900/40 dark:border-green-700 dark:text-green-300{% else %}bg-red-50 border-red-200 text-red-800{% endif %}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="post" id="submit-form" class="space-y-6 bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-gray-100 dark:border-zinc-700 p-6 md:p-8">
+    {% csrf_token %}
+
+    <!-- Contributor name -->
+    <div>
+      <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">Your name <span class="text-red-500">*</span></label>
+      {{ form.contributor_name }}
+    </div>
+
+    <!-- Title -->
+    <div>
+      <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">Article title <span class="text-red-500">*</span></label>
+      {{ form.title }}
+      {% if form.title.errors %}<p class="text-red-500 text-sm mt-1">{{ form.title.errors.0 }}</p>{% endif %}
+    </div>
+
+    <!-- Summary -->
+    <div>
+      <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
+        Summary <span class="text-gray-400 font-normal">(optional  shown on article cards)</span>
+      </label>
+      {{ form.summary }}
+    </div>
+
+    <!-- Body — rich text editor -->
+    <div>
+      <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
+        Article body <span class="text-red-500">*</span>
+        <span class="text-gray-400 font-normal ml-1"> use the toolbar to format headings, links, lists, and more</span>
+      </label>
+      <!-- CKEditor replaces this textarea -->
+      <textarea name="body" id="id_body" rows="20"
+                class="w-full border border-gray-200 dark:border-zinc-600 rounded-lg px-4 py-3 text-sm
+                       focus:outline-none focus:ring-2 focus:ring-blue-500
+                       bg-white dark:bg-zinc-700 dark:text-gray-100">{{ form.body.value|default:'' }}</textarea>
+      {% if form.body.errors %}<p class="text-red-500 text-sm mt-1">{{ form.body.errors.0 }}</p>{% endif %}
+    </div>
+
+    <!-- Tags -->
+    <div>
+      <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-1.5">
+        Tags <span class="text-gray-400 font-normal">(optional, comma-separated)</span>
+      </label>
+      {{ form.tags }}
+    </div>
+
+    <!-- Categories -->
+    <div>
+      <label class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
+        Categories <span class="text-gray-400 font-normal">(select all that apply)</span>
+      </label>
+      <div class="flex flex-wrap gap-3">
+        {{ form.categories }}
+      </div>
+      {% if form.categories.errors %}<p class="text-red-500 text-sm mt-1">{{ form.categories.errors.0 }}</p>{% endif %}
+    </div>
+
+    <button type="submit"
+            class="w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 active:bg-blue-800 transition text-sm shadow-sm">
+      Submit Article for Review
+    </button>
+  </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var textarea = document.getElementById('id_body');
+  if (!textarea || typeof ClassicEditor === 'undefined') return;
+
+  ClassicEditor
+    .create(textarea, {
+      toolbar: {
+        items: [
+          'heading', '|',
+          'bold', 'italic', 'link', '|',
+          'bulletedList', 'numberedList', '|',
+          'outdent', 'indent', '|',
+          'blockQuote', 'insertTable', 'mediaEmbed', '|',
+          'undo', 'redo'
+        ]
+      },
+      heading: {
+        options: [
+          { model: 'paragraph', title: 'Paragraph', class: 'ck-heading_paragraph' },
+          { model: 'heading2', view: 'h2', title: 'Heading 2', class: 'ck-heading_heading2' },
+          { model: 'heading3', view: 'h3', title: 'Heading 3', class: 'ck-heading_heading3' },
+          { model: 'heading4', view: 'h4', title: 'Heading 4', class: 'ck-heading_heading4' }
+        ]
+      },
+      table: {
+        contentToolbar: ['tableColumn', 'tableRow', 'mergeTableCells']
+      }
+    })
+    .then(function (editor) {
+      // Sync CKEditor content back to textarea on form submit
+      document.getElementById('submit-form').addEventListener('submit', function () {
+        textarea.value = editor.getData();
+      });
+    })
+    .catch(function (err) { console.error('[CKEditor]', err); });
+});
+</script>
+{% endblock %}

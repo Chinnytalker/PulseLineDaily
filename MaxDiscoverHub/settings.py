@@ -76,6 +76,7 @@ if DEBUG:
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'django.middleware.gzip.GZipMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -87,6 +88,21 @@ MIDDLEWARE = [
 
 if DEBUG:
     MIDDLEWARE.append('django_browser_reload.middleware.BrowserReloadMiddleware')
+
+# django-axes admin brute-force protection (pip install django-axes to enable)
+try:
+    import axes  # noqa: F401
+    INSTALLED_APPS = list(INSTALLED_APPS) + ['axes']
+    MIDDLEWARE.append('axes.middleware.AxesMiddleware')
+    AUTHENTICATION_BACKENDS = [
+        'axes.backends.AxesStandaloneBackend',
+        'django.contrib.auth.backends.ModelBackend',
+    ]
+    AXES_FAILURE_LIMIT = 5
+    AXES_COOLOFF_TIME = 1  # lock out for 1 hour after 5 failed attempts
+    AXES_LOCKOUT_TEMPLATE = None
+except ImportError:
+    pass
 
 ROOT_URLCONF = 'MaxDiscoverHub.urls'
 
@@ -231,12 +247,44 @@ else:
 
 
 # Celery settings
+from celery.schedules import crontab
+
 CELERY_BROKER_URL = config('CELERY_BROKER_URL')
 CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
+
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+CELERY_BEAT_SCHEDULE = {
+    # Weekly newsletter — every Monday at 8 AM UTC
+    'weekly-newsletter': {
+        'task': 'projectApp.tasks.send_weekly_newsletter',
+        'schedule': crontab(day_of_week='monday', hour=8, minute=0),
+    },
+    # Option B: World Bank data → original article (once daily, 7 AM UTC)
+    'daily-data-journalism': {
+        'task': 'projectApp.tasks.generate_data_journalism_articles',
+        'schedule': crontab(hour=7, minute=0),
+    },
+    # Option C: Nigerian RSS headlines → AI rewrite (every 8 hours)
+    'rss-article-rewrite': {
+        'task': 'projectApp.tasks.generate_rss_articles',
+        'schedule': crontab(hour='6,14,22', minute=0),
+    },
+    # Sports: EPL table + Super Eagles results + World Cup analysis (twice daily)
+    'sports-articles': {
+        'task': 'projectApp.tasks.generate_sports_articles',
+        'schedule': crontab(hour='9,21', minute=0),
+    },
+}
+
+# ── AI / Groq API (FREE) ───────────────────────────────────────────────────────
+# Used by the data journalism + RSS rewrite Celery tasks to generate articles.
+# Free key (no credit card): https://console.groq.com/keys
+GROQ_API_KEY = config('GROQ_API_KEY', default='')
 
 
 
@@ -257,17 +305,38 @@ cloudinary.config(
 )
 
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
+# ── Cache ──────────────────────────────────────────────────────────────────────
+# Uses in-process memory cache by default.
+# For multi-worker deployments, switch the BACKEND to django-redis and set
+# CACHE_URL in your .env: CACHE_URL=redis://127.0.0.1:6379/1
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'pulselinedaily',
+    }
+}
+
+CACHE_MIDDLEWARE_SECONDS = 300
+
+
+# ── Email (SMTP) ───────────────────────────────────────────────────────────────
+EMAIL_BACKEND = config(
+    'EMAIL_BACKEND',
+    default='django.core.mail.backends.smtp.EmailBackend'
+)
+EMAIL_HOST = config('EMAIL_HOST', default='smtp-relay.brevo.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
 EMAIL_USE_TLS = True
+EMAIL_HOST_USER = config('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = config('EMAIL_PASSWORD')
+DEFAULT_FROM_EMAIL = config(
+    'DEFAULT_FROM_EMAIL',
+    default='PulseLineDaily <contact@pulselinedaily.com>'
+)
+SERVER_EMAIL = config('EMAIL_HOST_USER')
 
-EMAIL_HOST_USER = config("EMAIL_HOST_USER")      # your Gmail
-EMAIL_HOST_PASSWORD = config("EMAIL_PASSWORD")   # Gmail app password
-
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-
-# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# All contact/advertise/notification emails are sent to this address
+CONTACT_EMAIL = config('CONTACT_EMAIL', default='contact@pulselinedaily.com')
 
 
 
