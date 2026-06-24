@@ -30,7 +30,7 @@
     {% block canonical %}
     <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
     {% endblock %}
-    <link rel="stylesheet" href="{% static 'css/dist/styles.css' %}?v=20260411">
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="icon" href="{% static 'favicon/favicon.ico' %}">
     <link rel="apple-touch-icon" sizes="180x180" href="{% static 'favicon/apple-touch-icon.png' %}">
     <link rel="icon" type="image/png" sizes="32x32" href="{% static 'favicon/favicon-32x32.png' %}">
