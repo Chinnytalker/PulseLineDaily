@@ -20,12 +20,12 @@
     <meta property="og:description" content="{% block og_description %}Breaking news, analysis, and stories from around the world.{% endblock %}">
     <meta property="og:type" content="{% block og_type %}website{% endblock %}">
     <meta property="og:url" content="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
-    <meta property="og:image" content="{% block og_image %}{% static 'image/Pulsemainlogo.jpg' %}{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}{% static 'image/pulsemainlogo.jpg' %}{% endblock %}">
     <meta name="twitter:card" content="{% block twitter_card %}summary_large_image{% endblock %}">
     <meta name="twitter:site" content="@pulselinedaily">
     <meta name="twitter:title" content="{% block twitter_title %}PulseLineDaily - Trusted Global News{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}Breaking news, analysis, and stories from around the world.{% endblock %}">
-    <meta name="twitter:image" content="{% block twitter_image %}{% static 'image/Pulsemainlogo.jpg' %}{% endblock %}">
+    <meta name="twitter:image" content="{% block twitter_image %}{% static 'image/pulsemainlogo.jpg' %}{% endblock %}">
     <link rel="alternate" type="application/rss+xml" title="PulseLineDaily RSS Feed" href="/rss/">
     {% block canonical %}
     <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
@@ -35,7 +35,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="{% static 'favicon/apple-touch-icon.png' %}">
     <link rel="icon" type="image/png" sizes="32x32" href="{% static 'favicon/favicon-32x32.png' %}">
     <link rel="icon" type="image/png" sizes="16x16" href="{% static 'favicon/favicon-16x16.png' %}">
-    <link rel="manifest" href="{% static 'images/site.webmanifest' %}">
+    <link rel="manifest" href="{% static 'favicon/site.webmanifest' %}">
     <style>
       /* Hide default scrollbar */
       .scrollbar-hide::-webkit-scrollbar { display: none; }
@@ -138,7 +138,7 @@
         "url": "https://www.pulselinedaily.com",
         "logo": {
         "@type": "ImageObject",
-        "url": "https://www.pulselinedaily.com{% static 'image/Pulsemainlogo.jpg' %}",
+        "url": "https://www.pulselinedaily.com{% static 'image/pulsemainlogo.jpg' %}",
         "width": 600,
         "height": 60
         },
@@ -168,7 +168,7 @@
   </div>
 
   <!-- Newsletter Popup (bottom left corner) -->
-  <div id="newsletter-popup" class="fixed bottom-6 left-6 z-50" style="display:none;">
+  <div id="newsletter-popup" class="fixed bottom-6 left-6 z-[60]" style="display:none;">
     <div class="bg-white dark:bg-gray-900 p-4 rounded shadow-lg max-w-xs w-full relative border border-gray-300 dark:border-gray-700">
       <button id="close-newsletter" class="absolute top-2 right-2 text-gray-500 hover:text-gray-900">&times;</button>
       <h2 class="text-lg font-bold mb-1 text-gray-900 dark:text-gray-100">Subscribe to our Newsletter</h2>
@@ -200,9 +200,9 @@
       <!-- Logo -->
       <div class="flex-shrink-0">
         <a href="{% url 'Home' %}">
-          <svg xmlns="http://www.w3.org/2000/svg" width="175" height="54" viewBox="0 0 500 120"
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 120"
                role="img" aria-labelledby="pulseLineLogoTitle"
-               class="text-gray-900 dark:text-gray-100 transition-colors duration-300">
+               class="w-28 sm:w-40 lg:w-44 h-auto text-gray-900 dark:text-gray-100 transition-colors duration-300">
             <title id="pulseLineLogoTitle">PulseLineDaily Logo</title>
             <path d="M10 60 H60 L75 30 L90 90 L110 20 L130 90 L150 60 H180"
                   fill="none" stroke="currentColor" stroke-width="8"
@@ -237,7 +237,7 @@
                 class="p-2 rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-300 transition focus:outline-none">
           <i class="fa fa-moon text-sm"></i>
         </button>
-        <button id="mobile-menu-button" class="lg:hidden text-gray-700 hover:text-blue-600 focus:outline-none p-1">
+        <button id="mobile-menu-button" aria-expanded="false" aria-controls="mobile-menu" aria-label="Toggle navigation menu" class="lg:hidden text-gray-700 hover:text-blue-600 focus:outline-none p-1">
           <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
           </svg>
@@ -499,30 +499,36 @@
     }
 
     if (form && popup) {
-      form.addEventListener('submit', function (e) {
-        e.preventDefault();
+      form.addEventListener('submit', function () {
         localStorage.setItem('app_newsletterDismissed', 'true');
         popup.style.display = 'none';
-        alert('Thank you for subscribing!');
       });
     }
 
     // 🌙 Dark Mode
     const toggle = document.getElementById('dark-mode-toggle');
 
+    function applyDarkModeIcon(isDark) {
+      const icon = toggle ? toggle.querySelector('i') : null;
+      if (!icon) return;
+      icon.className = isDark ? 'fa fa-sun text-sm' : 'fa fa-moon text-sm';
+    }
+
     if (toggle) {
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       const storedTheme = localStorage.getItem('app_theme');
+      const isDark = storedTheme === 'dark' || (!storedTheme && prefersDark);
 
-      if (storedTheme === 'dark' || (!storedTheme && prefersDark)) {
+      if (isDark) {
         document.body.classList.add('dark-mode');
       }
+      applyDarkModeIcon(isDark);
 
       toggle.addEventListener('click', function () {
         document.body.classList.toggle('dark-mode');
-
-        const theme = document.body.classList.contains('dark-mode') ? 'dark' : 'light';
-        localStorage.setItem('app_theme', theme);
+        const nowDark = document.body.classList.contains('dark-mode');
+        localStorage.setItem('app_theme', nowDark ? 'dark' : 'light');
+        applyDarkModeIcon(nowDark);
       });
     }
 
@@ -533,11 +539,13 @@
     if (menuBtn && menu) {
       menuBtn.addEventListener('click', function () {
         menu.classList.toggle('hidden');
+        menuBtn.setAttribute('aria-expanded', !menu.classList.contains('hidden'));
       });
 
       document.addEventListener('click', function (e) {
         if (!menuBtn.contains(e.target) && !menu.contains(e.target)) {
           menu.classList.add('hidden');
+          menuBtn.setAttribute('aria-expanded', 'false');
         }
       });
     }
