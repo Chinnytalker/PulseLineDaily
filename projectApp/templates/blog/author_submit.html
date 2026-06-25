@@ -22,7 +22,7 @@
 
   {% if messages %}
     {% for message in messages %}
-      <div class="mb-6 p-4 rounded-xl border {% if message.tags == 'success' %}bg-green-50 border-green-200 text-green-800 dark:bg-green-900/40 dark:border-green-700 dark:text-green-300{% else %}bg-red-50 border-red-200 text-red-800{% endif %}">
+      <div class="mb-6 p-4 rounded-xl border {% if message.tags == 'success' %}bg-green-50 border-green-200 text-green-800 dark:bg-green-900/40 dark:border-green-700 dark:text-green-300{% else %}bg-red-50 border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-700 dark:text-red-300{% endif %}">
         {{ message }}
       </div>
     {% endfor %}
