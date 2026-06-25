@@ -137,13 +137,25 @@ def generate_data_journalism_articles(self):
         if "---" in raw:
             head, body = raw.split("---", 1)
             html = body.strip()
+            current_key = None
+            buf = []
             for line in head.splitlines():
                 stripped = line.strip()
                 upper = stripped.upper()
                 if upper.startswith("SUMMARY:"):
-                    summary = stripped[8:].strip()
+                    current_key = "summary"
+                    buf = [stripped[8:].strip()]
                 elif upper.startswith("ANALYSIS:"):
-                    analysis = stripped[9:].strip()
+                    if current_key == "summary":
+                        summary = " ".join(buf).strip()
+                    current_key = "analysis"
+                    buf = [stripped[9:].strip()]
+                elif current_key and stripped:
+                    buf.append(stripped)
+            if current_key == "summary":
+                summary = " ".join(buf).strip()
+            elif current_key == "analysis":
+                analysis = " ".join(buf).strip()
         return summary, analysis, html
 
     def category_for(hint):
@@ -302,13 +314,25 @@ def generate_rss_articles(self):
         if "---" in raw:
             head, body = raw.split("---", 1)
             html = body.strip()
+            current_key = None
+            buf = []
             for line in head.splitlines():
                 stripped = line.strip()
                 upper = stripped.upper()
                 if upper.startswith("SUMMARY:"):
-                    summary = stripped[8:].strip()
+                    current_key = "summary"
+                    buf = [stripped[8:].strip()]
                 elif upper.startswith("ANALYSIS:"):
-                    analysis = stripped[9:].strip()
+                    if current_key == "summary":
+                        summary = " ".join(buf).strip()
+                    current_key = "analysis"
+                    buf = [stripped[9:].strip()]
+                elif current_key and stripped:
+                    buf.append(stripped)
+            if current_key == "summary":
+                summary = " ".join(buf).strip()
+            elif current_key == "analysis":
+                analysis = " ".join(buf).strip()
         return summary, analysis, html
 
     def category_for(hint):
@@ -434,13 +458,25 @@ def generate_sports_articles(self):
         if "---" in raw:
             head, body = raw.split("---", 1)
             html = body.strip()
+            current_key = None
+            buf = []
             for line in head.splitlines():
                 stripped = line.strip()
                 upper = stripped.upper()
                 if upper.startswith("SUMMARY:"):
-                    summary = stripped[8:].strip()
+                    current_key = "summary"
+                    buf = [stripped[8:].strip()]
                 elif upper.startswith("ANALYSIS:"):
-                    analysis = stripped[9:].strip()
+                    if current_key == "summary":
+                        summary = " ".join(buf).strip()
+                    current_key = "analysis"
+                    buf = [stripped[9:].strip()]
+                elif current_key and stripped:
+                    buf.append(stripped)
+            if current_key == "summary":
+                summary = " ".join(buf).strip()
+            elif current_key == "analysis":
+                analysis = " ".join(buf).strip()
         return summary, analysis, html
 
     def recently_generated(tag_snippet, days):
@@ -513,8 +549,215 @@ def generate_sports_articles(self):
                 body=html,
                 summary=summary,
                 analysis=analysis,
-                tags=topic["tags"],
+                tags=f"{topic['tags']}, {topic['key']}",
             )
             created += 1
 
     return f"Sports articles task complete: {created} draft(s) created"
+
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=300)
+def generate_market_articles(self):
+    """
+    Market & security data journalism pipeline:
+    1. Brent crude oil price (daily) — Yahoo Finance
+    2. NGX All-Share Index (weekdays only) — Yahoo Finance
+    3. Agricultural commodity prices (every 3 days) — Yahoo Finance + World Bank
+    4. Nigeria security briefing (every 3 days, optional) — ACLED API
+    All saved as unpublished drafts for human review.
+    """
+    from django.conf import settings
+    from django.utils import timezone
+    from datetime import timedelta
+
+    api_key = getattr(settings, "GROQ_API_KEY", "")
+    if not api_key:
+        logger.warning("GROQ_API_KEY not set — skipping market articles task")
+        return "GROQ_API_KEY not configured"
+
+    try:
+        from groq import Groq
+    except ImportError:
+        return "groq package missing"
+
+    from .models import Post, Category, Author
+    from .data_journalism import (
+        fetch_brent_crude,
+        fetch_ngx_index,
+        fetch_commodity_prices,
+        fetch_acled_nigeria,
+        build_brent_prompt,
+        build_ngx_prompt,
+        build_commodity_prompt,
+        build_acled_prompt,
+    )
+
+    client = Groq(api_key=api_key)
+    now = timezone.now()
+    date_str = now.strftime("%d %B %Y")
+    created = 0
+
+    default_author = Author.objects.filter(slug="clinton-nwachukwu").first()
+
+    def call_llm(prompt):
+        try:
+            resp = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                max_tokens=2200,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return resp.choices[0].message.content.strip()
+        except Exception as exc:
+            logger.error("Groq API error: %s", exc)
+            return None
+
+    def parse_response(raw):
+        summary, analysis, html = "", "", raw
+        if "---" in raw:
+            head, body = raw.split("---", 1)
+            html = body.strip()
+            current_key = None
+            buf = []
+            for line in head.splitlines():
+                stripped = line.strip()
+                upper = stripped.upper()
+                if upper.startswith("SUMMARY:"):
+                    current_key = "summary"
+                    buf = [stripped[8:].strip()]
+                elif upper.startswith("ANALYSIS:"):
+                    if current_key == "summary":
+                        summary = " ".join(buf).strip()
+                    current_key = "analysis"
+                    buf = [stripped[9:].strip()]
+                elif current_key and stripped:
+                    buf.append(stripped)
+            if current_key == "summary":
+                summary = " ".join(buf).strip()
+            elif current_key == "analysis":
+                analysis = " ".join(buf).strip()
+        return summary, analysis, html
+
+    def recently_generated(tag_snippet, days):
+        cutoff = now - timedelta(days=days)
+        return Post.objects.filter(
+            updated_by="market-auto",
+            tags__icontains=tag_snippet,
+            date_created__gte=cutoff,
+        ).exists()
+
+    def category_for(hint):
+        return Category.objects.filter(name__icontains=hint).first()
+
+    def save_draft(title, body, summary, analysis, tags, category_hint):
+        cat = (
+            category_for(category_hint)
+            or category_for("economy")
+            or category_for("news")
+            or Category.objects.first()
+        )
+        post = Post.objects.create(
+            title=title,
+            body=body,
+            summary=summary or title[:160],
+            analysis=analysis or None,
+            tags=tags,
+            source="api",
+            is_published=False,
+            updated_by="market-auto",
+            author=default_author,
+        )
+        if cat:
+            post.categories.add(cat)
+        logger.info("Created market draft: %s", title)
+        return post
+
+    # ── 1. Brent crude price (daily) ──────────────────────────────────────────
+    if not recently_generated("brent crude", days=1):
+        data = fetch_brent_crude()
+        if data:
+            raw = call_llm(build_brent_prompt(data))
+            if raw:
+                summary, analysis, html = parse_response(raw)
+                save_draft(
+                    title=f"Brent Crude Today: ${data['brent_price']:.2f}/barrel — {date_str}",
+                    body=html,
+                    summary=summary,
+                    analysis=analysis,
+                    tags=(
+                        f"brent crude, oil price, nigeria, opec, energy, economy, "
+                        f"naira, {now.strftime('%Y')}"
+                    ),
+                    category_hint="economy",
+                )
+                created += 1
+        else:
+            logger.info("Brent crude fetch failed — skipping oil article")
+
+    # ── 2. NGX All-Share Index (weekdays only, daily) ─────────────────────────
+    if now.weekday() < 5 and not recently_generated("ngx", days=1):
+        data = fetch_ngx_index()
+        if data:
+            raw = call_llm(build_ngx_prompt(data, date_str))
+            if raw:
+                summary, analysis, html = parse_response(raw)
+                direction = "Gains" if data["change_pct"] >= 0 else "Decline"
+                save_draft(
+                    title=f"NGX All-Share Index {direction}: Market Wrap — {date_str}",
+                    body=html,
+                    summary=summary,
+                    analysis=analysis,
+                    tags=(
+                        f"ngx, nigerian exchange, stock market, equities, "
+                        f"investing, economy, {now.strftime('%Y')}"
+                    ),
+                    category_hint="economy",
+                )
+                created += 1
+        else:
+            logger.info("NGX index fetch failed — skipping stock market article")
+
+    # ── 3. Agricultural commodity prices (every 3 days) ──────────────────────
+    if not recently_generated("cocoa", days=3):
+        data = fetch_commodity_prices()
+        if data:
+            raw = call_llm(build_commodity_prompt(data))
+            if raw:
+                summary, analysis, html = parse_response(raw)
+                save_draft(
+                    title=f"Nigeria Agricultural Commodity Prices — {now.strftime('%B %Y')}",
+                    body=html,
+                    summary=summary,
+                    analysis=analysis,
+                    tags=(
+                        f"cocoa, palm oil, groundnuts, agriculture, commodities, "
+                        f"nigeria, export, farmers, {now.strftime('%Y')}"
+                    ),
+                    category_hint="economy",
+                )
+                created += 1
+        else:
+            logger.info("Commodity price fetch returned no data — skipping agriculture article")
+
+    # ── 4. ACLED security briefing (every 3 days, optional) ──────────────────
+    acled_key = getattr(settings, "ACLED_API_KEY", "")
+    acled_email = getattr(settings, "ACLED_EMAIL", "")
+    if acled_key and acled_email and not recently_generated("security", days=3):
+        data = fetch_acled_nigeria(acled_key, acled_email, days=30)
+        if data:
+            raw = call_llm(build_acled_prompt(data))
+            if raw:
+                summary, analysis, html = parse_response(raw)
+                save_draft(
+                    title=f"Nigeria Security Briefing: Conflict & Incident Report — {now.strftime('%B %Y')}",
+                    body=html,
+                    summary=summary,
+                    analysis=analysis,
+                    tags=(
+                        f"nigeria security, conflict, insecurity, banditry, "
+                        f"terrorism, acled, {now.strftime('%Y')}, security"
+                    ),
+                    category_hint="news",
+                )
+                created += 1
+
+    return f"Market articles task complete: {created} draft(s) created"

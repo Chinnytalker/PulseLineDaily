@@ -280,12 +280,23 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'projectApp.tasks.generate_sports_articles',
         'schedule': crontab(hour='9,21', minute=0),
     },
+    # Market: Brent crude, NGX index, agriculture commodities, ACLED security (twice daily)
+    'market-articles': {
+        'task': 'projectApp.tasks.generate_market_articles',
+        'schedule': crontab(hour='8,20', minute=30),
+    },
 }
 
 # ── AI / Groq API (FREE) ───────────────────────────────────────────────────────
 # Used by the data journalism + RSS rewrite Celery tasks to generate articles.
 # Free key (no credit card): https://console.groq.com/keys
 GROQ_API_KEY = config('GROQ_API_KEY', default='')
+
+# ── ACLED Conflict Data API (FREE) ─────────────────────────────────────────────
+# Required only for the Nigeria security briefing articles.
+# Free account + key at: https://acleddata.com/register/
+ACLED_API_KEY = config('ACLED_API_KEY', default='')
+ACLED_EMAIL = config('ACLED_EMAIL', default='')
 
 
 

@@ -27,6 +27,12 @@ TASKS = [
         'cron': {'minute': '0', 'hour': '9,21', 'day_of_week': '*',
                  'day_of_month': '*', 'month_of_year': '*'},
     },
+    {
+        'name': 'market-articles',
+        'task': 'projectApp.tasks.generate_market_articles',
+        'cron': {'minute': '30', 'hour': '8,20', 'day_of_week': '*',
+                 'day_of_month': '*', 'month_of_year': '*'},
+    },
 ]
 
 

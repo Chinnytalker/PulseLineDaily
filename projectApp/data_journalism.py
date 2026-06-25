@@ -170,6 +170,62 @@ INDICATORS = {
             "a measure of telecommunications reach and digital connectivity."
         ),
     },
+    # ── Government Finance ───────────────────────────────────────────
+    "government_revenue": {
+        "code": "GC.REV.TOTL.GD.ZS",
+        "name": "Government Revenue",
+        "unit": "% of GDP",
+        "category": "Economy",
+        "context": (
+            "Government revenue as a percentage of GDP shows how much of Nigeria's "
+            "total economic output the government collects — key to funding public "
+            "services, infrastructure, and debt repayment."
+        ),
+    },
+    "government_expenditure": {
+        "code": "GC.XPN.TOTL.GD.ZS",
+        "name": "Government Expenditure",
+        "unit": "% of GDP",
+        "category": "Economy",
+        "context": (
+            "Government expenditure as a share of GDP reflects the size of Nigeria's "
+            "public sector and its fiscal policy stance — higher spending can stimulate "
+            "growth but risks widening the deficit."
+        ),
+    },
+    "government_debt": {
+        "code": "GC.DOD.TOTL.GD.ZS",
+        "name": "Government Debt",
+        "unit": "% of GDP",
+        "category": "Economy",
+        "context": (
+            "Nigeria's central government debt as a share of GDP — a key measure of "
+            "fiscal sustainability and the country's ability to service obligations "
+            "without crowding out development spending."
+        ),
+    },
+    "lending_rate": {
+        "code": "FR.INR.LEND",
+        "name": "Bank Lending Interest Rate",
+        "unit": "%",
+        "category": "Economy",
+        "context": (
+            "The average bank lending rate reflects the cost of borrowing in Nigeria, "
+            "shaped by CBN monetary policy. High rates constrain business investment "
+            "and consumer credit, while low rates can fuel inflation."
+        ),
+    },
+    "oil_rents": {
+        "code": "NY.GDP.PETR.RT.ZS",
+        "name": "Oil Rents",
+        "unit": "% of GDP",
+        "category": "Economy",
+        "context": (
+            "Oil rents as a share of GDP show how dependent Nigeria's economy is "
+            "on petroleum revenues — a structural challenge the government has long "
+            "sought to diversify away from."
+        ),
+    },
 }
 
 
@@ -441,7 +497,10 @@ def fetch_epl_standings():
         resp.raise_for_status()
         data = resp.json()
         entries = []
-        for group in data.get("children", []):
+        # ESPN returns standings under "children[].standings.entries" for
+        # multi-group sports, but EPL uses "standings.entries" directly.
+        groups = data.get("children") or [data]
+        for group in groups:
             for entry in group.get("standings", {}).get("entries", []):
                 name = entry.get("team", {}).get("displayName", "Unknown")
                 stats = {s["name"]: s["value"] for s in entry.get("stats", [])}
@@ -671,3 +730,342 @@ REQUIREMENTS:
 
 def build_static_sports_prompt(topic):
     return topic["prompt"]
+
+
+# ── Yahoo Finance helper ──────────────────────────────────────────────────────
+
+_YF_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept": "application/json",
+}
+
+
+def fetch_yahoo_price(ticker):
+    """
+    Fetch the latest price for a Yahoo Finance ticker (commodity futures or index).
+    Returns {price, prev_close, change_pct, currency, name} or None on failure.
+    """
+    url = f"https://query2.finance.yahoo.com/v8/finance/chart/{ticker}"
+    try:
+        resp = requests.get(
+            url,
+            params={"interval": "1d", "range": "5d"},
+            headers=_YF_HEADERS,
+            timeout=12,
+        )
+        resp.raise_for_status()
+        results = resp.json()["chart"]["result"]
+        if not results:
+            return None
+        meta = results[0]["meta"]
+        price = meta.get("regularMarketPrice")
+        prev = meta.get("chartPreviousClose") or meta.get("previousClose")
+        if not price or not prev:
+            return None
+        change_pct = round(((float(price) - float(prev)) / float(prev)) * 100, 2)
+        return {
+            "price": round(float(price), 2),
+            "prev_close": round(float(prev), 2),
+            "change_pct": change_pct,
+            "currency": meta.get("currency", "USD"),
+            "name": meta.get("longName") or meta.get("shortName", ticker),
+        }
+    except Exception as exc:
+        logger.warning("Yahoo Finance [%s] error: %s", ticker, exc)
+        return None
+
+
+# ── Oil & energy fetcher ──────────────────────────────────────────────────────
+
+def fetch_brent_crude():
+    """
+    Return live Brent and WTI crude prices from Yahoo Finance, or None on failure.
+    Brent ticker: BZ=F  |  WTI ticker: CL=F
+    """
+    brent = fetch_yahoo_price("BZ=F")
+    if not brent:
+        return None
+    wti = fetch_yahoo_price("CL=F")
+    return {
+        "brent_price": brent["price"],
+        "brent_prev": brent["prev_close"],
+        "brent_change_pct": brent["change_pct"],
+        "wti_price": wti["price"] if wti else None,
+        "currency": "USD",
+    }
+
+
+# ── NGX stock market fetcher ──────────────────────────────────────────────────
+
+def fetch_ngx_index():
+    """
+    Return the NGX All-Share Index from Yahoo Finance (ticker ^NGSEINDEX), or None.
+    """
+    data = fetch_yahoo_price("^NGSEINDEX")
+    if not data:
+        return None
+    return {
+        "value": data["price"],
+        "prev_close": data["prev_close"],
+        "change_pct": data["change_pct"],
+    }
+
+
+# ── Agriculture commodity fetchers ────────────────────────────────────────────
+
+def fetch_commodity_prices():
+    """
+    Return current prices for cocoa (Yahoo Finance), palm oil, and groundnuts
+    (World Bank Pink Sheet).  Returns a dict with whichever sources succeed.
+    Returns None if every source fails.
+    """
+    result = {}
+
+    cocoa = fetch_yahoo_price("CC=F")
+    if cocoa:
+        result["cocoa"] = {
+            "price": cocoa["price"],
+            "change_pct": cocoa["change_pct"],
+            "unit": "USD/tonne",
+            "source": "ICE Futures",
+        }
+
+    palm_pts = fetch_worldbank_indicator("PPALMOIL", country="WLD", mrv=6)
+    if palm_pts:
+        result["palm_oil"] = {
+            "price": palm_pts[-1]["value"],
+            "year": palm_pts[-1]["year"],
+            "unit": "USD/tonne",
+            "source": "World Bank",
+        }
+
+    gnut_pts = fetch_worldbank_indicator("PGNUTS", country="WLD", mrv=6)
+    if gnut_pts:
+        result["groundnuts"] = {
+            "price": gnut_pts[-1]["value"],
+            "year": gnut_pts[-1]["year"],
+            "unit": "USD/tonne",
+            "source": "World Bank",
+        }
+
+    return result or None
+
+
+# ── ACLED security fetcher ────────────────────────────────────────────────────
+
+def fetch_acled_nigeria(api_key, email, days=30):
+    """
+    Fetch recent conflict/security incidents for Nigeria from the ACLED API.
+    Free account required at acleddata.com — set ACLED_API_KEY and ACLED_EMAIL in .env.
+    Returns a summary dict or None on failure.
+    """
+    from collections import Counter
+    from datetime import datetime, timedelta, timezone as dt_timezone
+
+    now_utc = datetime.now(dt_timezone.utc)
+    since = (now_utc - timedelta(days=days)).strftime("%Y-%m-%d")
+    today = now_utc.strftime("%Y-%m-%d")
+    try:
+        resp = requests.get(
+            "https://api.acleddata.com/acled/read",
+            params={
+                "key": api_key,
+                "email": email,
+                "country": "Nigeria",
+                "event_date": since,
+                "event_date_where": "BETWEEN",
+                "event_date2": today,
+                "limit": 500,
+            },
+            timeout=20,
+        )
+        resp.raise_for_status()
+        events = resp.json().get("data") or []
+        if not events:
+            return None
+
+        fatalities = sum(int(e.get("fatalities") or 0) for e in events)
+        regions = Counter(e.get("admin1", "Unknown") for e in events)
+        event_types = Counter(e.get("event_type", "Unknown") for e in events)
+
+        return {
+            "total_events": len(events),
+            "fatalities": fatalities,
+            "days": days,
+            "top_regions": regions.most_common(5),
+            "event_types": dict(event_types.most_common(5)),
+            "since_date": since,
+        }
+    except Exception as exc:
+        logger.warning("ACLED error: %s", exc)
+        return None
+
+
+# ── Market & security prompt builders ────────────────────────────────────────
+
+def build_brent_prompt(data):
+    brent = data["brent_price"]
+    change = data["brent_change_pct"]
+    direction = "rose" if change >= 0 else "fell"
+    sign = "+" if change >= 0 else ""
+    wti_line = (
+        f"\n- WTI Crude (US benchmark): ${data['wti_price']:.2f}/barrel"
+        if data.get("wti_price") else ""
+    )
+    return f"""You are a senior energy and financial journalist at PulseLineDaily, Nigeria's leading digital news outlet.
+
+Write a complete, publish-ready HTML article about today's Brent crude oil price and its implications for Nigeria.
+
+DATA (live market):
+- Brent Crude (global benchmark): ${brent:.2f}/barrel{wti_line}
+- Change today: {sign}{change}% — price {direction}
+
+OUTPUT FORMAT — three parts, exactly as shown:
+SUMMARY: <one punchy sentence max 160 characters — include the exact price>
+ANALYSIS: <2–3 sentences of expert takeaway — what this price signals about global oil markets and Nigeria's fiscal position>
+---
+<full HTML article body starting with <h2>>
+
+ARTICLE REQUIREMENTS:
+- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head> tags
+- <h2>: headline naming the exact Brent price and daily movement
+- Paragraph 1: state the price, the daily change, and why it matters to Nigeria
+- <h3>What This Means for Nigeria's Budget</h3>: explain Nigeria's oil benchmark price in the national budget and the fiscal impact of today's level
+- <h3>Impact on the Naira and Petrol Prices</h3>: how crude price affects forex earnings, naira pressure, and domestic fuel costs
+- <h3>OPEC and Nigeria's Production</h3>: context on OPEC+ quota dynamics and Nigeria's output trajectory — do NOT fabricate specific barrel-per-day figures
+- <h3>Outlook</h3>: balanced forward look at oil market drivers (geopolitics, OPEC+ decisions, global demand)
+- Attribute data to live market data
+- Length: 500–650 words | Tone: expert, financial, accessible
+- SEO: "brent crude price today", "nigeria oil price", "opec nigeria", "naira oil revenue"
+- Do NOT fabricate specific policy announcements or named quotes"""
+
+
+def build_ngx_prompt(data, date_str):
+    value = data["value"]
+    change = data["change_pct"]
+    direction = "gained" if change >= 0 else "fell"
+    sign = "+" if change >= 0 else ""
+    return f"""You are a senior financial markets journalist at PulseLineDaily, Nigeria's leading digital news outlet.
+
+Write a complete, publish-ready HTML article about the NGX All-Share Index performance.
+
+DATA (NGX market):
+- NGX All-Share Index: {value:,.2f} points
+- Daily change: {sign}{change}% — market {direction}
+- Date: {date_str}
+
+OUTPUT FORMAT — three parts, exactly as shown:
+SUMMARY: <one punchy sentence max 160 characters — include the index level and direction>
+ANALYSIS: <2–3 sentences of expert analysis — what is driving today's market and what investors should watch>
+---
+<full HTML article body starting with <h2>>
+
+ARTICLE REQUIREMENTS:
+- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head> tags
+- <h2>: headline naming the index level and market direction
+- Paragraph 1: state the index level, change, and day's market tone
+- <h3>What's Driving the Market</h3>: macro factors (FX stability, oil price, interest rates, investor sentiment) — do NOT fabricate specific stock prices or volumes
+- <h3>Sectors in Focus</h3>: which sectors move Nigerian equities (banking, telecoms, FMCG, cement) — use general knowledge
+- <h3>What Nigerian Investors Should Know</h3>: 4–5 practical takeaways for retail and institutional investors
+- <h3>Outlook</h3>: balanced forward-looking view on Nigerian equities
+- Attribute data to NGX
+- Length: 500–600 words | Tone: professional, financial, accessible to retail investors
+- SEO: "ngx all share index today", "nigerian stock market", "ngx market wrap"
+- Do NOT invent specific stock tickers, price moves, or named quotes"""
+
+
+def build_commodity_prompt(data):
+    lines = []
+    if "cocoa" in data:
+        c = data["cocoa"]
+        sign = "+" if c["change_pct"] >= 0 else ""
+        lines.append(
+            f"- Cocoa: ${c['price']:,.2f}/{c['unit']} "
+            f"({sign}{c['change_pct']}% today) — {c['source']}"
+        )
+    if "palm_oil" in data:
+        p = data["palm_oil"]
+        lines.append(
+            f"- Palm Oil: ${p['price']:,.2f}/{p['unit']} ({p['year']} latest) — {p['source']}"
+        )
+    if "groundnuts" in data:
+        g = data["groundnuts"]
+        lines.append(
+            f"- Groundnuts: ${g['price']:,.2f}/{g['unit']} ({g['year']} latest) — {g['source']}"
+        )
+    prices_text = "\n".join(lines) if lines else "Partial price data only — use general market context."
+
+    return f"""You are a senior agricultural economics journalist at PulseLineDaily, Nigeria's leading digital news outlet.
+
+Write a complete, publish-ready HTML article analysing current prices for key Nigerian agricultural export commodities.
+
+DATA (current market prices):
+{prices_text}
+
+OUTPUT FORMAT — three parts, exactly as shown:
+SUMMARY: <one punchy sentence max 160 characters — name the key commodity price story>
+ANALYSIS: <2–3 sentences of expert analysis — what these prices mean for Nigerian farmers, exporters, and the national economy>
+---
+<full HTML article body starting with <h2>>
+
+ARTICLE REQUIREMENTS:
+- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head> tags
+- <h2>: headline covering Nigerian agricultural commodity prices
+- Paragraph 1: lead with the most newsworthy price and its significance for Nigeria
+- <h3>Cocoa Prices and Nigerian Farmers</h3>: Nigeria is Africa's 4th-largest cocoa producer — what does the price mean for farmers in Ondo, Osun, Cross River?
+- <h3>Palm Oil Market</h3>: price impact on farmers, processors, and local consumers
+- <h3>Groundnuts and Northern Agriculture</h3>: importance to Kano, Kaduna, Katsina farmers and export earnings
+- <h3>What Government and Exporters Should Do</h3>: 3–4 policy and business recommendations
+- <h3>Outlook</h3>: general market direction for agricultural commodities
+- Attribute cocoa data to ICE Futures; palm oil and groundnut data to World Bank
+- Length: 550–700 words | Tone: expert, accessible, pro-farmer
+- SEO: "nigeria cocoa price", "palm oil price nigeria", "groundnut price nigeria"
+- Do NOT fabricate local naira farm-gate prices or invent named quotes"""
+
+
+def build_acled_prompt(data):
+    event_lines = "\n".join(
+        f"  - {etype}: {count} incidents"
+        for etype, count in data["event_types"].items()
+    )
+    region_lines = "\n".join(
+        f"  - {region}: {count} events"
+        for region, count in data["top_regions"]
+    )
+    return f"""You are a senior security analyst and journalist at PulseLineDaily, Nigeria's leading digital news outlet.
+
+Write a complete, publish-ready HTML security briefing about the current security situation in Nigeria, based on verified conflict data.
+
+DATA (ACLED conflict database — last {data['days']} days, from {data['since_date']}):
+- Total security incidents recorded: {data['total_events']}
+- Total recorded fatalities: {data['fatalities']}
+
+Incident breakdown by type:
+{event_lines}
+
+Most affected states:
+{region_lines}
+
+OUTPUT FORMAT — three parts, exactly as shown:
+SUMMARY: <one punchy sentence max 160 characters — name the key security trend>
+ANALYSIS: <2–3 sentences of expert analysis — the overall trend and what policymakers must act on most urgently>
+---
+<full HTML article body starting with <h2>>
+
+ARTICLE REQUIREMENTS:
+- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head> tags
+- <h2>: headline naming the key security concern and timeframe
+- Paragraph 1: state the headline numbers (incidents, fatalities) and overall security picture
+- <h3>Hotspot States</h3>: discuss the most affected states and the nature of insecurity there
+- <h3>Types of Incidents</h3>: explain what the incident categories reveal about the nature of violence
+- <h3>Impact on Civilians and Communities</h3>: displacement, economic disruption, humanitarian needs
+- <h3>Government and Military Response</h3>: general context on counter-insurgency — do NOT fabricate specific operation names or casualty figures beyond the data
+- <h3>What Must Change</h3>: 3–4 evidence-based recommendations
+- Attribute data clearly to ACLED (Armed Conflict Location & Event Data Project)
+- Length: 600–750 words | Tone: serious, factual, human-centered, constructive
+- SEO: "nigeria security", "conflict nigeria", "insecurity nigeria", "banditry terrorism nigeria"
+- Do NOT sensationalise or attribute attacks to specific groups without clear data evidence"""
