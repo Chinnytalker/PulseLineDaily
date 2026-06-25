@@ -31,7 +31,13 @@
     <meta name="twitter:description" content="{% block twitter_description %}Breaking news, analysis, and stories from around the world.{% endblock %}">
     <meta name="twitter:image" content="{% block twitter_image %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/pulsemainlogo.jpg' %}{% endblock %}">
     <meta name="twitter:image:alt" content="{% block twitter_image_alt %}PulseLineDaily - Breaking News{% endblock %}">
-    <meta name="theme-color" content="#1d4ed8">
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#1d4ed8" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#18181b" media="(prefers-color-scheme: dark)">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="PulseLineDaily">
     {% block extra_meta %}{% endblock %}
     <link rel="alternate" type="application/rss+xml" title="PulseLineDaily RSS Feed" href="/rss/">
     {% block canonical %}
@@ -39,10 +45,10 @@
     {% endblock %}
     <script>tailwind.config = { darkMode: 'class' }</script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" href="{% static 'favicon/favicon.ico' %}">
-    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'favicon/apple-touch-icon.png' %}">
+    <link rel="icon" href="{% static 'favicon/favicon.ico' %}" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="{% static 'favicon/favicon-32x32.png' %}">
     <link rel="icon" type="image/png" sizes="16x16" href="{% static 'favicon/favicon-16x16.png' %}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'favicon/apple-touch-icon.png' %}">
     <link rel="manifest" href="{% static 'favicon/site.webmanifest' %}" crossorigin="use-credentials">
     <meta name="application-name" content="PulseLineDaily">
     <meta name="msapplication-TileColor" content="#1d4ed8">
