@@ -43,9 +43,8 @@
     {% block canonical %}
     <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
     {% endblock %}
-    <script>tailwind.config = { darkMode: 'class' }</script>
     <script>
-      /* Apply dark mode immediately before first paint to prevent flash */
+      /* Apply dark class before first paint — prevents flash on dark-mode users */
       (function () {
         var stored = localStorage.getItem('app_theme');
         var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -55,6 +54,7 @@
       })();
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class' };</script>
     <link rel="icon" href="{% static 'favicon/favicon.ico' %}" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="{% static 'favicon/favicon-32x32.png' %}">
     <link rel="icon" type="image/png" sizes="16x16" href="{% static 'favicon/favicon-16x16.png' %}">
@@ -517,34 +517,6 @@
       });
     }
 
-    // 🌙 Dark Mode
-    const toggle = document.getElementById('dark-mode-toggle');
-    const html = document.documentElement;
-
-    function applyDarkModeIcon(isDark) {
-      const icon = toggle ? toggle.querySelector('i') : null;
-      if (!icon) return;
-      icon.className = isDark ? 'fa fa-sun text-sm' : 'fa fa-moon text-sm';
-    }
-
-    if (toggle) {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const storedTheme = localStorage.getItem('app_theme');
-      const isDark = storedTheme === 'dark' || (!storedTheme && prefersDark);
-
-      if (isDark) {
-        html.classList.add('dark');
-      }
-      applyDarkModeIcon(isDark);
-
-      toggle.addEventListener('click', function () {
-        html.classList.toggle('dark');
-        const nowDark = html.classList.contains('dark');
-        localStorage.setItem('app_theme', nowDark ? 'dark' : 'light');
-        applyDarkModeIcon(nowDark);
-      });
-    }
-
     // 📱 Mobile Menu
     const menuBtn = document.getElementById('mobile-menu-button');
     const menu = document.getElementById('mobile-menu');
@@ -685,6 +657,28 @@ if (loader) {
   });
 
 })();
+</script>
+
+<script>
+  /* Dark mode toggle — isolated so errors elsewhere never break it */
+  (function () {
+    var toggle = document.getElementById('dark-mode-toggle');
+    if (!toggle) return;
+    var html = document.documentElement;
+
+    function syncIcon() {
+      var icon = toggle.querySelector('i');
+      if (icon) icon.className = html.classList.contains('dark') ? 'fa fa-sun text-sm' : 'fa fa-moon text-sm';
+    }
+
+    syncIcon();
+
+    toggle.addEventListener('click', function () {
+      html.classList.toggle('dark');
+      localStorage.setItem('app_theme', html.classList.contains('dark') ? 'dark' : 'light');
+      syncIcon();
+    });
+  })();
 </script>
 </body>
 </html>
