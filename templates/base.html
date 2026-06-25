@@ -44,6 +44,16 @@
     <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
     {% endblock %}
     <script>tailwind.config = { darkMode: 'class' }</script>
+    <script>
+      /* Apply dark mode immediately before first paint to prevent flash */
+      (function () {
+        var stored = localStorage.getItem('app_theme');
+        var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (stored === 'dark' || (!stored && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="icon" href="{% static 'favicon/favicon.ico' %}" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="{% static 'favicon/favicon-32x32.png' %}">
@@ -178,7 +188,7 @@
   </div>
   <!-- Top info bar -->
   <div class="bg-gray-800 text-gray-300 py-1 px-4 flex justify-between items-center text-xs">
-    <span id="topbar-date" class="hidden sm:block"></span>
+    <span id="topbar-date"></span>
     <div class="flex items-center gap-5 ml-auto">
       <a href="/rss/" class="hover:text-white transition flex items-center gap-1">
         <i class="fas fa-rss text-orange-400 text-xs"></i> RSS
@@ -457,12 +467,14 @@
   // =========================
   document.addEventListener('DOMContentLoaded', function () {
 
-    // Top bar date
+    // Top bar date — short format on mobile, full on sm+
     const topbarDate = document.getElementById('topbar-date');
     if (topbarDate) {
-      topbarDate.textContent = new Date().toLocaleDateString('en-US', {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-      });
+      const isMobile = window.innerWidth < 640;
+      topbarDate.textContent = new Date().toLocaleDateString('en-US', isMobile
+        ? { weekday: 'short', month: 'short', day: 'numeric' }
+        : { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }
+      );
     }
 
     // 🍪 Cookie Banner
