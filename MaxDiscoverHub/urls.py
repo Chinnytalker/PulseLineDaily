@@ -30,8 +30,10 @@ def robots_txt(request):
         "Allow: /",
         "Disallow: /admin/",
         "Disallow: /internal/",
-        "Disallow: /search",
         "Disallow: /search/",
+        "Disallow: /newsletter/confirm/",
+        "Disallow: /newsletter/unsubscribe/",
+        "Disallow: /bookmark/",
         "",
         "Sitemap: https://www.pulselinedaily.com/sitemap.xml",
     ]

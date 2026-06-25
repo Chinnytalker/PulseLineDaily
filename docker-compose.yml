@@ -2,7 +2,10 @@ services:
   web:
     build: .
     command: >
-      gunicorn MaxDiscoverHub.wsgi:application --bind 0.0.0.0:2001 --workers 3 --timeout 120
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             python manage.py setup_scrape_schedule &&
+             gunicorn MaxDiscoverHub.wsgi:application --bind 0.0.0.0:2001 --workers 3 --timeout 120"
     restart: unless-stopped
     env_file:
       - ${APP_ENV_FILE:-.env}
@@ -16,6 +19,12 @@ services:
     volumes:
       - staticfiles:/app/staticfiles
       - media:/app/media
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:2001/ || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 40s
 
   release:
     build: .
@@ -45,8 +54,10 @@ services:
       DEBUG: "False"
       DJANGO_ENV: production
     depends_on:
-      - redis
-      - web
+      web:
+        condition: service_healthy
+      redis:
+        condition: service_started
     volumes:
       - media:/app/media
 
@@ -60,8 +71,10 @@ services:
       DEBUG: "False"
       DJANGO_ENV: production
     depends_on:
-      - redis
-      - web
+      web:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   redis:
     image: redis:7.4-alpine

@@ -20,12 +20,19 @@
     <meta property="og:description" content="{% block og_description %}Breaking news, analysis, and stories from around the world.{% endblock %}">
     <meta property="og:type" content="{% block og_type %}website{% endblock %}">
     <meta property="og:url" content="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
-    <meta property="og:image" content="{% block og_image %}{% static 'image/pulsemainlogo.jpg' %}{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/pulsemainlogo.jpg' %}{% endblock %}">
+    <meta property="og:image:width" content="{% block og_image_width %}1200{% endblock %}">
+    <meta property="og:image:height" content="{% block og_image_height %}630{% endblock %}">
+    <meta property="og:locale" content="en_US">
     <meta name="twitter:card" content="{% block twitter_card %}summary_large_image{% endblock %}">
     <meta name="twitter:site" content="@pulselinedaily">
+    <meta name="twitter:creator" content="{% block twitter_creator %}@pulselinedaily{% endblock %}">
     <meta name="twitter:title" content="{% block twitter_title %}PulseLineDaily - Trusted Global News{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}Breaking news, analysis, and stories from around the world.{% endblock %}">
-    <meta name="twitter:image" content="{% block twitter_image %}{% static 'image/pulsemainlogo.jpg' %}{% endblock %}">
+    <meta name="twitter:image" content="{% block twitter_image %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/pulsemainlogo.jpg' %}{% endblock %}">
+    <meta name="twitter:image:alt" content="{% block twitter_image_alt %}PulseLineDaily - Breaking News{% endblock %}">
+    <meta name="theme-color" content="#1d4ed8">
+    {% block extra_meta %}{% endblock %}
     <link rel="alternate" type="application/rss+xml" title="PulseLineDaily RSS Feed" href="/rss/">
     {% block canonical %}
     <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
@@ -35,7 +42,11 @@
     <link rel="apple-touch-icon" sizes="180x180" href="{% static 'favicon/apple-touch-icon.png' %}">
     <link rel="icon" type="image/png" sizes="32x32" href="{% static 'favicon/favicon-32x32.png' %}">
     <link rel="icon" type="image/png" sizes="16x16" href="{% static 'favicon/favicon-16x16.png' %}">
-    <link rel="manifest" href="{% static 'favicon/site.webmanifest' %}">
+    <link rel="manifest" href="{% static 'favicon/site.webmanifest' %}" crossorigin="use-credentials">
+    <meta name="application-name" content="PulseLineDaily">
+    <meta name="msapplication-TileColor" content="#1d4ed8">
+    <meta name="msapplication-TileImage" content="{% static 'favicon/android-chrome-192x192.png' %}">
+    <meta name="msapplication-config" content="none">
     <style>
       /* Hide default scrollbar */
       .scrollbar-hide::-webkit-scrollbar { display: none; }
@@ -103,6 +114,9 @@
         animation-play-state: paused;
       }
     </style>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://www.googletagmanager.com">
+    <link rel="preconnect" href="https://cdn.onesignal.com">
     <!-- Font Awesome (Icons) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 

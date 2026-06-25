@@ -1,1 +1,91 @@
-{"name":"","short_name":"","icons":[{"src":"/android-chrome-192x192.png","sizes":"192x192","type":"image/png"},{"src":"/android-chrome-512x512.png","sizes":"512x512","type":"image/png"}],"theme_color":"#ffffff","background_color":"#ffffff","display":"standalone"}
+{
+  "name": "PulseLineDaily",
+  "short_name": "PulseLineDaily",
+  "description": "Breaking news, politics, sports, entertainment and international stories — trusted daily news from PulseLineDaily.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#1d4ed8",
+  "background_color": "#ffffff",
+  "lang": "en-US",
+  "dir": "ltr",
+  "categories": ["news", "politics", "sports", "entertainment"],
+  "icons": [
+    {
+      "src": "/static/favicon/favicon-16x16.png",
+      "sizes": "16x16",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/favicon/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/favicon/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/favicon/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/favicon/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/static/image/pulsemainlogo.jpg",
+      "sizes": "600x314",
+      "type": "image/jpeg",
+      "label": "PulseLineDaily homepage"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Politics",
+      "short_name": "Politics",
+      "description": "Latest politics news",
+      "url": "/category/Politics/",
+      "icons": [{ "src": "/static/favicon/android-chrome-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Sports",
+      "short_name": "Sports",
+      "description": "Latest sports news",
+      "url": "/category/Sports/",
+      "icons": [{ "src": "/static/favicon/android-chrome-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Entertainment",
+      "short_name": "Entertainment",
+      "description": "Latest entertainment news",
+      "url": "/category/Entertainment/",
+      "icons": [{ "src": "/static/favicon/android-chrome-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Breaking News",
+      "short_name": "Breaking",
+      "description": "Latest breaking news",
+      "url": "/",
+      "icons": [{ "src": "/static/favicon/android-chrome-192x192.png", "sizes": "192x192" }]
+    }
+  ],
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://www.pulselinedaily.com/"
+    }
+  ],
+  "prefer_related_applications": false
+}

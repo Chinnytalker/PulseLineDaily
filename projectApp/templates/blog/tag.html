@@ -13,7 +13,7 @@
 {% block meta_description %}Articles tagged "{{ tag }}" on PulseLineDaily — the latest news and stories.{% endblock %}
 {% block og_title %}#{{ tag }} — PulseLineDaily{% endblock %}
 {% block og_description %}Articles tagged "{{ tag }}" on PulseLineDaily.{% endblock %}
-{% block og_image %}{% static 'image/Pulsemainlogo.jpg' %}{% endblock %}
+{% block og_image %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/Pulsemainlogo.jpg' %}{% endblock %}
 {% block meta_robots %}<meta name="robots" content="index, follow, max-image-preview:large">{% endblock %}
 
 {% block content %}

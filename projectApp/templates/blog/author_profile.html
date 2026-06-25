@@ -1,10 +1,31 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}{{ author.name }} | PulseLineDaily{% endblock %}
-{% block meta_description %}Articles by {{ author.name }} on PulseLineDaily.{% endblock %}
+{% block title %}{{ author.name }} — Journalist & Contributor | PulseLineDaily{% endblock %}
+{% block meta_description %}{% if author.bio %}{{ author.bio|truncatewords:25 }}{% else %}Read the latest articles and news stories by {{ author.name }} on PulseLineDaily.{% endif %}{% endblock %}
+{% block og_title %}{{ author.name }} | PulseLineDaily{% endblock %}
+{% block og_description %}{% if author.bio %}{{ author.bio|truncatewords:25 }}{% else %}Articles and news by {{ author.name }} on PulseLineDaily.{% endif %}{% endblock %}
+{% block og_type %}profile{% endblock %}
+{% block og_image %}{% if author.photo %}{{ request.scheme }}://{{ request.get_host }}{{ author.photo.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/Pulsemainlogo.jpg' %}{% endif %}{% endblock %}
+{% block twitter_title %}{{ author.name }} | PulseLineDaily{% endblock %}
+{% block twitter_description %}{% if author.bio %}{{ author.bio|truncatewords:25 }}{% else %}Articles and news by {{ author.name }} on PulseLineDaily.{% endif %}{% endblock %}
+{% block twitter_image %}{% if author.photo %}{{ request.scheme }}://{{ request.get_host }}{{ author.photo.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/Pulsemainlogo.jpg' %}{% endif %}{% endblock %}
+{% block twitter_image_alt %}{{ author.name }} profile photo{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ author.get_absolute_url }}">{% endblock %}
 
 {% block content %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Person",
+  "name": "{{ author.name|escapejs }}",
+  "url": "{{ request.scheme }}://{{ request.get_host }}{{ author.get_absolute_url }}"{% if author.bio %},
+  "description": "{{ author.bio|escapejs }}"{% endif %}{% if author.photo %},
+  "image": "{{ request.scheme }}://{{ request.get_host }}{{ author.photo.url }}"{% endif %}{% if author.email %},
+  "email": "{{ author.email }}"{% endif %}{% if author.social_profile %},
+  "sameAs": ["{{ author.social_profile }}"]{% endif %}
+}
+</script>
 <div class="max-w-screen-xl mx-auto px-4 py-8">
 
   <!-- Author card -->

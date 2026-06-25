@@ -11,6 +11,13 @@
 {% block twitter_title %}{{ post.title }}{% endblock %}
 {% block twitter_description %}{% if post.summary %}{{ post.summary }}{% else %}{{ post.body|truncatewords:30 }}{% endif %}{% endblock %}
 {% block twitter_image %}{% if post.image %}{{ request.scheme }}://{{ request.get_host }}{{ post.image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/Pulsemainlogo.jpg' %}{% endif %}{% endblock %}
+{% block twitter_image_alt %}{{ post.title }}{% endblock %}
+{% block twitter_creator %}{% if post.author %}@{{ post.author.name }}{% else %}@pulselinedaily{% endif %}{% endblock %}
+
+{% block extra_meta %}
+<meta name="author" content="{% if post.author %}{{ post.author.name }}{% else %}{{ post.updated_by }}{% endif %}">
+{% if post.tags %}<meta name="keywords" content="{{ post.tags }}">{% endif %}
+{% endblock %}
 
 {% block content %}
 <script type="application/ld+json">
@@ -24,14 +31,30 @@
   "dateModified": "{{ post.last_modified|date:'c' }}",
   "author": {
     "@type": "Person",
-    "name": "{% if post.author %}{{ post.author.name|escapejs }}{% else %}{{ post.updated_by|escapejs }}{% endif %}"
+    "name": "{% if post.author %}{{ post.author.name|escapejs }}{% else %}{{ post.updated_by|escapejs }}{% endif %}"{% if post.author and post.author.get_absolute_url %},
+    "url": "{{ request.scheme }}://{{ request.get_host }}{{ post.author.get_absolute_url }}"{% endif %}
   },
   "publisher": {
     "@type": "NewsMediaOrganization",
     "name": "PulseLineDaily",
-    "logo": { "@type": "ImageObject", "url": "{{ request.scheme }}://{{ request.get_host }}{% static 'image/Pulsemainlogo.jpg' %}" }
+    "url": "{{ request.scheme }}://{{ request.get_host }}/",
+    "logo": { "@type": "ImageObject", "url": "{{ request.scheme }}://{{ request.get_host }}{% static 'image/Pulsemainlogo.jpg' %}", "width": 600, "height": 60 }
   },
-  "mainEntityOfPage": { "@type": "WebPage", "@id": "{{ request.build_absolute_uri }}" }
+  "mainEntityOfPage": { "@type": "WebPage", "@id": "{{ request.build_absolute_uri }}" }{% if post.tags %},
+  "keywords": "{{ post.tags }}"{% endif %}{% if post.word_count %},
+  "wordCount": {{ post.word_count }}{% endif %}{% with post.categories.all as cats %}{% if cats %},
+  "articleSection": "{{ cats.0.name }}"{% endif %}{% endwith %}
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": "{{ request.scheme }}://{{ request.get_host }}/" },
+    {% with post.categories.all as cats %}{% if cats %}{ "@type": "ListItem", "position": 2, "name": "{{ cats.0.name|escapejs }}", "item": "{{ request.scheme }}://{{ request.get_host }}{% url 'category' cats.0.name %}" },{% endif %}{% endwith %}
+    { "@type": "ListItem", "position": {% with post.categories.all as cats %}{% if cats %}3{% else %}2{% endif %}{% endwith %}, "name": "{{ post.title|escapejs }}", "item": "{{ request.build_absolute_uri }}" }
+  ]
 }
 </script>
 
@@ -195,6 +218,14 @@
               <a href="https://api.whatsapp.com/send?text={{ post.title }} - {{ request.build_absolute_uri }}" target="_blank" rel="noopener" aria-label="Share on WhatsApp"
                  class="flex items-center gap-2 px-4 py-2 rounded-full bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition">
                 <i class="fab fa-whatsapp text-xs"></i><span class="hidden sm:inline">WhatsApp</span>
+              </a>
+              <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ request.build_absolute_uri }}" target="_blank" rel="noopener" aria-label="Share on LinkedIn"
+                 class="flex items-center gap-2 px-4 py-2 rounded-full bg-blue-700 text-white text-sm font-medium hover:bg-blue-800 transition">
+                <i class="fab fa-linkedin-in text-xs"></i><span class="hidden sm:inline">LinkedIn</span>
+              </a>
+              <a href="https://t.me/share/url?url={{ request.build_absolute_uri }}&text={{ post.title }}" target="_blank" rel="noopener" aria-label="Share on Telegram"
+                 class="flex items-center gap-2 px-4 py-2 rounded-full bg-sky-400 text-white text-sm font-medium hover:bg-sky-500 transition">
+                <i class="fab fa-telegram text-xs"></i><span class="hidden sm:inline">Telegram</span>
               </a>
               <button onclick="copyToClipboard('{{ request.build_absolute_uri }}')" aria-label="Copy link"
                       class="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-600 text-white text-sm font-medium hover:bg-gray-700 transition">

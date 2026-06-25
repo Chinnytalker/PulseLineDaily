@@ -174,13 +174,13 @@ def generate_data_journalism_articles(self):
             tags=tags,
             source="api",
             source_domain=source_domain,
-            is_published=False,
+            is_published=True,
             updated_by="data-auto",
             author=default_author,
         )
         if cat:
             post.categories.add(cat)
-        logger.info("Created data-journalism draft: %s", title)
+        logger.info("Published data-journalism article: %s", title)
         return post
 
     # ── 1. World Bank economic/social indicator (rotates daily) ──────────────
@@ -359,7 +359,7 @@ def generate_rss_articles(self):
             link=story["link"],
             source="api",
             source_domain=story["source_label"],
-            is_published=False,
+            is_published=True,
             updated_by="rss-auto",
             author=default_author,
         )
@@ -459,13 +459,13 @@ def generate_sports_articles(self):
             analysis=analysis or None,
             tags=tags,
             source="api",
-            is_published=False,
+            is_published=True,
             updated_by="sports-auto",
             author=default_author,
         )
         if sports_cat:
             post.categories.add(sports_cat)
-        logger.info("Created sports draft: %s", title)
+        logger.info("Published sports article: %s", title)
         return post
 
     # ── 1. EPL standings (once per 3 days) ───────────────────────────────────

@@ -3,17 +3,19 @@
 
 {% block canonical %}
 {% if posts.number == 1 %}
-<link rel="canonical" href="{{ request.build_absolute_uri|cut:'?page=' }}">
+<link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{% url 'category' category.name %}">
 {% else %}
 <link rel="canonical" href="{{ request.build_absolute_uri }}">
 {% endif %}
+{% if posts.has_previous %}<link rel="prev" href="{{ request.scheme }}://{{ request.get_host }}{% url 'category' category.name %}?page={{ posts.previous_page_number }}">{% endif %}
+{% if posts.has_next %}<link rel="next" href="{{ request.scheme }}://{{ request.get_host }}{% url 'category' category.name %}?page={{ posts.next_page_number }}">{% endif %}
 {% endblock canonical %}
 
 {% block title %}{{ category.name }} News | PulseLineDaily{% endblock title %}
 {% block meta_description %}Latest news and updates from the {{ category.name }} category on PulseLineDaily.{% endblock %}
 {% block og_title %}{{ category.name }} News{% endblock %}
 {% block og_description %}Latest news and updates from the {{ category.name }} category on PulseLineDaily.{% endblock %}
-{% block og_image %}{% static 'image/Pulsemainlogo.jpg' %}{% endblock %}
+{% block og_image %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/Pulsemainlogo.jpg' %}{% endblock %}
 
 {% block content %}
 <script type="application/ld+json">
@@ -22,7 +24,17 @@
   "@type": "CollectionPage",
   "name": "{{ category.name }} News",
   "description": "Latest news and updates from the {{ category.name }} category on PulseLineDaily.",
-  "url": "{{ request.build_absolute_uri|cut:'?page=' }}"
+  "url": "{{ request.scheme }}://{{ request.get_host }}{% url 'category' category.name %}"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    { "@type": "ListItem", "position": 1, "name": "Home", "item": "{{ request.scheme }}://{{ request.get_host }}/" },
+    { "@type": "ListItem", "position": 2, "name": "{{ category.name|escapejs }}", "item": "{{ request.scheme }}://{{ request.get_host }}{% url 'category' category.name %}" }
+  ]
 }
 </script>
 
