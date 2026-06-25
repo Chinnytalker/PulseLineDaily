@@ -36,6 +36,16 @@ class Category(models.Model):
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        from django.core.cache import cache
+        super().save(*args, **kwargs)
+        cache.delete('hp_categories')
+
+    def delete(self, *args, **kwargs):
+        from django.core.cache import cache
+        super().delete(*args, **kwargs)
+        cache.delete('hp_categories')
     
     
 class Author(models.Model):

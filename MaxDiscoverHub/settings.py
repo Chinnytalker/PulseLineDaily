@@ -141,7 +141,8 @@ if ENVIRONMENT == 'production':
     DATABASES = {
         'default': dj_database_url.parse(
             DATABASE_URL,
-            conn_max_age=600,
+            conn_max_age=60,
+            conn_health_checks=True,
             ssl_require=True,
         )
     }
@@ -306,15 +307,22 @@ cloudinary.config(
 
 
 # ── Cache ──────────────────────────────────────────────────────────────────────
-# Uses in-process memory cache by default.
-# For multi-worker deployments, switch the BACKEND to django-redis and set
-# CACHE_URL in your .env: CACHE_URL=redis://127.0.0.1:6379/1
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'pulselinedaily',
+# Production: shared Redis cache so all Gunicorn workers see the same state.
+# Development: local in-memory cache (no Redis needed locally).
+if ENVIRONMENT == 'production':
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': 'redis://redis:6379/1',  # DB 1 — Celery uses DB 0
+        }
     }
-}
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'pulselinedaily',
+        }
+    }
 
 CACHE_MIDDLEWARE_SECONDS = 300
 
