@@ -219,6 +219,7 @@
         <a href="{% url 'category' 'International News' %}" class="text-gray-700 dark:text-zinc-200 font-semibold text-sm border-b-2 border-transparent hover:border-blue-600 hover:text-blue-600 dark:hover:text-blue-400 pb-0.5 transition-colors whitespace-nowrap">Intl News</a>
         <a href="{% url 'category' 'Articles' %}" class="text-gray-700 dark:text-zinc-200 font-semibold text-sm border-b-2 border-transparent hover:border-blue-600 hover:text-blue-600 dark:hover:text-blue-400 pb-0.5 transition-colors whitespace-nowrap">Articles</a>
         <a href="{% url 'category' 'Hot Gist' %}" class="text-gray-700 dark:text-zinc-200 font-semibold text-sm border-b-2 border-transparent hover:border-blue-600 hover:text-blue-600 dark:hover:text-blue-400 pb-0.5 transition-colors whitespace-nowrap">Hot Gist</a>
+        <a href="{% url 'all_categories' %}" class="text-blue-600 dark:text-blue-400 font-semibold text-sm border-b-2 border-blue-600 dark:border-blue-400 pb-0.5 whitespace-nowrap">All Topics</a>
       </nav>
 
       <!-- Right side: search + dark toggle + hamburger -->
@@ -271,6 +272,7 @@
         <a href="{% url 'careers' %}" class="py-2 text-gray-700 dark:text-zinc-200 hover:text-blue-600 dark:hover:text-blue-400 font-medium text-sm border-b border-gray-300 dark:border-zinc-700">Careers</a>
         <a href="{% url 'saved_posts' %}" class="py-2 text-gray-700 dark:text-zinc-200 hover:text-blue-600 dark:hover:text-blue-400 font-medium text-sm border-b border-gray-300 dark:border-zinc-700">Saved</a>
         <a href="{% url 'Terms of service' %}" class="py-2 text-gray-700 dark:text-zinc-200 hover:text-blue-600 dark:hover:text-blue-400 font-medium text-sm border-b border-gray-300 dark:border-zinc-700">Terms</a>
+        <a href="{% url 'all_categories' %}" class="py-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-semibold text-sm border-b border-gray-300 dark:border-zinc-700">All Topics</a>
         <a href="{% url 'author_submit' %}" class="py-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-semibold text-sm border-b border-gray-300 dark:border-zinc-700">Submit Article</a>
       </nav>
     </div>
@@ -309,6 +311,7 @@
         <li><a href="{% url 'category' 'International News' %}" class="hover:text-white">International News</a></li>
         <li><a href="{% url 'category' 'Articles' %}" class="hover:text-white">Articles</a></li>
         <li><a href="{% url 'category' 'Hot Gist' %}" class="hover:text-white">Hot Gist</a></li>
+        <li><a href="{% url 'all_categories' %}" class="hover:text-white text-blue-400 font-semibold">All Categories →</a></li>
       </ul>
     </div>
     <!-- Info -->

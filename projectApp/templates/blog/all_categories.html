@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}All Topics & Categories | PulseLineDaily{% endblock %}
+{% block meta_description %}Browse all news topics covered by PulseLineDaily — politics, sports, entertainment, international news and more.{% endblock %}
+{% block og_title %}All Topics | PulseLineDaily{% endblock %}
+{% block og_description %}Explore every category covered by PulseLineDaily — find the stories that matter to you.{% endblock %}
+{% block og_image %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/pulsemainlogo.jpg' %}{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}/categories/">{% endblock %}
+
+{% block content %}
+<div class="max-w-screen-xl mx-auto px-4 py-10">
+
+  <!-- Page header -->
+  <div class="mb-10">
+    <div class="flex items-center gap-3 mb-3">
+      <div class="w-1 h-9 bg-blue-600 rounded-full flex-shrink-0"></div>
+      <div>
+        <h1 class="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-zinc-100 leading-tight">All Topics</h1>
+        <p class="text-gray-500 dark:text-zinc-400 text-sm mt-1">
+          {{ categories|length }} topic{{ categories|length|pluralize }} &mdash; find the stories that matter to you
+        </p>
+      </div>
+    </div>
+  </div>
+
+  {% if categories %}
+
+  <!-- ━━━ Category grid ━━━ -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for category in categories %}
+    <a href="{% url 'category' category.name %}"
+       class="group flex flex-col bg-white dark:bg-zinc-800 border border-gray-100 dark:border-zinc-700 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5">
+
+      <!-- Image / Placeholder -->
+      <div class="relative h-44 flex-shrink-0 overflow-hidden">
+
+        {% if category.latest_post and category.latest_post.image %}
+          <img src="{{ category.latest_post.image.url }}?f_auto,q_auto,w_600,h_350,c_fill"
+               alt="{{ category.name }}"
+               class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-in-out"
+               loading="lazy" />
+          <div class="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent"></div>
+
+          <!-- Category name overlaid on image -->
+          <div class="absolute bottom-0 left-0 p-4">
+            <span class="text-white text-xs font-bold uppercase tracking-widest opacity-80">{{ category.name }}</span>
+          </div>
+
+        {% else %}
+          <!-- Colourful placeholder — cycles through 6 gradients -->
+          <div class="w-full h-full flex flex-col items-center justify-center gap-3
+            {% if forloop.counter0|divisibleby:6 %}bg-gradient-to-br from-blue-600 to-blue-900
+            {% elif forloop.counter|divisibleby:6 %}bg-gradient-to-br from-purple-600 to-purple-900
+            {% elif forloop.counter0|divisibleby:3 %}bg-gradient-to-br from-emerald-600 to-emerald-900
+            {% elif forloop.counter|divisibleby:3 %}bg-gradient-to-br from-rose-600 to-rose-900
+            {% elif forloop.counter0|divisibleby:2 %}bg-gradient-to-br from-orange-500 to-orange-800
+            {% else %}bg-gradient-to-br from-sky-600 to-sky-900{% endif %}">
+
+            <!-- Category-specific icon -->
+            {% if 'politic' in category.name|lower %}
+              <i class="fas fa-landmark text-white/35 text-5xl"></i>
+            {% elif 'sport' in category.name|lower %}
+              <i class="fas fa-futbol text-white/35 text-5xl"></i>
+            {% elif 'entertain' in category.name|lower %}
+              <i class="fas fa-film text-white/35 text-5xl"></i>
+            {% elif 'international' in category.name|lower or 'world' in category.name|lower %}
+              <i class="fas fa-globe text-white/35 text-5xl"></i>
+            {% elif 'gist' in category.name|lower %}
+              <i class="fas fa-fire text-white/35 text-5xl"></i>
+            {% elif 'business' in category.name|lower or 'economy' in category.name|lower or 'finance' in category.name|lower %}
+              <i class="fas fa-chart-line text-white/35 text-5xl"></i>
+            {% elif 'tech' in category.name|lower %}
+              <i class="fas fa-microchip text-white/35 text-5xl"></i>
+            {% elif 'health' in category.name|lower %}
+              <i class="fas fa-heart-pulse text-white/35 text-5xl"></i>
+            {% elif 'educ' in category.name|lower %}
+              <i class="fas fa-graduation-cap text-white/35 text-5xl"></i>
+            {% elif 'crime' in category.name|lower or 'justice' in category.name|lower %}
+              <i class="fas fa-scale-balanced text-white/35 text-5xl"></i>
+            {% elif 'science' in category.name|lower %}
+              <i class="fas fa-flask text-white/35 text-5xl"></i>
+            {% else %}
+              <i class="fas fa-newspaper text-white/35 text-5xl"></i>
+            {% endif %}
+
+            <span class="text-white/55 text-xs font-bold uppercase tracking-widest px-4 text-center">{{ category.name }}</span>
+          </div>
+        {% endif %}
+
+        <!-- Article count badge -->
+        <div class="absolute top-3 right-3">
+          {% if category.post_count > 0 %}
+            <span class="bg-blue-600 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg">
+              {{ category.post_count }} article{{ category.post_count|pluralize }}
+            </span>
+          {% else %}
+            <span class="bg-gray-500 text-white text-xs font-medium px-2.5 py-1 rounded-full shadow">
+              No articles
+            </span>
+          {% endif %}
+        </div>
+
+      </div>
+
+      <!-- Card body -->
+      <div class="flex flex-col flex-1 p-5">
+
+        <h2 class="text-xl font-extrabold text-gray-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors mb-2 leading-tight">
+          {{ category.name }}
+        </h2>
+
+        {% if category.latest_post %}
+          <p class="text-sm text-gray-600 dark:text-zinc-400 line-clamp-2 leading-relaxed flex-1">
+            {{ category.latest_post.title }}
+          </p>
+        {% else %}
+          <p class="text-sm text-gray-400 dark:text-zinc-500 italic flex-1">No articles published yet.</p>
+        {% endif %}
+
+        <!-- Footer row -->
+        <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-100 dark:border-zinc-700">
+          {% if category.latest_post %}
+            <span class="text-xs text-gray-400 dark:text-zinc-500 flex items-center gap-1.5">
+              <i class="far fa-clock"></i>
+              {{ category.latest_post.date_created|date:"M d, Y" }}
+            </span>
+          {% else %}
+            <span></span>
+          {% endif %}
+          <span class="text-sm font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-1.5 group-hover:gap-3 transition-all duration-200">
+            Explore <i class="fas fa-arrow-right text-xs"></i>
+          </span>
+        </div>
+
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <!-- Empty state -->
+  <div class="text-center py-24">
+    <div class="w-20 h-20 rounded-full bg-gray-100 dark:bg-zinc-700 flex items-center justify-center mx-auto mb-5">
+      <i class="fas fa-folder-open text-gray-300 dark:text-zinc-500 text-3xl"></i>
+    </div>
+    <p class="text-xl font-semibold text-gray-700 dark:text-zinc-300 mb-2">No categories yet</p>
+    <p class="text-sm text-gray-500 dark:text-zinc-400">Categories will appear here once they are created.</p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

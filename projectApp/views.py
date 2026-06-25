@@ -253,6 +253,32 @@ def saved_posts_view(request):
     return render(request, 'blog/saved_posts.html', {'posts': posts})
 
 
+def all_categories(request):
+    from django.db.models import Count, Q
+
+    cache_key = 'all_categories_page'
+    categories = cache.get(cache_key)
+
+    if categories is None:
+        cats = list(
+            Category.objects
+            .annotate(post_count=Count('posts', filter=Q(posts__is_published=True)))
+            .order_by('-post_count', 'name')
+        )
+        for cat in cats:
+            cat.latest_post = (
+                Post.published
+                .filter(categories=cat)
+                .select_related('author')
+                .order_by('-date_created')
+                .first()
+            )
+        categories = cats
+        cache.set(cache_key, categories, 300)
+
+    return render(request, 'blog/all_categories.html', {'categories': categories})
+
+
 def about_us(request):
     return render(request, 'blog/about_us.html')
 

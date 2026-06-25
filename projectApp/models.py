@@ -40,12 +40,12 @@ class Category(models.Model):
     def save(self, *args, **kwargs):
         from django.core.cache import cache
         super().save(*args, **kwargs)
-        cache.delete('hp_categories')
+        cache.delete_many(['hp_categories', 'all_categories_page'])
 
     def delete(self, *args, **kwargs):
         from django.core.cache import cache
         super().delete(*args, **kwargs)
-        cache.delete('hp_categories')
+        cache.delete_many(['hp_categories', 'all_categories_page'])
     
     
 class Author(models.Model):

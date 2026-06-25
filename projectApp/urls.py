@@ -4,6 +4,7 @@ from .feeds import LatestPostsFeed
 
 urlpatterns = [
     path("", views.blog_index, name="Home"),
+    path("categories/", views.all_categories, name="all_categories"),
     path("post/<slug:slug>/", views.blog_detail, name="details"),
     path("category/<str:category_name>/", views.blog_category, name="category"),
     path('author/<slug:slug>/', views.author_profile, name='author_profile'),
