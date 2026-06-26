@@ -763,3 +763,122 @@ def generate_market_articles(self):
                 created += 1
 
     return f"Market articles task complete: {created} draft(s) created"
+
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=300)
+def generate_politics_articles(self):
+    """
+    Nigeria politics analysis pipeline:
+    Rotating static analysis topics — elections, governance scorecard,
+    National Assembly watch, state politics, foreign policy.
+    Saved as unpublished drafts under the Politics category.
+    """
+    from django.conf import settings
+    from django.utils import timezone
+    from datetime import timedelta
+
+    api_key = getattr(settings, "GROQ_API_KEY", "")
+    if not api_key:
+        logger.warning("GROQ_API_KEY not set — skipping politics articles task")
+        return "GROQ_API_KEY not configured"
+
+    try:
+        from groq import Groq
+    except ImportError:
+        return "groq package missing"
+
+    from .models import Post, Category, Author
+    from .data_journalism import POLITICS_ANALYSIS_TOPICS, build_static_politics_prompt
+
+    client = Groq(api_key=api_key)
+    now = timezone.now()
+    created = 0
+
+    default_author = Author.objects.filter(slug="clinton-nwachukwu").first()
+    politics_cat = (
+        Category.objects.filter(name__icontains="polit").first()
+        or Category.objects.filter(name__icontains="news").first()
+        or Category.objects.first()
+    )
+
+    def call_llm(prompt):
+        try:
+            resp = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                max_tokens=2200,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return resp.choices[0].message.content.strip()
+        except Exception as exc:
+            logger.error("Groq API error: %s", exc)
+            return None
+
+    def parse_response(raw):
+        summary, analysis, html = "", "", raw
+        if "---" in raw:
+            head, body = raw.split("---", 1)
+            html = body.strip()
+            current_key = None
+            buf = []
+            for line in head.splitlines():
+                stripped = line.strip()
+                upper = stripped.upper()
+                if upper.startswith("SUMMARY:"):
+                    current_key = "summary"
+                    buf = [stripped[8:].strip()]
+                elif upper.startswith("ANALYSIS:"):
+                    if current_key == "summary":
+                        summary = " ".join(buf).strip()
+                    current_key = "analysis"
+                    buf = [stripped[9:].strip()]
+                elif current_key and stripped:
+                    buf.append(stripped)
+            if current_key == "summary":
+                summary = " ".join(buf).strip()
+            elif current_key == "analysis":
+                analysis = " ".join(buf).strip()
+        return summary, analysis, html
+
+    def recently_generated(tag_snippet, days):
+        cutoff = now - timedelta(days=days)
+        return Post.objects.filter(
+            updated_by="politics-auto",
+            tags__icontains=tag_snippet,
+            date_created__gte=cutoff,
+        ).exists()
+
+    def save_draft(title, body, summary, analysis, tags):
+        post = Post.objects.create(
+            title=title,
+            body=body,
+            summary=summary or title,
+            analysis=analysis or None,
+            tags=tags,
+            source="api",
+            is_published=False,
+            updated_by="politics-auto",
+            author=default_author,
+        )
+        if politics_cat:
+            post.categories.add(politics_cat)
+        logger.info("Created politics draft: %s", title)
+        return post
+
+    # Rotate through topics by day-of-month
+    topic_index = now.day % len(POLITICS_ANALYSIS_TOPICS)
+    topic = POLITICS_ANALYSIS_TOPICS[topic_index]
+
+    if not recently_generated(topic["key"], days=topic["frequency_days"]):
+        raw = call_llm(build_static_politics_prompt(topic))
+        if raw:
+            summary, analysis, html = parse_response(raw)
+            save_draft(
+                title=f"{topic['title']} — {now.strftime('%B %Y')}",
+                body=html,
+                summary=summary,
+                analysis=analysis,
+                tags=f"{topic['tags']}, {topic['key']}",
+            )
+            created += 1
+
+    return f"Politics articles task complete: {created} draft(s) created"

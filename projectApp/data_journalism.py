@@ -20,6 +20,8 @@ RSS_SOURCES = [
     {"url": "https://www.channelstv.com/feed/",        "category": "News",        "label": "Channels TV"},
     {"url": "https://guardian.ng/feed/",               "category": "News",        "label": "Guardian NG"},
     {"url": "https://www.premiumtimesng.com/feed/",    "category": "News",        "label": "Premium Times NG"},
+    {"url": "https://dailypost.ng/feed/",              "category": "Politics",    "label": "Daily Post NG"},
+    {"url": "https://www.thecable.ng/feed/",           "category": "Politics",    "label": "The Cable NG"},
 ]
 
 WORLDBANK_BASE = "https://api.worldbank.org/v2"
@@ -472,15 +474,57 @@ SPORTS_KEYWORDS = frozenset([
     "inter milan", "bayern munich", "borussia dortmund",
 ])
 
+POLITICS_KEYWORDS = frozenset([
+    # Nigerian governance
+    "president tinubu", "bola tinubu", "aso rock", "state house",
+    "national assembly", "house of representatives", "senate", "senator",
+    "governor", "deputy governor", "minister", "ministerial", "cabinet",
+    "inec", "electoral commission", "election", "voting", "ballot", "polling",
+    "by-election", "governorship election", "presidential election",
+    "apc", "pdp", "labour party", "nnpp", "apga", "accord party",
+    "political party", "opposition", "ruling party",
+    # Nigerian political figures / roles
+    "attorney general", "chief of staff", "state governor",
+    "house speaker", "senate president", "deputy senate president",
+    "fcta", "abuja", "statehouse", "presidency",
+    # political events / processes
+    "impeachment", "motion of no confidence", "budget passage",
+    "constitutional amendment", "legislation", "bill passed", "bill signed",
+    "executive order", "policy announcement", "government policy",
+    "corruption", "anti-corruption", "efcc", "icpc", "dss", "nsa",
+    "protest", "demonstration", "strike", "labour union", "nlc", "tuc",
+    "coup", "insurrection", "amnesty", "pardon",
+    # subnational politics
+    "local government", "lga", "state house of assembly",
+])
+
+TECHNOLOGY_KEYWORDS = frozenset([
+    "startup", "fintech", "techcabal", "paystack", "flutterwave", "opay",
+    "kuda", "piggyvest", "moniepoint", "palmpay",
+    "artificial intelligence", "machine learning", "blockchain", "crypto",
+    "bitcoin", "ethereum", "web3", "nft",
+    "5g", "broadband", "fibre", "internet access", "data plan",
+    "app launch", "app update", "software", "saas", "cloud",
+    "e-commerce", "jumia", "konga", "jiji",
+    "ride-hailing", "bolt", "uber", "gokada",
+    "edtech", "healthtech", "agritech", "insurtech",
+    "mtn", "airtel", "glo", "9mobile", "telecom",
+    "ncc", "nitda", "digital economy",
+])
+
 
 def detect_story_category(title, excerpt, default_category):
     """
-    Return 'Sports' if the story title or excerpt contains sports keywords,
-    otherwise return the default_category from the RSS source config.
+    Check title + excerpt against keyword sets in priority order.
+    Sports > Politics > Technology; falls back to the RSS source's default.
     """
     text = (title + " " + excerpt).lower()
     if any(kw in text for kw in SPORTS_KEYWORDS):
         return "Sports"
+    if any(kw in text for kw in POLITICS_KEYWORDS):
+        return "Politics"
+    if any(kw in text for kw in TECHNOLOGY_KEYWORDS):
+        return "Technology"
     return default_category
 
 
@@ -1069,3 +1113,158 @@ ARTICLE REQUIREMENTS:
 - Length: 600–750 words | Tone: serious, factual, human-centered, constructive
 - SEO: "nigeria security", "conflict nigeria", "insecurity nigeria", "banditry terrorism nigeria"
 - Do NOT sensationalise or attribute attacks to specific groups without clear data evidence"""
+
+
+# ── Nigeria Politics analysis topics ─────────────────────────────────────────
+
+POLITICS_ANALYSIS_TOPICS = [
+    {
+        "key": "nigeria_2027_elections",
+        "title": "Nigeria 2027 General Elections: Early Analysis",
+        "tags": "nigeria, 2027 elections, inec, apc, pdp, labour party, politics, voting",
+        "frequency_days": 7,
+        "prompt": """You are a senior political analyst and journalist at PulseLineDaily, Nigeria's leading digital news outlet.
+
+Write a complete, original HTML analysis article about Nigeria's 2027 general elections.
+
+CONTEXT: The 2027 Nigerian general elections will be held in February 2027. President Bola Tinubu (APC) is the incumbent. The opposition includes PDP, Labour Party, NNPP, and others. INEC is the electoral body.
+
+OUTPUT FORMAT — three parts, exactly as shown:
+SUMMARY: <punchy one-liner teaser, max 160 chars>
+ANALYSIS: <2–3 sentences of expert analysis — the single biggest factor that will determine the 2027 outcome and what Nigerian voters should watch>
+---
+<HTML article body>
+
+ARTICLE REQUIREMENTS:
+- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head> tags
+- <h2>: strong headline about the 2027 elections outlook
+- Opening: why the 2027 elections matter for Nigeria's democratic trajectory
+- <h3>The Incumbent's Position</h3>: Tinubu and APC's current political standing — use only established facts
+- <h3>Opposition Landscape</h3>: PDP, Labour Party, and other parties' prospects — use only established facts about party dynamics
+- <h3>Key Issues Voters Care About</h3>: economy, security, cost of living, fuel subsidy removal fallout, education — what will drive voter decisions?
+- <h3>INEC and Electoral Process</h3>: lessons from 2023, what reforms are needed, role of technology (BVAS, IReV)
+- <h3>What to Watch</h3>: 3–4 early indicators — primaries, defections, court rulings, voter registration drives
+- Closing: a measured forecast paragraph
+- Length: 600–750 words | Tone: analytical, balanced, non-partisan
+- Use only established political knowledge; do NOT fabricate polling numbers or specific alliances not yet formed""",
+    },
+    {
+        "key": "tinubu_policy_scorecard",
+        "title": "Tinubu Administration: Policy Scorecard",
+        "tags": "tinubu, nigeria, apc, fuel subsidy, economy, policy, presidency, governance",
+        "frequency_days": 14,
+        "prompt": """You are a senior political and economic analyst at PulseLineDaily, Nigeria's leading digital news outlet.
+
+Write a complete, original HTML analysis article assessing the Tinubu administration's major policy decisions and their impact on Nigerians.
+
+CONTEXT: President Bola Tinubu took office on 29 May 2023. Key decisions include removal of petrol subsidy (Day 1), unification of the naira exchange rate, tax reform bills, and security initiatives. These have had significant economic consequences for ordinary Nigerians.
+
+OUTPUT FORMAT — three parts, exactly as shown:
+SUMMARY: <punchy one-liner teaser, max 160 chars>
+ANALYSIS: <2–3 sentences of expert analysis — the single most consequential policy decision so far and whether the administration is on the right track>
+---
+<HTML article body>
+
+ARTICLE REQUIREMENTS:
+- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head> tags
+- <h2>: headline assessing the Tinubu government's performance
+- Opening: the overall state of governance under Tinubu — promise vs reality
+- <h3>Economic Policies</h3>: subsidy removal, forex unification, naira depreciation, inflation — what worked, what hurt ordinary Nigerians
+- <h3>Security Initiatives</h3>: state of insecurity across regions — progress or deterioration?
+- <h3>Social Investment and Welfare</h3>: palliatives, student loans, cash transfers — are they reaching Nigerians?
+- <h3>Legislative Agenda</h3>: key bills passed or pending — tax reform, electricity act, other landmark legislation
+- <h3>Verdict</h3>: a balanced, evidence-based scorecard — what grade would an independent analyst give?
+- Closing: what the next 12 months must deliver for Nigerians to see progress
+- Length: 650–800 words | Tone: analytical, balanced, fact-based, pro-Nigerian-citizen
+- Use only established facts; do NOT fabricate specific statistics beyond what is widely reported""",
+    },
+    {
+        "key": "national_assembly_watch",
+        "title": "Nigeria's National Assembly: Legislative Highlights",
+        "tags": "national assembly, senate, house of representatives, nigeria, legislation, politics",
+        "frequency_days": 10,
+        "prompt": """You are a senior political correspondent at PulseLineDaily, Nigeria's leading digital news outlet.
+
+Write a complete, original HTML article covering the key activities and priorities of Nigeria's National Assembly.
+
+CONTEXT: Nigeria's National Assembly comprises the Senate (109 senators) and House of Representatives (360 members). The current assembly was inaugurated in June 2023. Senate President is Godswill Akpabio; Speaker of the House is Tajudeen Abbas.
+
+OUTPUT FORMAT — three parts, exactly as shown:
+SUMMARY: <punchy one-liner teaser, max 160 chars>
+ANALYSIS: <2–3 sentences of expert analysis — the most consequential bill or legislative development Nigerians should be paying attention to>
+---
+<HTML article body>
+
+ARTICLE REQUIREMENTS:
+- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head> tags
+- <h2>: headline about the National Assembly's current legislative agenda
+- Opening: the role of the National Assembly in Nigeria's democracy and current political climate
+- <h3>Key Bills Under Consideration</h3>: tax reform, budget, security legislation, electoral act amendments — use only bills you are confident are real
+- <h3>Oversight and Accountability</h3>: committee investigations, ministerial screenings, government accountability hearings
+- <h3>Executive-Legislature Relations</h3>: areas of cooperation and tension between the presidency and the legislature
+- <h3>What Nigerians Should Know</h3>: how current legislative activities affect ordinary citizens — taxes, services, rights
+- Closing: what to watch in the coming legislative session
+- Length: 550–700 words | Tone: informative, accessible, accountability-focused
+- Use only established facts about the National Assembly; do NOT fabricate specific bill numbers or votes""",
+    },
+    {
+        "key": "state_politics_nigeria",
+        "title": "Nigerian State Politics: Key Governors and Subnational Trends",
+        "tags": "governors, state politics, nigeria, subnational, apc, pdp, governance",
+        "frequency_days": 21,
+        "prompt": """You are a senior political analyst at PulseLineDaily, Nigeria's leading digital news outlet.
+
+Write a complete, original HTML analysis article about subnational politics in Nigeria — focusing on key state governors and the political dynamics shaping Nigeria's 36 states.
+
+OUTPUT FORMAT — three parts, exactly as shown:
+SUMMARY: <punchy one-liner teaser, max 160 chars>
+ANALYSIS: <2–3 sentences of expert analysis — the single most important subnational political trend shaping Nigeria's national politics>
+---
+<HTML article body>
+
+ARTICLE REQUIREMENTS:
+- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head> tags
+- <h2>: headline about Nigerian state-level political dynamics
+- Opening: why subnational politics matters as much as federal politics in Nigeria
+- <h3>Governors to Watch</h3>: 4–5 state governors making significant political or policy moves — use only governors you are confident about
+- <h3>APC vs PDP in the States</h3>: current state-level party distribution and what it signals for 2027
+- <h3>State-Level Governance Issues</h3>: local government autonomy, state IGR, infrastructure delivery, security at state level
+- <h3>Rising Political Figures</h3>: deputy governors, speakers, commissioners making noise — the next generation of leaders
+- Closing: how state-level dynamics will shape the 2027 presidential contest
+- Length: 550–700 words | Tone: analytical, insightful, non-partisan
+- Use only established facts about current governors and parties; do NOT fabricate election results or alliances""",
+    },
+    {
+        "key": "nigeria_foreign_policy",
+        "title": "Nigeria's Foreign Policy Under Tinubu: Africa and Beyond",
+        "tags": "nigeria foreign policy, tinubu, ecowas, africa, diplomacy, united nations, politics",
+        "frequency_days": 21,
+        "prompt": """You are a senior foreign affairs analyst at PulseLineDaily, Nigeria's leading digital news outlet.
+
+Write a complete, original HTML analysis article about Nigeria's foreign policy direction under President Tinubu.
+
+CONTEXT: Nigeria is Africa's largest economy and most populous nation. Under Tinubu, Nigeria has maintained its ECOWAS leadership role, responded to the Niger coup (2023), pursued investment diplomacy, and maintained strong bilateral ties with the UK, US, and UAE. Nigeria is a member of the UN Security Council (non-permanent) and African Union.
+
+OUTPUT FORMAT — three parts, exactly as shown:
+SUMMARY: <punchy one-liner teaser, max 160 chars>
+ANALYSIS: <2–3 sentences of expert analysis — the most important foreign policy challenge Nigeria faces and whether the Tinubu government is handling it well>
+---
+<HTML article body>
+
+ARTICLE REQUIREMENTS:
+- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head> tags
+- <h2>: headline about Nigeria's international standing and foreign policy
+- Opening: Nigeria's role as Africa's diplomatic heavyweight and the expectations that come with it
+- <h3>ECOWAS and West African Security</h3>: Nigeria's response to coups in Niger, Mali, Burkina Faso and the future of ECOWAS
+- <h3>Investment and Economic Diplomacy</h3>: Tinubu's investor roadshows, diaspora engagement, key bilateral agreements
+- <h3>Nigeria and Global Powers</h3>: relations with the US, UK, China, EU — opportunities and risks
+- <h3>Unresolved Issues</h3>: Bakassi, Lake Chad basin, Boko Haram cross-border dimensions, undocumented diaspora
+- Closing: what a bold Nigerian foreign policy agenda should look like in 2025–2027
+- Length: 550–700 words | Tone: expert, measured, pro-Africa
+- Use only established foreign policy facts; do NOT fabricate specific treaty terms or summit outcomes""",
+    },
+]
+
+
+def build_static_politics_prompt(topic):
+    return topic["prompt"]

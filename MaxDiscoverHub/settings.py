@@ -285,6 +285,11 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'projectApp.tasks.generate_market_articles',
         'schedule': crontab(hour='8,20', minute=30),
     },
+    # Politics: rotating Nigeria politics analysis (once daily, 10 AM UTC)
+    'politics-articles': {
+        'task': 'projectApp.tasks.generate_politics_articles',
+        'schedule': crontab(hour=10, minute=0),
+    },
 }
 
 # ── AI / Groq API (FREE) ───────────────────────────────────────────────────────

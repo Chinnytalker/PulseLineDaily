@@ -33,6 +33,12 @@ TASKS = [
         'cron': {'minute': '30', 'hour': '8,20', 'day_of_week': '*',
                  'day_of_month': '*', 'month_of_year': '*'},
     },
+    {
+        'name': 'politics-articles',
+        'task': 'projectApp.tasks.generate_politics_articles',
+        'cron': {'minute': '0', 'hour': '10', 'day_of_week': '*',
+                 'day_of_month': '*', 'month_of_year': '*'},
+    },
 ]
 
 
