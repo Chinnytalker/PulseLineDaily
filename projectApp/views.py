@@ -156,7 +156,7 @@ def blog_detail(request, slug):
                 post=post,
                 is_approved=False,
             )
-            messages.success(request, "Your comment has been submitted and is pending approval.")
+            messages.success(request, "Your comment has been submitted and is pending approval.", extra_tags='comment')
             return HttpResponseRedirect(request.path_info)
 
     related_posts = (
