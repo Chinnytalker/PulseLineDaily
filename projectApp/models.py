@@ -75,7 +75,7 @@ class Post(models.Model):
     slug = models.SlugField(unique=True, blank=True, null=True, max_length=200)
     image = CloudinaryField('image', blank=True, null=True)
     video = CloudinaryField('video', resource_type='video', blank=True, null=True)
-    link = models.URLField(blank=True, null=True)
+    link = models.URLField(blank=True, null=True, max_length=500)
     body = models.TextField()
     is_published = models.BooleanField(default=True, db_index=True)
     summary = models.TextField(blank=True, null=True)

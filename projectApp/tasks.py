@@ -374,24 +374,26 @@ def generate_rss_articles(self):
         resolved_cat = detect_story_category(story["title"], story["excerpt"], story["category"])
         cat = best_category(resolved_cat)
 
-        post = Post.objects.create(
-            title=title,
-            body=html,
-            summary=summary,
-            analysis=analysis or None,
-            tags=f"nigeria, {story['category'].lower()}, breaking news, analysis",
-            link=story["link"],
-            source="api",
-            source_domain=story["source_label"],
-            is_published=False,
-            updated_by="rss-auto",
-            author=default_author,
-        )
-        if cat:
-            post.categories.add(cat)
-
-        logger.info("Created RSS rewrite draft: %s", title)
-        created += 1
+        try:
+            post = Post.objects.create(
+                title=title,
+                body=html,
+                summary=summary,
+                analysis=analysis or None,
+                tags=f"nigeria, {story['category'].lower()}, breaking news, analysis",
+                link=story["link"][:500],
+                source="api",
+                source_domain=story["source_label"],
+                is_published=False,
+                updated_by="rss-auto",
+                author=default_author,
+            )
+            if cat:
+                post.categories.add(cat)
+            logger.info("Created RSS rewrite draft: %s", title)
+            created += 1
+        except Exception as exc:
+            logger.error("Failed to save RSS draft [%s]: %s", title[:80], exc)
 
     return f"RSS rewrite task complete: {created} draft(s) created"
 
