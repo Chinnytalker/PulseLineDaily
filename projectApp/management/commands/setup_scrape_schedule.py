@@ -39,6 +39,12 @@ TASKS = [
         'cron': {'minute': '0', 'hour': '10', 'day_of_week': '*',
                  'day_of_month': '*', 'month_of_year': '*'},
     },
+    {
+        'name': 'entertainment-articles',
+        'task': 'projectApp.tasks.generate_entertainment_articles',
+        'cron': {'minute': '0', 'hour': '11', 'day_of_week': '*',
+                 'day_of_month': '*', 'month_of_year': '*'},
+    },
 ]
 
 

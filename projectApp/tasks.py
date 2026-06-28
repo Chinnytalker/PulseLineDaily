@@ -273,6 +273,7 @@ def generate_rss_articles(self):
     """
     from django.conf import settings
     from django.utils import timezone
+    from datetime import timedelta
 
     api_key = getattr(settings, "GROQ_API_KEY", "")
     if not api_key:
@@ -286,7 +287,7 @@ def generate_rss_articles(self):
         return "groq package missing"
 
     from .models import Post, Category, Author
-    from .data_journalism import fetch_rss_stories, build_rewrite_prompt, detect_story_category
+    from .data_journalism import fetch_rss_stories, fetch_article_body, build_rewrite_prompt, detect_story_category
 
     client = Groq(api_key=api_key)
     now = timezone.now()
@@ -395,6 +396,9 @@ def generate_rss_articles(self):
         if similar_topic_covered(story["title"]):
             logger.debug("Similar topic already covered: %s", story["title"])
             continue
+
+        # Only fetch the full article body after both dedup checks pass
+        story["body_text"] = fetch_article_body(story["link"], max_chars=3000)
 
         prompt = build_rewrite_prompt(story)
         raw = call_llm(prompt)
@@ -686,11 +690,13 @@ def generate_market_articles(self):
         fetch_commodity_prices,
         fetch_acled_nigeria,
         fetch_crypto_prices,
+        fetch_parallel_market_rate,
         build_brent_prompt,
         build_ngx_prompt,
         build_commodity_prompt,
         build_acled_prompt,
         build_crypto_prompt,
+        build_parallel_rate_prompt,
     )
 
     client = Groq(api_key=api_key)
@@ -861,7 +867,31 @@ def generate_market_articles(self):
                 )
                 created += 1
 
-    # ── 5. Crypto prices — BTC & ETH (daily) ─────────────────────────────────
+    # ── 5. Naira parallel market rate vs CBN (daily) ─────────────────────────
+    if not recently_generated("parallel market", days=1):
+        fx_data = fetch_parallel_market_rate()
+        if fx_data:
+            raw = call_llm(build_parallel_rate_prompt(fx_data, date_str))
+            if raw:
+                summary, analysis, html = parse_response(raw)
+                parallel = fx_data.get("parallel") or fx_data.get("official", "")
+                title_rate = f"₦{parallel:,.0f}" if parallel else "Today"
+                save_draft(
+                    title=f"Black Market Dollar Rate Today: {title_rate} — {date_str}",
+                    body=html,
+                    summary=summary,
+                    analysis=analysis,
+                    tags=(
+                        "naira, dollar, black market, parallel market, aboki, "
+                        "cbn exchange rate, forex, nigeria, economy"
+                    ),
+                    category_hint="economy",
+                )
+                created += 1
+        else:
+            logger.info("Parallel market rate fetch failed — skipping")
+
+    # ── 6. Crypto prices — BTC & ETH (daily) ─────────────────────────────────
     if not recently_generated("bitcoin", days=1):
         crypto_data = fetch_crypto_prices()
         if crypto_data:
@@ -1005,3 +1035,123 @@ def generate_politics_articles(self):
             created += 1
 
     return f"Politics articles task complete: {created} draft(s) created"
+
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=300)
+def generate_entertainment_articles(self):
+    """
+    Entertainment content pipeline:
+    Rotating static topics — Afrobeats weekly, Nollywood now, Nigerian celebrity culture.
+    Saved as unpublished drafts under the Entertainment category.
+    """
+    from django.conf import settings
+    from django.utils import timezone
+    from datetime import timedelta
+
+    api_key = getattr(settings, "GROQ_API_KEY", "")
+    if not api_key:
+        logger.warning("GROQ_API_KEY not set — skipping entertainment articles task")
+        return "GROQ_API_KEY not configured"
+
+    try:
+        from groq import Groq
+    except ImportError:
+        return "groq package missing"
+
+    from .models import Post, Category, Author
+    from .data_journalism import ENTERTAINMENT_ANALYSIS_TOPICS, build_static_entertainment_prompt
+
+    client = Groq(api_key=api_key)
+    now = timezone.now()
+    date_str = now.strftime("%d %B %Y")
+    created = 0
+
+    default_author = Author.objects.filter(slug="clinton-nwachukwu").first()
+    entertainment_cat = (
+        Category.objects.filter(name__icontains="entertain").first()
+        or Category.objects.filter(name__icontains="arts").first()
+        or Category.objects.filter(name__icontains="news").first()
+        or Category.objects.first()
+    )
+
+    def call_llm(prompt):
+        try:
+            resp = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                max_tokens=3000,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return resp.choices[0].message.content.strip()
+        except Exception as exc:
+            logger.error("Groq API error: %s", exc)
+            return None
+
+    def parse_response(raw):
+        summary, analysis, html = "", "", raw
+        if "---" in raw:
+            head, body = raw.split("---", 1)
+            html = body.strip()
+            current_key = None
+            buf = []
+            for line in head.splitlines():
+                stripped = line.strip()
+                upper = stripped.upper()
+                if upper.startswith("SUMMARY:"):
+                    current_key = "summary"
+                    buf = [stripped[8:].strip()]
+                elif upper.startswith("ANALYSIS:"):
+                    if current_key == "summary":
+                        summary = " ".join(buf).strip()
+                    current_key = "analysis"
+                    buf = [stripped[9:].strip()]
+                elif current_key and stripped:
+                    buf.append(stripped)
+            if current_key == "summary":
+                summary = " ".join(buf).strip()
+            elif current_key == "analysis":
+                analysis = " ".join(buf).strip()
+        return summary, analysis, html
+
+    def recently_generated(tag_snippet, days):
+        cutoff = now - timedelta(days=days)
+        return Post.objects.filter(
+            updated_by="entertainment-auto",
+            tags__icontains=tag_snippet,
+            date_created__gte=cutoff,
+        ).exists()
+
+    def save_draft(title, body, summary, analysis, tags):
+        post = Post.objects.create(
+            title=title,
+            body=body,
+            summary=summary or title,
+            analysis=analysis or None,
+            tags=tags,
+            source="api",
+            is_published=False,
+            updated_by="entertainment-auto",
+            author=default_author,
+        )
+        if entertainment_cat:
+            post.categories.add(entertainment_cat)
+        logger.info("Created entertainment draft: %s", title)
+        return post
+
+    # Rotate through topics by day-of-month
+    topic_index = now.day % len(ENTERTAINMENT_ANALYSIS_TOPICS)
+    topic = ENTERTAINMENT_ANALYSIS_TOPICS[topic_index]
+
+    if not recently_generated(topic["key"], days=topic["frequency_days"]):
+        raw = call_llm(build_static_entertainment_prompt(topic, date_str=date_str))
+        if raw:
+            summary, analysis, html = parse_response(raw)
+            save_draft(
+                title=f"{topic['title']} — {now.strftime('%B %Y')}",
+                body=html,
+                summary=summary,
+                analysis=analysis,
+                tags=f"{topic['tags']}, {topic['key']}",
+            )
+            created += 1
+
+    return f"Entertainment articles task complete: {created} draft(s) created"

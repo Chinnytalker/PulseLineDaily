@@ -32,6 +32,10 @@ RSS_SOURCES = [
     {"url": "https://www.bellanaija.com/feed/",                 "category": "Entertainment", "label": "BellaNaija"},
     {"url": "https://notjustok.com/feed/",                      "category": "Entertainment", "label": "NotJustOK"},
     {"url": "https://guardian.ng/art/feed/",                    "category": "Entertainment", "label": "Guardian Arts & Entertainment"},
+    # ── Education ────────────────────────────────────────────────────────────
+    {"url": "https://www.legit.ng/rss/all.rss",                 "category": "Education",     "label": "Legit NG"},
+    {"url": "https://saharareporters.com/feed",                 "category": "News",          "label": "Sahara Reporters"},
+    {"url": "https://www.thecable.ng/category/education/feed/", "category": "Education",     "label": "The Cable Education"},
 ]
 
 WORLDBANK_BASE = "https://api.worldbank.org/v2"
@@ -369,6 +373,103 @@ ARTICLE REQUIREMENTS:
 - SEO keywords: "naira exchange rate today", "dollar to naira", "USD NGN", "CBN exchange rate" """
 
 
+# ── Naira parallel (black) market rate ───────────────────────────────────────
+
+def fetch_parallel_market_rate():
+    """
+    Fetch USD/NGN parallel market rate from AbokiFX and compare with the official rate.
+    Returns dict with official, parallel, and premium_pct fields, or None on total failure.
+    """
+    official_data = fetch_usd_ngn_rate()
+    official = official_data["rate"] if official_data else None
+
+    parallel = None
+    try:
+        resp = requests.get(
+            "https://abokifx.com/",
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/124.0.0.0 Safari/537.36"
+                ),
+                "Accept": "text/html,application/xhtml+xml",
+            },
+            timeout=12,
+        )
+        resp.raise_for_status()
+        # Extract 4-digit numbers in a realistic NGN/USD range (₦1,000–₦2,999)
+        candidates = []
+        for raw in re.findall(r'\b([12]\d{3})(?:[,\.]\d{1,2})?\b', resp.text):
+            val = float(raw)
+            if 1000 <= val <= 2999:
+                candidates.append(val)
+        if candidates:
+            candidates.sort()
+            parallel = round(candidates[len(candidates) // 2], 2)
+    except Exception as exc:
+        logger.warning("AbokiFX parallel rate fetch failed: %s", exc)
+
+    if not official and not parallel:
+        return None
+
+    premium_pct = None
+    if official and parallel:
+        premium_pct = round(((parallel - official) / official) * 100, 1)
+
+    return {
+        "official": official,
+        "parallel": parallel,
+        "premium_pct": premium_pct,
+        "updated": (official_data or {}).get("updated", ""),
+    }
+
+
+def build_parallel_rate_prompt(data, date_str):
+    official = data.get("official")
+    parallel = data.get("parallel")
+    premium = data.get("premium_pct")
+
+    official_line = f"₦{official:,.2f}" if official else "unavailable"
+    parallel_line = f"₦{parallel:,.2f}" if parallel else "unavailable (use general market context)"
+    premium_line = (
+        f"{premium:+.1f}% above the official rate"
+        if premium is not None else "premium spread unavailable"
+    )
+
+    return f"""You are a senior financial journalist at PulseLineDaily, Nigeria's leading digital news outlet.
+
+Write a complete, publish-ready HTML article comparing today's official CBN exchange rate with the Nigerian parallel (black) market rate.
+
+TODAY: {date_str}
+
+LIVE RATE DATA:
+- Official CBN / interbank rate: 1 USD = {official_line}
+- Parallel (black) market rate:  1 USD = {parallel_line}
+- Parallel market premium: {premium_line}
+- Data sources: Open Exchange Rates (official), AbokiFX (parallel market)
+
+OUTPUT FORMAT — three parts, exactly as shown:
+SUMMARY: <one punchy sentence max 160 characters — include both rates or the premium spread>
+ANALYSIS: <2–3 sentences of expert takeaway — what the gap between rates reveals about Nigeria's forex situation>
+---
+<full HTML article body starting with <h2>>
+
+ARTICLE REQUIREMENTS:
+- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head>/<style> tags
+- <h2>: headline including today's parallel market rate (or the gap) — e.g. "Black Market Dollar Rate Today: ₦X,XXX as CBN Rate Sits at ₦Y,YYY"
+- Paragraph 1: state both rates clearly and the spread between them
+- <h3>Why Two Rates Exist</h3>: explain the dual exchange rate system — CBN official vs parallel market — in plain language for everyday Nigerians
+- <h3>What This Means for You</h3>: practical impact on importers, travellers, students abroad, online shoppers, remittance receivers — use bullet points
+- <h3>What Is Driving the Gap</h3>: structural causes — forex scarcity, CBN policy, oil revenue, demand pressure — use only established economic context; do NOT fabricate specific CBN announcements
+- <h3>CBN's Position and What to Watch</h3>: current monetary policy stance and indicators to watch for rate stability or further pressure
+- Closing: a brief, practical closing for Nigerian readers — what to do with this information today
+- Attribute official rate to Open Exchange Rates; parallel rate to AbokiFX
+- Length: 700–900 words | Tone: practical, informative, authoritative
+- SEO: "dollar to naira black market today", "parallel market rate", "aboki dollar rate", "cbn exchange rate", "naira black market"
+- Do NOT fabricate specific CBN policy announcements, named quotes, or rate predictions"""
+
+
 # ── Option C: RSS fetch + AI rewrite ─────────────────────────────────────────
 
 def _strip_html(raw):
@@ -460,12 +561,10 @@ def fetch_rss_stories(max_per_source=2):
                 link = entry.get("link") or ""
                 if not link:
                     continue
-                # Fetch the full article body for richer LLM context
-                body_text = fetch_article_body(link, max_chars=3000)
+                # body_text is fetched lazily in the task (after dedup checks pass)
                 stories.append({
                     "title": title,
                     "excerpt": excerpt,
-                    "body_text": body_text,
                     "link": link,
                     "source_label": source["label"],
                     "category": source["category"],
@@ -592,10 +691,42 @@ TECHNOLOGY_KEYWORDS = frozenset([
 ])
 
 
+EDUCATION_KEYWORDS = frozenset([
+    "jamb", "waec", "neco", "nysc", "utme", "post-utme", "admission",
+    "university", "polytechnic", "college of education", "student loan",
+    "scholarship", "bursary", "school fees", "examination", "exam result",
+    "results released", "matriculation", "convocation", "graduation",
+    "ministry of education", "tetfund", "jamb result", "waec result",
+    "neco result", "nysc orientation", "nysc mobilisation", "ppa",
+    "federal university", "state university", "private university",
+    "accreditation", "jupeb", "ijmb", "a-level", "o-level",
+    "primary school", "secondary school", "cut-off mark",
+])
+
+ENTERTAINMENT_KEYWORDS = frozenset([
+    # music / afrobeats
+    "music", "album", "single", "song", "afrobeats", "afropop", "burna boy",
+    "wizkid", "davido", "asake", "olamide", "tiwa savage", "ckay", "rema",
+    "tems", "ayra starr", "grammy", "billboard", "spotify", "apple music",
+    "concert", "tour", "lyrics", "music video", "bts", "streaming",
+    # nollywood / film
+    "nollywood", "movie", "film", "cinema", "box office", "actor", "actress",
+    "director", "netflix", "amazon prime", "showmax", "series", "episode",
+    "award", "amvca", "afrima", "vgma",
+    # celebrity / lifestyle
+    "celebrity", "wedding", "engagement", "divorce", "fashion", "style",
+    "beauty", "makeup", "red carpet", "interview", "bbnaija", "big brother",
+    "reality show", "influencer", "skit maker", "comedian", "stand-up",
+    # arts / culture
+    "art exhibition", "gallery", "theatre", "book", "author", "novel",
+    "literary", "cultural festival", "heritage",
+])
+
+
 def detect_story_category(title, excerpt, default_category):
     """
     Check title + excerpt against keyword sets in priority order.
-    Sports > Politics > Technology; falls back to the RSS source's default.
+    Sports > Politics > Technology > Entertainment > Education; falls back to RSS source default.
     """
     text = (title + " " + excerpt).lower()
     if any(kw in text for kw in SPORTS_KEYWORDS):
@@ -604,6 +735,10 @@ def detect_story_category(title, excerpt, default_category):
         return "Politics"
     if any(kw in text for kw in TECHNOLOGY_KEYWORDS):
         return "Technology"
+    if any(kw in text for kw in ENTERTAINMENT_KEYWORDS):
+        return "Entertainment"
+    if any(kw in text for kw in EDUCATION_KEYWORDS):
+        return "Education"
     return default_category
 
 
@@ -1741,3 +1876,105 @@ ARTICLE REQUIREMENTS:
 
 def build_static_politics_prompt(topic):
     return topic["prompt"]
+
+
+# ── Entertainment analysis topics ─────────────────────────────────────────────
+
+ENTERTAINMENT_ANALYSIS_TOPICS = [
+    {
+        "key": "afrobeats_weekly",
+        "title": "Afrobeats Weekly: Nigeria's Hottest Songs and Artists",
+        "tags": "afrobeats, nigerian music, burna boy, wizkid, davido, music chart, naija music, entertainment",
+        "frequency_days": 7,
+        "prompt": """You are a senior entertainment and music journalist at PulseLineDaily, Nigeria's leading digital news outlet.
+
+Write a complete, original HTML weekly Afrobeats roundup covering what is dominating Nigerian music culture right now.
+
+TODAY'S DATE: {date_str}
+
+OUTPUT FORMAT — three parts, exactly as shown:
+SUMMARY: <punchy one-liner teaser, max 160 chars — name the hottest song or artist right now>
+ANALYSIS: <2–3 sentences of editorial music analysis — the trend or sound defining Nigerian music at this moment>
+---
+<HTML article body>
+
+ARTICLE REQUIREMENTS:
+- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head>/<style> tags
+- <h2>: headline naming a specific hit or artist dominating Afrobeats this week
+- Opening paragraph: set the scene — what sound, mood, or movement is ruling Nigerian music right now
+- <h3>This Week's Biggest Songs</h3>: 4–6 songs currently dominating Nigerian airwaves and streaming — name the artist, song title, and why it is connecting with listeners; only name songs you are confident exist and are recent
+- <h3>Artists in Their Prime</h3>: 2–3 artists who are at the peak of their influence right now — Burna Boy, Wizkid, Davido, Asake, Rema, Ayra Starr, Tems, Olamide, or others — analyse their current momentum
+- <h3>The Sound of the Moment</h3>: what musical styles, production trends, or lyrical themes are defining the current Afrobeats wave — Amapiano influence, street-hop, Afro-soul, etc.
+- <h3>Rising Stars to Watch</h3>: 2–3 newer or emerging Nigerian artists making noise — only name artists you are confident about
+- <h3>Global Reach</h3>: Afrobeats' current international footprint — crossover collaborations, chart placements, global streaming milestones — use only established facts
+- Closing: a forward-looking sentence on where Nigerian music is headed
+- Length: 700–900 words | Tone: vibrant, knowledgeable, celebratory — the voice of a passionate music fan who knows the scene deeply
+- SEO: "afrobeats 2026", "nigerian music chart", "hottest naija songs", "afrobeats weekly"
+- Do NOT fabricate specific chart positions, streaming numbers, or album release dates you are not certain about""",
+    },
+    {
+        "key": "nollywood_weekly",
+        "title": "Nollywood Now: Movies and Series Every Nigerian Is Watching",
+        "tags": "nollywood, nigerian movies, netflix nigeria, showmax, film, cinema, entertainment",
+        "frequency_days": 7,
+        "prompt": """You are a senior film and entertainment journalist at PulseLineDaily, Nigeria's leading digital news outlet.
+
+Write a complete, original HTML weekly Nollywood roundup covering what Nigerians are watching and talking about right now.
+
+TODAY'S DATE: {date_str}
+
+OUTPUT FORMAT — three parts, exactly as shown:
+SUMMARY: <punchy one-liner teaser, max 160 chars — name the hottest Nollywood title right now>
+ANALYSIS: <2–3 sentences of editorial analysis — the trend, theme, or creative wave defining Nollywood at this moment>
+---
+<HTML article body>
+
+ARTICLE REQUIREMENTS:
+- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head>/<style> tags
+- <h2>: headline naming a specific film, series, or Nollywood moment dominating conversation
+- Opening paragraph: set the scene — what Nollywood film or series is everyone talking about right now
+- <h3>What to Watch This Week</h3>: 3–5 Nollywood films or series currently streaming or in cinemas — name the title, platform (Netflix, Showmax, Prime Video, cinema), lead actors, and a brief review or description; only name titles you are confident exist
+- <h3>The Breakout Stars</h3>: 2–3 Nollywood actors or directors who are having a defining moment — their latest project, their trajectory, why they matter
+- <h3>Nollywood Trends</h3>: recurring themes dominating Nigerian cinema right now — Yoruba romanticism, crime thrillers, political satire, diaspora stories, etc.
+- <h3>International Recognition</h3>: Nollywood on the global stage — international festival selections, streaming deals, diaspora viewership — use only established facts
+- Closing: what Nollywood title or event to look out for in the coming weeks
+- Length: 700–900 words | Tone: engaging, culturally sharp, celebratory but honest
+- SEO: "nollywood 2026", "nigerian movies to watch", "nollywood netflix", "naija movies"
+- Do NOT fabricate box office numbers, specific streaming figures, or award wins you are not certain about""",
+    },
+    {
+        "key": "nigerian_celebrity_culture",
+        "title": "Nigerian Celebrity Culture: What Everyone Is Talking About",
+        "tags": "nigerian celebrities, entertainment, bbnaija, social media, influencers, culture, entertainment",
+        "frequency_days": 14,
+        "prompt": """You are a senior entertainment journalist at PulseLineDaily, Nigeria's leading digital news outlet.
+
+Write a complete, original HTML entertainment feature about the people, moments, and conversations dominating Nigerian celebrity culture.
+
+TODAY'S DATE: {date_str}
+
+OUTPUT FORMAT — three parts, exactly as shown:
+SUMMARY: <punchy one-liner teaser, max 160 chars — name the celebrity moment or story capturing attention>
+ANALYSIS: <2–3 sentences of editorial analysis — what this moment reveals about Nigerian celebrity culture and the broader entertainment industry>
+---
+<HTML article body>
+
+ARTICLE REQUIREMENTS:
+- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head>/<style> tags
+- <h2>: headline capturing the biggest celebrity story or cultural moment right now
+- Opening paragraph: introduce the dominant story or theme in Nigerian celebrity culture this week
+- <h3>The Conversation Everyone Is Having</h3>: the top 2–3 stories or moments dominating Nigerian social media, Twitter/X, and entertainment blogs — be specific about who is involved and what happened; only cover stories you are confident about
+- <h3>Ones to Watch</h3>: 3–4 celebrities — musicians, actors, comedians, influencers, skit makers — who are building major momentum right now and why
+- <h3>Fashion and Style Moments</h3>: notable red carpet looks, fashion collaborations, or style moments that have sparked conversation — Nigerian designers and the global fashion stage
+- <h3>What Social Media Is Saying</h3>: the tone of public conversation around these stories — praise, controversy, debate — without amplifying harmful content
+- Closing: a sharp cultural observation about what these stories say about Nigeria in {date_str[:4]}
+- Length: 650–850 words | Tone: culturally aware, stylish, engaging — the voice of someone who genuinely loves Nigerian entertainment
+- SEO: "nigerian celebrities", "naija entertainment", "nigeria celebrity news"
+- Do NOT publish unverified gossip, defamatory claims, or fabricated controversies""",
+    },
+]
+
+
+def build_static_entertainment_prompt(topic, date_str=""):
+    """Return the topic's prompt with the current date injected."""
+    return topic["prompt"].replace("{date_str}", date_str)
