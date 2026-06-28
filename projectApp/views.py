@@ -154,9 +154,9 @@ def blog_detail(request, slug):
                 author=form.cleaned_data["author"],
                 comment=form.cleaned_data["body"],
                 post=post,
-                is_approved=False,
+                is_approved=True,
             )
-            messages.success(request, "Your comment has been submitted and is pending approval.", extra_tags='comment')
+            messages.success(request, "Your comment has been posted.", extra_tags='comment')
             return HttpResponseRedirect(request.path_info)
 
     related_posts = (
@@ -172,7 +172,7 @@ def blog_detail(request, slug):
 
     context = {
         "post": post,
-        "comments": Comment.objects.filter(post=post, is_approved=True),
+        "comments": Comment.objects.filter(post=post),
         "form": CommentForm(),
         "related_posts": related_posts,
         "tags": tags,
@@ -319,50 +319,65 @@ def contact_us(request):
 
 
 def subscribe(request):
-    if request.method == "POST":
-        if _is_rate_limited(request, 'subscribe', limit=3, period=300):
-            messages.error(request, "Too many attempts. Please try again in a few minutes.")
-            return redirect(request.META.get("HTTP_REFERER") or "/")
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
-        form = NewsletterSubscriptionForm(request.POST)
-        if form.is_valid():
-            email = form.cleaned_data['email']
-            existing = NewsletterSubscriber.objects.filter(email=email).first()
+    def _json_or_redirect(status, msg):
+        if is_ajax:
+            return JsonResponse({'status': status, 'message': msg})
+        if status == 'error':
+            messages.error(request, msg)
+        elif status == 'info':
+            messages.info(request, msg)
+        else:
+            messages.success(request, msg)
+        return redirect(request.META.get("HTTP_REFERER") or "/")
 
-            if existing and existing.is_active:
-                messages.info(request, "You are already subscribed!")
-            else:
-                token = uuid.uuid4().hex
-                if existing:
-                    existing.confirmation_token = token
-                    existing.is_active = False
-                    existing.save(update_fields=['confirmation_token', 'is_active'])
-                else:
-                    NewsletterSubscriber.objects.create(
-                        email=email, confirmation_token=token, is_active=False
-                    )
-                confirm_url = request.build_absolute_uri(
-                    reverse('newsletter_confirm', args=[token])
-                )
-                html_body = render_to_string('blog/email/newsletter_confirm.html', {
-                    'confirm_url': confirm_url,
-                })
-                plain_body = (
-                    f"Hi,\n\nThank you for subscribing to PulseLineDaily!\n\n"
-                    f"Confirm your email here:\n{confirm_url}\n\n"
-                    f"If you didn't subscribe, ignore this email.\n\n"
-                    f"— The PulseLineDaily Team"
-                )
-                msg = EmailMultiAlternatives(
-                    subject="Confirm your PulseLineDaily subscription",
-                    body=plain_body,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    to=[email],
-                )
-                msg.attach_alternative(html_body, "text/html")
-                msg.send(fail_silently=False)
-                messages.success(request, "Almost there! Check your email to confirm your subscription.")
-    return redirect(request.META.get("HTTP_REFERER") or "/")
+    if request.method != "POST":
+        return redirect(request.META.get("HTTP_REFERER") or "/")
+
+    if _is_rate_limited(request, 'subscribe', limit=3, period=300):
+        return _json_or_redirect('error', "Too many attempts. Please try again in a few minutes.")
+
+    form = NewsletterSubscriptionForm(request.POST)
+    if not form.is_valid():
+        return _json_or_redirect('error', "Please enter a valid email address.")
+
+    email = form.cleaned_data['email']
+    existing = NewsletterSubscriber.objects.filter(email=email).first()
+
+    if existing and existing.is_active:
+        return _json_or_redirect('info', "You are already subscribed!")
+
+    token = uuid.uuid4().hex
+    if existing:
+        existing.confirmation_token = token
+        existing.is_active = False
+        existing.save(update_fields=['confirmation_token', 'is_active'])
+    else:
+        NewsletterSubscriber.objects.create(
+            email=email, confirmation_token=token, is_active=False
+        )
+    confirm_url = request.build_absolute_uri(
+        reverse('newsletter_confirm', args=[token])
+    )
+    html_body = render_to_string('blog/email/newsletter_confirm.html', {
+        'confirm_url': confirm_url,
+    })
+    plain_body = (
+        f"Hi,\n\nThank you for subscribing to PulseLineDaily!\n\n"
+        f"Confirm your email here:\n{confirm_url}\n\n"
+        f"If you didn't subscribe, ignore this email.\n\n"
+        f"— The PulseLineDaily Team"
+    )
+    msg = EmailMultiAlternatives(
+        subject="Confirm your PulseLineDaily subscription",
+        body=plain_body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=[email],
+    )
+    msg.attach_alternative(html_body, "text/html")
+    msg.send(fail_silently=False)
+    return _json_or_redirect('success', "Almost there! Check your email to confirm your subscription.")
 
 
 def newsletter_confirm(request, token):

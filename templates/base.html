@@ -178,11 +178,11 @@
       <button id="close-newsletter" class="absolute top-2 right-2 text-gray-400 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-white text-lg leading-none">&times;</button>
       <h2 class="text-lg font-bold mb-1 text-gray-900 dark:text-zinc-100">Subscribe to our Newsletter</h2>
       <p class="text-xs text-gray-500 dark:text-zinc-400 mb-3">Get the latest news delivered to your inbox.</p>
-      <form id="newsletter-form" action="{% url 'subscribe' %}" method="POST">
-        {% csrf_token %}
+      <form id="newsletter-form" data-subscribe-url="{% url 'subscribe' %}">
         <input type="email" name="email" required placeholder="Your email"
                class="w-full px-3 py-2 mb-2 border border-gray-300 dark:border-zinc-600 rounded-lg text-sm bg-white dark:bg-zinc-700 text-gray-900 dark:text-gray-100 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" />
         <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 text-sm font-semibold transition">Subscribe</button>
+        <p id="newsletter-popup-msg" class="text-xs mt-2 hidden"></p>
       </form>
     </div>
   </div>
@@ -340,14 +340,16 @@
     <div>
       <h3 class="font-semibold mb-3">Newsletter</h3>
       <p class="text-sm text-gray-400 mb-3">Stay updated with our latest news.</p>
-      <form class="flex" method="POST" action="{% url 'subscribe' %}">
-        {% csrf_token %}
-        <input type="email" name="email" placeholder="Enter Your email"
-               class="w-full px-3 py-2 bg-gray-200 dark:bg-zinc-700 text-gray-900 dark:text-gray-100 dark:placeholder-gray-400 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500">
-        <button type="submit"
-                class="px-4 bg-blue-600 text-white rounded-r-md hover:bg-blue-700">
-          Subscribe
-        </button>
+      <form class="flex flex-col gap-1" data-subscribe-url="{% url 'subscribe' %}">
+        <div class="flex">
+          <input type="email" name="email" placeholder="Enter Your email"
+                 class="w-full px-3 py-2 bg-gray-200 dark:bg-zinc-700 text-gray-900 dark:text-gray-100 dark:placeholder-gray-400 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <button type="submit"
+                  class="px-4 bg-blue-600 text-white rounded-r-md hover:bg-blue-700">
+            Subscribe
+          </button>
+        </div>
+        <p class="newsletter-footer-msg text-xs hidden"></p>
       </form>
     </div>
   </div>
@@ -495,7 +497,6 @@
     // 📩 Newsletter
     const popup = document.getElementById('newsletter-popup');
     const closeBtn = document.getElementById('close-newsletter');
-    const form = document.getElementById('newsletter-form');
 
     if (popup && !localStorage.getItem('app_newsletterDismissed')) {
       setTimeout(function () {
@@ -510,12 +511,77 @@
       });
     }
 
-    if (form && popup) {
-      form.addEventListener('submit', function () {
-        localStorage.setItem('app_newsletterDismissed', 'true');
-        popup.style.display = 'none';
+    // CSRF token from cookie (works even on cached pages)
+    function getCSRFToken() {
+      var value = '; ' + document.cookie;
+      var parts = value.split('; csrftoken=');
+      if (parts.length === 2) return parts.pop().split(';').shift();
+      return '';
+    }
+
+    function submitNewsletter(form, msgEl, onSuccess) {
+      var email = form.querySelector('[name="email"]').value;
+      var btn = form.querySelector('[type="submit"]');
+      var url = form.getAttribute('data-subscribe-url');
+      if (!email || !url) return;
+
+      btn.disabled = true;
+      fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRFToken': getCSRFToken(),
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: 'email=' + encodeURIComponent(email),
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (msgEl) {
+          msgEl.textContent = data.message;
+          msgEl.className = data.status === 'success'
+            ? 'text-green-400 text-xs mt-1'
+            : 'text-yellow-300 text-xs mt-1';
+          msgEl.classList.remove('hidden');
+        }
+        if (data.status === 'success') {
+          form.reset();
+          if (onSuccess) onSuccess();
+        }
+      })
+      .catch(function() {
+        if (msgEl) {
+          msgEl.textContent = 'Something went wrong. Please try again.';
+          msgEl.className = 'text-red-400 text-xs mt-1';
+          msgEl.classList.remove('hidden');
+        }
+      })
+      .finally(function() { btn.disabled = false; });
+    }
+
+    // Popup form
+    var popupForm = document.getElementById('newsletter-form');
+    if (popupForm) {
+      popupForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var msgEl = document.getElementById('newsletter-popup-msg');
+        submitNewsletter(popupForm, msgEl, function() {
+          localStorage.setItem('app_newsletterDismissed', 'true');
+          setTimeout(function() { if (popup) popup.style.display = 'none'; }, 2500);
+        });
       });
     }
+
+    // Footer form
+    var footerForms = document.querySelectorAll('footer [data-subscribe-url]');
+    footerForms.forEach(function(form) {
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var msgEl = form.querySelector('.newsletter-footer-msg');
+        submitNewsletter(form, msgEl, null);
+      });
+    });
 
     // 📱 Mobile Menu
     const menuBtn = document.getElementById('mobile-menu-button');
@@ -647,8 +713,9 @@ if (loader) {
     }
   }, true);
 
-  // 📝 Show on form submit
-  document.body.addEventListener('submit', function () {
+  // 📝 Show on form submit (skip AJAX newsletter forms)
+  document.body.addEventListener('submit', function (e) {
+    if (e.target && e.target.hasAttribute('data-subscribe-url')) return;
     show();
   }, true);
 

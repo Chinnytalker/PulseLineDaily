@@ -151,7 +151,7 @@ class Comment(models.Model):
     comment = models.TextField()
     comment_made_on = models.DateTimeField(auto_now_add=True)
     post = models.ForeignKey(Post, on_delete=models.CASCADE)
-    is_approved = models.BooleanField(default=False, db_index=True, help_text="Only approved comments are shown publicly")
+    is_approved = models.BooleanField(default=True, db_index=True, help_text="Uncheck to hide a comment from public view")
 
     def __str__(self):
         return self.author
