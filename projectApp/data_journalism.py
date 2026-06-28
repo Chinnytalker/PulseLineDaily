@@ -7,21 +7,31 @@ import html as html_module
 import logging
 import re
 import requests
+from html.parser import HTMLParser
 
 logger = logging.getLogger(__name__)
 
 # ── RSS Sources (Option C) ────────────────────────────────────────────────────
 # Add / remove feeds freely.  category → matched against your Category table.
 RSS_SOURCES = [
-    {"url": "https://punchng.com/feed/",              "category": "News",        "label": "Punch NG"},
-    {"url": "https://www.vanguardngr.com/feed/",       "category": "News",        "label": "Vanguard NG"},
-    {"url": "https://businessday.ng/feed/",            "category": "Economy",     "label": "BusinessDay NG"},
-    {"url": "https://techcabal.com/feed/",             "category": "Technology",  "label": "TechCabal"},
-    {"url": "https://www.channelstv.com/feed/",        "category": "News",        "label": "Channels TV"},
-    {"url": "https://guardian.ng/feed/",               "category": "News",        "label": "Guardian NG"},
-    {"url": "https://www.premiumtimesng.com/feed/",    "category": "News",        "label": "Premium Times NG"},
-    {"url": "https://dailypost.ng/feed/",              "category": "Politics",    "label": "Daily Post NG"},
-    {"url": "https://www.thecable.ng/feed/",           "category": "Politics",    "label": "The Cable NG"},
+    # ── News ─────────────────────────────────────────────────────────────────
+    {"url": "https://punchng.com/feed/",                        "category": "News",          "label": "Punch NG"},
+    {"url": "https://www.vanguardngr.com/feed/",                "category": "News",          "label": "Vanguard NG"},
+    {"url": "https://www.channelstv.com/feed/",                 "category": "News",          "label": "Channels TV"},
+    {"url": "https://guardian.ng/feed/",                        "category": "News",          "label": "Guardian NG"},
+    {"url": "https://www.premiumtimesng.com/feed/",             "category": "News",          "label": "Premium Times NG"},
+    # ── Politics ─────────────────────────────────────────────────────────────
+    {"url": "https://dailypost.ng/feed/",                       "category": "Politics",      "label": "Daily Post NG"},
+    {"url": "https://www.thecable.ng/feed/",                    "category": "Politics",      "label": "The Cable NG"},
+    # ── Economy ──────────────────────────────────────────────────────────────
+    {"url": "https://businessday.ng/feed/",                     "category": "Economy",       "label": "BusinessDay NG"},
+    # ── Technology ───────────────────────────────────────────────────────────
+    {"url": "https://techcabal.com/feed/",                      "category": "Technology",    "label": "TechCabal"},
+    # ── Entertainment ────────────────────────────────────────────────────────
+    {"url": "https://www.pulse.ng/entertainment/rss",           "category": "Entertainment", "label": "Pulse NG Entertainment"},
+    {"url": "https://www.bellanaija.com/feed/",                 "category": "Entertainment", "label": "BellaNaija"},
+    {"url": "https://notjustok.com/feed/",                      "category": "Entertainment", "label": "NotJustOK"},
+    {"url": "https://guardian.ng/art/feed/",                    "category": "Entertainment", "label": "Guardian Arts & Entertainment"},
 ]
 
 WORLDBANK_BASE = "https://api.worldbank.org/v2"
@@ -368,6 +378,56 @@ def _strip_html(raw):
     return re.sub(r"\s+", " ", text).strip()
 
 
+class _ArticleTextExtractor(HTMLParser):
+    """Strip nav/footer/script noise and collect readable article text."""
+    _SKIP = {"script", "style", "nav", "header", "footer", "aside", "noscript", "iframe"}
+
+    def __init__(self):
+        super().__init__()
+        self._depth = 0
+        self.parts = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag.lower() in self._SKIP:
+            self._depth += 1
+
+    def handle_endtag(self, tag):
+        if tag.lower() in self._SKIP and self._depth > 0:
+            self._depth -= 1
+
+    def handle_data(self, data):
+        if not self._depth:
+            text = data.strip()
+            if text:
+                self.parts.append(text)
+
+
+def fetch_article_body(url, max_chars=3000):
+    """
+    Fetch the readable text of a news article URL.
+    Used to give the LLM specific facts (names, figures, rankings) from the source.
+    Returns up to max_chars of cleaned text, or empty string on failure.
+    """
+    _HEADERS = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        )
+    }
+    try:
+        resp = requests.get(url, headers=_HEADERS, timeout=12)
+        resp.raise_for_status()
+        extractor = _ArticleTextExtractor()
+        extractor.feed(html_module.unescape(resp.text))
+        text = " ".join(extractor.parts)
+        text = re.sub(r"\s+", " ", text).strip()
+        return text[:max_chars]
+    except Exception as exc:
+        logger.debug("Article body fetch failed [%s]: %s", url, exc)
+        return ""
+
+
 def fetch_rss_stories(max_per_source=2):
     """
     Fetch recent stories from RSS_SOURCES using feedparser.
@@ -389,19 +449,23 @@ def fetch_rss_stories(max_per_source=2):
                 title = (entry.get("title") or "").strip()
                 if not title:
                     continue
-                # Use summary, then description, then content — whichever exists
+                # Prefer full content, then summary, then description
                 raw_excerpt = (
-                    entry.get("summary")
+                    (entry.get("content") or [{}])[0].get("value", "")
+                    or entry.get("summary")
                     or entry.get("description")
-                    or (entry.get("content") or [{}])[0].get("value", "")
+                    or ""
                 )
-                excerpt = _strip_html(raw_excerpt)[:600]
+                excerpt = _strip_html(raw_excerpt)[:1500]
                 link = entry.get("link") or ""
                 if not link:
                     continue
+                # Fetch the full article body for richer LLM context
+                body_text = fetch_article_body(link, max_chars=3000)
                 stories.append({
                     "title": title,
                     "excerpt": excerpt,
+                    "body_text": body_text,
                     "link": link,
                     "source_label": source["label"],
                     "category": source["category"],
@@ -414,40 +478,55 @@ def fetch_rss_stories(max_per_source=2):
 
 def build_rewrite_prompt(story):
     """
-    Build a Claude prompt that turns an RSS story topic into a fully
-    original PulseLineDaily article. Only the headline and a short excerpt
-    are passed — Claude writes every word from scratch.
+    Build a prompt that produces a genuinely original, AdSense-quality PulseLineDaily article.
+    Uses the full article body so the LLM can cite specific facts rather than writing generically.
     """
-    return f"""You are a senior journalist at PulseLineDaily, a leading Nigerian digital news outlet.
+    full_body = (story.get("body_text") or "").strip()
+    if full_body:
+        source_block = (
+            f"SOURCE ARTICLE CONTENT from {story['source_label']} "
+            f"(use facts and names — every sentence you write must be your own words):\n{full_body}"
+        )
+    else:
+        source_block = (
+            f"RSS EXCERPT from {story['source_label']} "
+            f"(limited context — use what is available):\n{story['excerpt']}"
+        )
 
-A story has just broken. Your job is to write a completely original news article about this topic for PulseLineDaily's audience.
+    return f"""You are a senior journalist at PulseLineDaily, a leading Nigerian digital news outlet. Your articles are published, indexed by Google, and reviewed for AdSense quality — they must be genuinely original, substantive, and add clear value beyond what the source article says.
 
 STORY TOPIC:
 Headline: {story['title']}
-Brief background: {story['excerpt']}
-Original source outlet: {story['source_label']} (do NOT copy their text)
+Source: {story['source_label']}
+
+{source_block}
 
 YOUR TASK:
-Write a fully original 500–650 word HTML news article about this topic. Every sentence must be your own writing — do not reproduce or closely paraphrase the source text above. Use the topic and facts only as your starting point.
+Write a 900–1100 word fully original HTML news article. Your article must:
+1. Use every specific fact from the source (names, figures, rankings, dates, institutions) — never skip specifics
+2. Add original editorial context, historical background, or expert-level analysis NOT present in the source
+3. Offer a perspective or angle that makes this article more valuable than the source itself
+4. Read like it was written by an experienced Nigerian journalist, not a summary bot
 
 OUTPUT FORMAT — three parts, exactly as shown:
-SUMMARY: <one punchy sentence (max 160 characters) that teases the story for the article card — no "PulseLineDaily" branding, no "analysis of", just the story hook>
-ANALYSIS: <2–3 sentences of sharp editorial analysis — the deeper significance of this story for Nigeria, what it reveals about a broader trend, and what to watch next>
+SUMMARY: <one punchy sentence max 160 characters — the story hook, specific not vague>
+ANALYSIS: <2–3 sentences of original editorial analysis — insight a reader won't find in the source article>
 ---
 <full HTML article body starting with <h2>>
 
 ARTICLE REQUIREMENTS:
-- Pure HTML — use <h2>, <h3>, <p>, <strong>, <ul>, <li>
-- Do NOT include <html>, <body>, <head>, or <style> tags
-- Open with a strong, original <h2> headline (you may rewrite the source headline)
-- Paragraph 1: a gripping lead that states the key development clearly
-- <h3>Background and Context</h3>: relevant background a Nigerian reader needs to understand the issue
-- <h3>Why This Matters to Nigerians</h3>: 3–4 concrete implications for everyday Nigerians — economic, social, or political
-- <h3>What Happens Next</h3>: a measured, factual analysis of likely next steps or developments
-- Closing paragraph: a concise, forward-looking sentence
-- Tone: authoritative, clear, engaging — quality Nigerian news outlet voice
-- Do NOT invent specific statistics, named quotes, or named individuals you are not certain of
-- Include natural SEO keywords relevant to the Nigerian context"""
+- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head>/<style> tags
+- <h2>: original headline — rewrite the source headline with a fresh angle
+- Paragraph 1: gripping lead naming the single most important specific fact (person, figure, institution, or event) from the source
+- <h3>Key Facts</h3>: bullet list of ALL specific entities, names, figures, statistics, rankings, or dates from the source — never be vague when specifics exist; if the story names 24 universities, list them; if it names officials, name them
+- <h3>Background and Context</h3>: 2–3 paragraphs of original context — historical precedent, how this fits a bigger trend, what led to this development; this section must go BEYOND the source article
+- <h3>Why This Matters to Nigerians</h3>: 4–5 concrete, specific implications — economic impact, social consequence, political significance; avoid generic statements like "this is important" — say WHY and HOW
+- <h3>Expert Perspective</h3>: 3–4 sentences of original authoritative analysis — what this development reveals, what risks or opportunities it creates; do NOT invent named quotes or attribute views to specific people
+- <h3>What Happens Next</h3>: specific, informed analysis of the next steps, timeline, or likely developments — not vague speculation
+- Closing paragraph: a sharp, memorable closing sentence that reinforces the article's core message
+- Tone: authoritative, intelligent, engaging — the voice of Nigeria's best journalism
+- Do NOT copy sentences from the source, do NOT be vague when facts are available, do NOT pad with filler
+- Include natural SEO keywords relevant to the Nigerian context throughout the article"""
 
 
 # ── Sports helpers ────────────────────────────────────────────────────────────
@@ -679,101 +758,434 @@ ARTICLE REQUIREMENTS:
 - Opening paragraph: summarise the recent run of form — good, bad, or mixed?
 - <h3>Match by Match</h3>: brief analysis of each result, identifying patterns
 - <h3>What Is Working and What Is Not</h3>: tactical and performance observations
-- <h3>World Cup 2026 Implications</h3>: how this form affects Nigeria's CAF qualifying position and World Cup 2026 prospects
+- <h3>Looking Ahead</h3>: what these results mean for the Super Eagles — rebuilding, upcoming fixtures, and the road to World Cup 2030 qualifying
 - <h3>Fan Verdict</h3>: a balanced take on what Nigerian fans should feel — encouragement or concern?
 - Closing: forward-looking sentence about upcoming fixtures or goals
 - Length: 500–650 words | Tone: passionate, expert, balanced
 - Do NOT invent players, managers, or scores not shown in the data above"""
 
 
-# Static sports analysis topics (no live data needed — AI uses training knowledge)
+# Static sports analysis topics (AI uses training knowledge — always inject current date)
 SPORTS_ANALYSIS_TOPICS = [
     {
-        "key": "world_cup_2026_africa",
-        "title": "World Cup 2026: Which African Nations Will Make It?",
-        "tags": "world cup 2026, africa, caf, nigeria, super eagles, football",
-        "frequency_days": 14,
+        "key": "africa_world_cup_2026_campaign",
+        "title": "Africa at World Cup 2026: How CAF Nations Are Performing",
+        "tags": "world cup 2026, africa, caf, morocco, senegal, football, tournament",
+        "frequency_days": 7,
         "prompt": """You are a senior sports journalist at PulseLineDaily.
 
-Write a complete, original HTML sports analysis article about Africa's prospects at the 2026 FIFA World Cup.
+Write a complete, original HTML sports analysis article about African nations at the FIFA World Cup 2026.
 
-CONTEXT: The 2026 World Cup will be hosted by USA, Canada, and Mexico. Africa (CAF) has been allocated 9 spots — the most ever. CAF Round 3 qualifying groups are currently deciding which nations will make it.
+CONTEXT: The FIFA World Cup 2026 is currently being hosted by USA, Canada, and Mexico. It features 48 teams for the first time, with CAF (Africa) allocated 9 spots. Nigeria did NOT qualify. The 9 CAF nations that qualified include Morocco, Senegal, Egypt, Ivory Coast, Cameroon, South Africa, and others. Write about this tournament as currently ongoing.
+
+TODAY'S DATE: {date_str}
 
 OUTPUT FORMAT — three parts, exactly as shown:
 SUMMARY: <punchy one-liner teaser, max 160 chars>
-ANALYSIS: <2–3 sentences of expert analysis — Nigeria's realistic chances and the key factor that will decide Africa's best performers in 2026>
+ANALYSIS: <2–3 sentences of expert analysis — Africa's overall World Cup 2026 performance and whether the continent is living up to the historic 9-slot opportunity>
 ---
 <HTML article body>
 
 ARTICLE REQUIREMENTS:
 - Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li>
-- <h2>: strong headline about Africa and World Cup 2026
-- Opening: why 2026 is a historic opportunity for African football
-- <h3>Nigeria's Chances</h3>: Super Eagles CAF qualifying position and realistic prospects
-- <h3>Africa's Strongest Teams</h3>: top 4–5 African contenders (Morocco, Senegal, Egypt, Ivory Coast, South Africa, Nigeria, etc.) — use only nations whose form you know well
-- <h3>The 9-Slot Advantage</h3>: what the increased allocation means for smaller African nations
-- <h3>Prediction</h3>: your informed prediction of which 9 nations will represent Africa
-- Closing: what success would mean for African football's global standing
-- Length: 550–700 words | Tone: expert, analytical, optimistic but balanced
-- Base your analysis on established football knowledge; do NOT fabricate specific qualifying scores""",
+- <h2>: strong headline about Africa's World Cup 2026 campaign (frame as ongoing tournament)
+- Opening: how many African nations qualified and the historic 9-slot opportunity for CAF
+- <h3>Africa's Strongest Contenders</h3>: Morocco, Senegal, Egypt, Ivory Coast, Cameroon, South Africa — which CAF nations have the best shot at the knockout rounds and why
+- <h3>The New Round of 32</h3>: how the expanded 48-team format's Round of 32 gives African nations a better chance than the old format
+- <h3>Stars to Watch</h3>: African players who could define this tournament — name only players you are confident about
+- <h3>What This Means for African Football</h3>: what a strong African showing at WC2026 would mean for the continent's global standing
+- Closing: a measured look at Africa's realistic chances of a deep run
+- Length: 550–700 words | Tone: expert, analytical, fan-first
+- Do NOT mention Nigeria as a participant — Nigeria did not qualify for World Cup 2026""",
     },
     {
-        "key": "nigeria_football_history",
+        "key": "nigeria_world_cup_history",
         "title": "Nigeria at the World Cup: Every Appearance Reviewed",
         "tags": "super eagles, nigeria, world cup history, football, nwankwo kanu, jay jay okocha",
         "frequency_days": 30,
         "prompt": """You are a senior sports journalist at PulseLineDaily.
 
-Write a complete, original HTML sports feature about Nigeria's history at the FIFA World Cup.
+Write a complete, original HTML sports feature about Nigeria's history at the FIFA World Cup, published while World Cup 2026 is underway.
+
+TODAY'S DATE: {date_str}
 
 OUTPUT FORMAT — three parts, exactly as shown:
 SUMMARY: <punchy one-liner teaser, max 160 chars>
-ANALYSIS: <2–3 sentences reflecting on Nigeria's World Cup legacy — what the history reveals about the team's potential and what separates the great campaigns from the disappointments>
+ANALYSIS: <2–3 sentences reflecting on Nigeria's World Cup legacy — what the history reveals about the team's potential and what the country must learn from missing 2026>
 ---
 <HTML article body>
 
 REQUIREMENTS:
 - Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li>
-- <h2>: compelling headline about Nigeria's World Cup story
-- Opening: Nigeria's overall World Cup record and significance to African football
+- <h2>: compelling headline about Nigeria's World Cup story, framed against the backdrop of WC2026 happening without them
+- Opening: Nigeria's overall World Cup record and significance to African football — and the pain of watching WC2026 from the outside
 - For each tournament Nigeria appeared in (1994, 1998, 2002, 2010, 2014, 2018): a short paragraph covering squad highlights, results, and what went wrong or right
 - <h3>Greatest World Cup Moments</h3>: top 3 moments in Nigerian World Cup history
 - <h3>The Players Who Defined the Stage</h3>: Jay-Jay Okocha, Nwankwo Kanu, Rashidi Yekini, Vincent Enyeama, John Obi Mikel — brief tributes
-- <h3>Looking Ahead to 2026</h3>: one paragraph on what Nigeria needs to do to restore World Cup glory
-- Length: 600–750 words | Tone: nostalgic, celebratory, expert
+- <h3>What Went Wrong in 2026 Qualifying</h3>: an honest paragraph on why Nigeria missed out — do not fabricate specific match scores; speak in general terms about the failures
+- <h3>The Road Back</h3>: what Nigeria must fix to qualify for World Cup 2030
+- Length: 600–750 words | Tone: nostalgic, honest, forward-looking
 - Use only established historical facts you are confident about""",
     },
     {
-        "key": "african_football_weekly",
-        "title": "African Football Roundup: This Week's Key Stories",
-        "tags": "african football, caf, super eagles, nigeria, afcon, champions league africa",
+        "key": "world_cup_2026_global_spotlight",
+        "title": "World Cup 2026: Players and Teams Every Fan Is Talking About",
+        "tags": "world cup 2026, football, mbappe, vinicius, tournament, knockout stage, top teams",
         "frequency_days": 7,
         "prompt": """You are a senior sports journalist at PulseLineDaily.
 
-Write a complete, original HTML weekly sports roundup covering African football.
+Write a complete, original HTML sports analysis article about the FIFA World Cup 2026 — covering the players, teams, and storylines dominating the tournament.
+
+CONTEXT: World Cup 2026 is currently being played in USA, Canada, and Mexico. 48 teams, new Round of 32 format. Nigeria is NOT in the tournament. Write as though the tournament is actively underway.
+
+TODAY'S DATE: {date_str}
 
 OUTPUT FORMAT — three parts, exactly as shown:
 SUMMARY: <punchy one-liner teaser, max 160 chars>
-ANALYSIS: <2–3 sentences of editorial analysis — the single biggest story in African football right now and what it means for the continent's standing in the global game>
+ANALYSIS: <2–3 sentences of expert analysis — the single biggest story defining WC2026 so far>
 ---
 <HTML article body>
 
 REQUIREMENTS:
 - Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li>
-- <h2>: African Football Weekly Roundup headline
-- Cover 4–5 key themes or storylines currently circulating in African football (use general knowledge — do not fabricate specific recent match scores)
-- Themes to consider: CAF Champions League, World Cup 2026 qualifiers, NPFL Nigeria league, key transfers, managerial changes, rising African stars in Europe
-- <h3>Super Eagles Watch</h3>: Nigeria-specific section — squad updates, upcoming matches, qualification status
-- <h3>Ones to Watch</h3>: 2–3 African players making headlines in European leagues
-- Closing: what to look out for in the coming week of African football
-- Length: 500–600 words | Tone: lively, fan-first, expert
-- Clearly distinguish between established fact and general assessment""",
+- <h2>: punchy headline about WC2026's biggest storyline
+- Opening: set the scene — where the tournament stands and what has captured global attention
+- <h3>The Favourites</h3>: which nations look most likely to lift the trophy — France, Brazil, England, Argentina, Spain, etc. — use only teams you are confident about
+- <h3>The Stars Shining Brightest</h3>: 4–5 players defining the tournament (Mbappe, Vinicius Jr, Bellingham, Saka, and others) — name only players you are confident are at the tournament
+- <h3>The Surprise Packages</h3>: teams that have outperformed expectations in this expanded 48-team field
+- <h3>African Nations at the Tournament</h3>: how Morocco, Senegal, Egypt, and other African nations are faring — do NOT include Nigeria
+- Closing: what the remaining knockout rounds promise for football fans
+- Length: 550–700 words | Tone: energetic, expert, global football fan voice
+- Do NOT fabricate specific June 2026 match scores you cannot verify — speak in analytical/assessment terms""",
     },
 ]
 
 
-def build_static_sports_prompt(topic):
-    return topic["prompt"]
+def build_static_sports_prompt(topic, date_str=""):
+    """Return the topic's prompt with the current date injected."""
+    return topic["prompt"].replace("{date_str}", date_str)
+
+
+# ── World Cup 2026 live data ──────────────────────────────────────────────────
+
+def fetch_world_cup_2026_data():
+    """
+    Fetch live FIFA World Cup 2026 group standings and recent match scores from ESPN.
+    Uses the same public ESPN API as fetch_epl_standings().
+    Returns a dict with 'groups' and/or 'matches', or None if both fail.
+    """
+    base = "https://site.api.espn.com/apis/v2/sports/soccer/fifa.world"
+    result = {}
+
+    # Group standings
+    try:
+        resp = requests.get(f"{base}/standings", timeout=12)
+        resp.raise_for_status()
+        data = resp.json()
+        groups = []
+        for group in (data.get("children") or []):
+            group_name = group.get("name", "")
+            entries = []
+            for entry in group.get("standings", {}).get("entries", []):
+                name = entry.get("team", {}).get("displayName", "Unknown")
+                stats = {s["name"]: s["value"] for s in entry.get("stats", [])}
+                entries.append({
+                    "team": name,
+                    "played": int(stats.get("gamesPlayed", 0)),
+                    "points": int(stats.get("points", 0)),
+                    "wins": int(stats.get("wins", 0)),
+                    "draws": int(stats.get("ties", 0)),
+                    "losses": int(stats.get("losses", 0)),
+                    "gf": int(stats.get("pointsFor", 0)),
+                    "ga": int(stats.get("pointsAgainst", 0)),
+                })
+            if entries:
+                groups.append({"group": group_name, "teams": sorted(entries, key=lambda x: x["points"], reverse=True)})
+        if groups:
+            result["groups"] = groups
+    except Exception as exc:
+        logger.warning("ESPN WC2026 standings error: %s", exc)
+
+    # Recent/live match scores from the scoreboard
+    try:
+        resp = requests.get(f"{base}/scoreboard", timeout=12)
+        resp.raise_for_status()
+        data = resp.json()
+        matches = []
+        for event in (data.get("events") or [])[:30]:
+            comps = event.get("competitions", [{}])
+            comp = comps[0] if comps else {}
+            competitors = comp.get("competitors", [])
+            if len(competitors) < 2:
+                continue
+            home = next((c for c in competitors if c.get("homeAway") == "home"), competitors[0])
+            away = next((c for c in competitors if c.get("homeAway") == "away"), competitors[1])
+            status_type = event.get("status", {}).get("type", {})
+            note = comp.get("notes", [{}])
+            stage = note[0].get("headline", "") if note else ""
+            matches.append({
+                "date": event.get("date", "")[:10],
+                "home": home.get("team", {}).get("displayName", ""),
+                "away": away.get("team", {}).get("displayName", ""),
+                "home_score": home.get("score", ""),
+                "away_score": away.get("score", ""),
+                "completed": status_type.get("completed", False),
+                "stage": stage,
+            })
+        if matches:
+            result["matches"] = matches
+    except Exception as exc:
+        logger.warning("ESPN WC2026 scoreboard error: %s", exc)
+
+    return result if result else None
+
+
+def build_world_cup_2026_prompt(data, date_str):
+    """
+    Build a prompt to write a World Cup 2026 article using live ESPN data.
+    """
+    # Format group standings — Nigeria's group first if found, then a sample of others
+    groups_text = ""
+    if data.get("groups"):
+        nigeria_groups = [g for g in data["groups"] if any("nigeria" in t["team"].lower() for t in g["teams"])]
+        other_groups = [g for g in data["groups"] if g not in nigeria_groups]
+        show_groups = nigeria_groups + other_groups[:4]
+        lines = []
+        for g in show_groups:
+            lines.append(f"  {g['group']}:")
+            for t in g["teams"]:
+                lines.append(
+                    f"    {t['team']} — {t['points']}pts "
+                    f"({t['wins']}W {t['draws']}D {t['losses']}L, "
+                    f"GF {t['gf']} GA {t['ga']}, Played {t['played']})"
+                )
+        groups_text = "\n".join(lines)
+    else:
+        groups_text = "(Group standings unavailable — write based on tournament context)"
+
+    # Format recent matches
+    matches_text = ""
+    if data.get("matches"):
+        completed = [m for m in data["matches"] if m["completed"]]
+        upcoming = [m for m in data["matches"] if not m["completed"]]
+        lines = []
+        if completed:
+            lines.append("  Recent results:")
+            for m in completed[-10:]:
+                stage = f" [{m['stage']}]" if m["stage"] else ""
+                lines.append(f"    {m['date']}{stage}: {m['home']} {m['home_score']}–{m['away_score']} {m['away']}")
+        if upcoming:
+            lines.append("  Upcoming fixtures:")
+            for m in upcoming[:6]:
+                stage = f" [{m['stage']}]" if m["stage"] else ""
+                lines.append(f"    {m['date']}{stage}: {m['home']} vs {m['away']}")
+        matches_text = "\n".join(lines)
+    else:
+        matches_text = "(Live match data unavailable)"
+
+    return f"""You are a senior sports journalist at PulseLineDaily, Nigeria's leading digital news outlet.
+
+Write a complete, original HTML article covering the FIFA World Cup 2026 — the current state of the tournament and what it means for African football and global football fans.
+
+IMPORTANT: Nigeria did NOT qualify for World Cup 2026. Do NOT write about Nigeria as a tournament participant. Focus on the nations that are there.
+
+TODAY: {date_str}
+TOURNAMENT: FIFA World Cup 2026 (USA, Canada, Mexico) — 48 teams, new Round of 32 knockout format
+
+LIVE STANDINGS DATA:
+{groups_text}
+
+LIVE MATCH DATA:
+{matches_text}
+
+OUTPUT FORMAT — three parts, exactly as shown:
+SUMMARY: <punchy one-liner teaser, max 160 chars — include a specific result or standings fact from the data above>
+ANALYSIS: <2–3 sentences of expert analysis — the most important development in the tournament right now>
+---
+<full HTML article body starting with <h2>>
+
+ARTICLE REQUIREMENTS:
+- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head> tags
+- <h2>: headline naming a specific result, standing, or match — must reference World Cup 2026
+- Opening paragraph: the current state of the tournament — what stage we are at, the biggest storyline from the data above
+- <h3>Group Standings Snapshot</h3>: highlight the most interesting groups from the data — who is topping, who is on the edge, any surprise standings
+- <h3>Africa at the World Cup</h3>: how the CAF nations (Morocco, Senegal, Egypt, Ivory Coast, Cameroon, South Africa, etc.) are performing based on the standings data — who is advancing, who is struggling
+- <h3>Matches to Watch</h3>: upcoming fixtures of note from the data, and which games could define the Round of 32
+- <h3>Tournament Talking Points</h3>: the biggest stories — surprise results, dominant teams, star performers — based strictly on the data provided
+- Closing: a forward-looking paragraph about what the next stage holds
+- Length: 550–700 words | Tone: energetic, expert, global football audience
+- Attribute data to ESPN/FIFA
+- Do NOT invent match scores or standings figures beyond the data provided above"""
+
+
+# ── WC2026 match preview ──────────────────────────────────────────────────────
+
+def fetch_wc2026_fixtures(date_str=None):
+    """
+    Fetch today's (or a specific date's) WC2026 fixtures from ESPN.
+    date_str format: 'YYYYMMDD' — omit for today.
+    Returns list of match dicts or None on failure.
+    """
+    params = {"dates": date_str} if date_str else {}
+    try:
+        resp = requests.get(
+            "https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/scoreboard",
+            params=params,
+            timeout=12,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        fixtures = []
+        for event in (data.get("events") or []):
+            comp = (event.get("competitions") or [{}])[0]
+            competitors = comp.get("competitors", [])
+            if len(competitors) < 2:
+                continue
+            home = next((c for c in competitors if c.get("homeAway") == "home"), competitors[0])
+            away = next((c for c in competitors if c.get("homeAway") == "away"), competitors[1])
+            status = event.get("status", {}).get("type", {})
+            note = (comp.get("notes") or [{}])[0]
+            fixtures.append({
+                "datetime": event.get("date", ""),
+                "home": home.get("team", {}).get("displayName", ""),
+                "away": away.get("team", {}).get("displayName", ""),
+                "home_score": home.get("score", ""),
+                "away_score": away.get("score", ""),
+                "completed": status.get("completed", False),
+                "in_progress": status.get("name", "") in ("in", "halftime"),
+                "stage": note.get("headline", ""),
+                "venue": comp.get("venue", {}).get("fullName", ""),
+            })
+        return fixtures or None
+    except Exception as exc:
+        logger.warning("ESPN WC2026 fixtures error: %s", exc)
+        return None
+
+
+def build_wc2026_match_preview_prompt(fixtures, date_str):
+    today = [f for f in fixtures if not f["completed"]]
+    done = [f for f in fixtures if f["completed"]]
+
+    preview_lines = "\n".join(
+        f"  {f['home']} vs {f['away']}"
+        + (f" [{f['stage']}]" if f["stage"] else "")
+        + (f" @ {f['venue']}" if f["venue"] else "")
+        for f in today
+    ) or "  (No upcoming fixtures found for today)"
+
+    results_lines = "\n".join(
+        f"  {f['home']} {f['home_score']}–{f['away_score']} {f['away']}"
+        + (f" [{f['stage']}]" if f["stage"] else "")
+        for f in done[-8:]
+    ) or "  (No completed results today)"
+
+    return f"""You are a senior sports journalist at PulseLineDaily, Nigeria's leading digital news outlet.
+
+Write a complete, original HTML match preview article for today's FIFA World Cup 2026 fixtures.
+
+TODAY: {date_str}
+NIGERIA IS NOT AT THIS WORLD CUP — do not refer to them as participants.
+
+TODAY'S UPCOMING MATCHES:
+{preview_lines}
+
+TODAY'S COMPLETED RESULTS (for context):
+{results_lines}
+
+OUTPUT FORMAT — three parts, exactly as shown:
+SUMMARY: <punchy one-liner teaser, max 160 chars — name the most exciting match today>
+ANALYSIS: <2–3 sentences on what today's fixtures mean for the tournament picture>
+---
+<full HTML article body starting with <h2>>
+
+ARTICLE REQUIREMENTS:
+- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head> tags
+- <h2>: headline naming today's key fixture(s) and the World Cup 2026
+- Opening paragraph: set the scene — what today's matches mean for who advances
+- For each upcoming match, write a short preview paragraph covering: both teams' recent form, key players to watch, what's at stake (qualification, top of group, etc.)
+- <h3>African Teams in Action</h3>: highlight any CAF nations playing today and their situation — skip this section if no African teams play today
+- <h3>Ones to Watch Today</h3>: 2–3 individual players who could be decisive across today's fixtures
+- <h3>Predictions</h3>: a brief, reasoned prediction for each match — use analytical language, not invented scores
+- Closing: what today's results could mean for the Round of 32 picture
+- Length: 550–700 words | Tone: excited, expert, football-fan voice
+- Do NOT invent specific scores for matches listed as upcoming
+- Attribute data to ESPN/FIFA"""
+
+
+# ── WC2026 golden boot / top scorers ─────────────────────────────────────────
+
+def fetch_wc2026_top_scorers():
+    """
+    Fetch WC2026 top scorers from ESPN's leaders endpoint.
+    Returns a list of {name, country, goals} dicts or None on failure.
+    """
+    try:
+        resp = requests.get(
+            "https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/leaders",
+            timeout=12,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        scorers = []
+        for cat in (data.get("categories") or []):
+            if "goal" not in (cat.get("name") or "").lower() and \
+               "goal" not in (cat.get("displayName") or "").lower():
+                continue
+            for leader in (cat.get("leaders") or [])[:10]:
+                athlete = leader.get("athlete") or leader.get("statistics", {})
+                name = (
+                    athlete.get("displayName")
+                    or athlete.get("shortName")
+                    or leader.get("displayName", "Unknown")
+                )
+                country = (
+                    (leader.get("team") or {}).get("displayName")
+                    or (athlete.get("team") or {}).get("displayName", "")
+                )
+                goals = int(leader.get("value", 0))
+                if name and goals > 0:
+                    scorers.append({"name": name, "country": country, "goals": goals})
+            if scorers:
+                break
+        return scorers or None
+    except Exception as exc:
+        logger.warning("ESPN WC2026 top scorers error: %s", exc)
+        return None
+
+
+def build_wc2026_golden_boot_prompt(scorers, date_str):
+    scorer_lines = "\n".join(
+        f"  {i+1}. {s['name']} ({s['country']}) — {s['goals']} goal{'s' if s['goals'] != 1 else ''}"
+        for i, s in enumerate(scorers)
+    )
+    return f"""You are a senior sports journalist at PulseLineDaily, Nigeria's leading digital news outlet.
+
+Write a complete, original HTML article about the FIFA World Cup 2026 Golden Boot race — who is leading, who could challenge, and what it means for the tournament.
+
+TODAY: {date_str}
+NIGERIA IS NOT AT THIS WORLD CUP — do not refer to them as participants.
+
+CURRENT TOP SCORERS (live data from ESPN/FIFA):
+{scorer_lines}
+
+OUTPUT FORMAT — three parts, exactly as shown:
+SUMMARY: <punchy one-liner teaser, max 160 chars — name the current Golden Boot leader and their tally>
+ANALYSIS: <2–3 sentences on what this scoring race reveals about the tournament's attacking quality>
+---
+<full HTML article body starting with <h2>>
+
+ARTICLE REQUIREMENTS:
+- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head> tags
+- <h2>: headline naming the Golden Boot leader and their goal tally
+- Opening paragraph: introduce the Golden Boot race and name the current leader with their goals
+- <h3>The Race So Far</h3>: analyse the top 5 scorers — their style, their team's campaign, why they're scoring
+- <h3>Who Could Challenge</h3>: players just behind the leader who could overtake in the knockout rounds
+- <h3>African Strikers in the Race</h3>: highlight any African players in the top scorers — skip this section if none appear in the data above
+- <h3>Historic Context</h3>: how does this scoring pace compare to past World Cup Golden Boot winners?
+- Closing: who looks most likely to lift the Golden Boot by the final
+- Length: 500–650 words | Tone: analytical, engaging, stat-driven
+- Attribute data to ESPN/FIFA
+- Do NOT invent goal tallies beyond the data above"""
 
 
 # ── Yahoo Finance helper ──────────────────────────────────────────────────────
@@ -857,6 +1269,67 @@ def fetch_ngx_index():
         "prev_close": data["prev_close"],
         "change_pct": data["change_pct"],
     }
+
+
+# ── Crypto prices ────────────────────────────────────────────────────────────
+
+def fetch_crypto_prices():
+    """
+    Fetch live Bitcoin and Ethereum prices from Yahoo Finance.
+    Returns {btc, eth} dict (each may be None) or None if both fail.
+    """
+    btc = fetch_yahoo_price("BTC-USD")
+    eth = fetch_yahoo_price("ETH-USD")
+    if not btc and not eth:
+        return None
+    return {"btc": btc, "eth": eth}
+
+
+def build_crypto_prompt(data, date_str):
+    lines = []
+    if data.get("btc"):
+        b = data["btc"]
+        sign = "+" if b["change_pct"] >= 0 else ""
+        lines.append(
+            f"- Bitcoin (BTC): ${b['price']:,.2f} USD  ({sign}{b['change_pct']}% today)"
+        )
+    if data.get("eth"):
+        e = data["eth"]
+        sign = "+" if e["change_pct"] >= 0 else ""
+        lines.append(
+            f"- Ethereum (ETH): ${e['price']:,.2f} USD  ({sign}{e['change_pct']}% today)"
+        )
+    prices_text = "\n".join(lines)
+
+    return f"""You are a senior financial and technology journalist at PulseLineDaily, Nigeria's leading digital news outlet.
+
+Write a complete, publish-ready HTML article about today's Bitcoin and Ethereum prices and their significance for Nigerian crypto investors.
+
+TODAY: {date_str}
+
+LIVE CRYPTO PRICES (Yahoo Finance):
+{prices_text}
+
+OUTPUT FORMAT — three parts, exactly as shown:
+SUMMARY: <one punchy sentence max 160 characters — include BTC price and direction>
+ANALYSIS: <2–3 sentences of expert takeaway — what today's crypto prices mean for Nigerian holders and the broader digital asset market>
+---
+<full HTML article body starting with <h2>>
+
+ARTICLE REQUIREMENTS:
+- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head> tags
+- <h2>: headline naming the BTC price and daily movement
+- Paragraph 1: state both prices, their daily changes, and why this matters to Nigerian crypto users
+- <h3>What This Means for Nigerian Investors</h3>: Nigeria is one of Africa's largest crypto markets — how do today's prices affect local holders, P2P traders, and remittance users? Include Naira context (note approximate Naira equivalent at current exchange rates)
+- <h3>Market Drivers</h3>: what macro factors (US economic data, institutional moves, global sentiment) are behind today's price movement — use general market knowledge, do NOT fabricate specific news events
+- <h3>Bitcoin vs Ethereum</h3>: brief comparison of both assets' performance and what the gap between them signals
+- <h3>What Should Nigerian Crypto Users Do?</h3>: 3–4 practical tips — holding, trading, risk management, regulatory awareness
+- <h3>Regulatory Watch</h3>: context on Nigeria's crypto regulatory environment (SEC Nigeria, CBN stance) — use only established facts
+- Closing: a cautious, balanced outlook — do NOT predict a specific price target
+- Attribute data to Yahoo Finance / market data
+- Length: 550–700 words | Tone: informative, practical, balanced — not hype
+- SEO: "bitcoin price today nigeria", "ethereum price naira", "crypto nigeria", "btc today"
+- Do NOT fabricate specific regulatory announcements or named quotes"""
 
 
 # ── Agriculture commodity fetchers ────────────────────────────────────────────

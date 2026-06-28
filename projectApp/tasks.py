@@ -123,7 +123,7 @@ def generate_data_journalism_articles(self):
         try:
             resp = client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
-                max_tokens=2200,
+                max_tokens=3000,
                 messages=[{"role": "user", "content": prompt}],
             )
             return resp.choices[0].message.content.strip()
@@ -301,7 +301,7 @@ def generate_rss_articles(self):
         try:
             resp = client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
-                max_tokens=2200,
+                max_tokens=3000,
                 messages=[{"role": "user", "content": prompt}],
             )
             return resp.choices[0].message.content.strip()
@@ -349,6 +349,37 @@ def generate_rss_articles(self):
         """Skip if we already wrote an article for this exact story URL."""
         return Post.objects.filter(link=story_link).exists()
 
+    _STOPWORDS = {
+        "a", "an", "the", "is", "are", "was", "were", "of", "in", "on", "at",
+        "to", "for", "with", "and", "or", "but", "as", "by", "from", "that",
+        "this", "it", "its", "be", "has", "have", "had", "will", "not", "no",
+        "up", "out", "how", "why", "what", "who", "when", "where", "says",
+        "over", "than", "more", "amid", "after", "about", "been", "into",
+        "some", "also", "just", "its", "than", "other", "their", "there",
+        "which", "they", "would", "could", "should",
+    }
+
+    def _keywords(text):
+        import re as _re
+        return {
+            w for w in _re.findall(r'\b[a-z]{4,}\b', text.lower())
+            if w not in _STOPWORDS
+        }
+
+    def similar_topic_covered(title):
+        """True if a post created in the last 3 days shares 3+ keywords with this title."""
+        kw = _keywords(title)
+        if len(kw) < 3:
+            return False
+        cutoff = now - timedelta(days=3)
+        recent_titles = Post.objects.filter(
+            date_created__gte=cutoff,
+        ).values_list("title", flat=True)[:300]
+        for existing in recent_titles:
+            if len(kw & _keywords(existing)) >= 3:
+                return True
+        return False
+
     # ── Fetch & rewrite ───────────────────────────────────────────────────────
 
     stories = fetch_rss_stories(max_per_source=2)
@@ -358,7 +389,11 @@ def generate_rss_articles(self):
             break
 
         if already_exists(story["link"]):
-            logger.debug("Already covered: %s", story["link"])
+            logger.debug("Already covered (URL): %s", story["link"])
+            continue
+
+        if similar_topic_covered(story["title"]):
+            logger.debug("Similar topic already covered: %s", story["title"])
             continue
 
         prompt = build_rewrite_prompt(story)
@@ -425,8 +460,14 @@ def generate_sports_articles(self):
     from .data_journalism import (
         fetch_epl_standings,
         fetch_nigeria_results,
+        fetch_world_cup_2026_data,
+        fetch_wc2026_fixtures,
+        fetch_wc2026_top_scorers,
         build_epl_standings_prompt,
         build_nigeria_results_prompt,
+        build_world_cup_2026_prompt,
+        build_wc2026_match_preview_prompt,
+        build_wc2026_golden_boot_prompt,
         SPORTS_ANALYSIS_TOPICS,
         build_static_sports_prompt,
     )
@@ -447,7 +488,7 @@ def generate_sports_articles(self):
         try:
             resp = client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
-                max_tokens=2200,
+                max_tokens=3000,
                 messages=[{"role": "user", "content": prompt}],
             )
             return resp.choices[0].message.content.strip()
@@ -506,7 +547,63 @@ def generate_sports_articles(self):
         logger.info("Created sports draft: %s", title)
         return post
 
-    # ── 1. EPL standings (once per 3 days) ───────────────────────────────────
+    date_str = now.strftime("%d %B %Y")
+
+    # ── 1. WC2026 live standings & results (daily) ───────────────────────────
+    if not recently_generated("world cup 2026", days=1):
+        wc_data = fetch_world_cup_2026_data()
+        if wc_data:
+            raw = call_llm(build_world_cup_2026_prompt(wc_data, date_str))
+            if raw:
+                summary, analysis, html = parse_response(raw)
+                save_draft(
+                    title=f"World Cup 2026 Live Update: Standings & Results — {date_str}",
+                    body=html,
+                    summary=summary,
+                    analysis=analysis,
+                    tags="world cup 2026, football, group stage, round of 32, sports, standings",
+                )
+                created += 1
+        else:
+            logger.info("WC2026 data unavailable from ESPN — skipping live WC article")
+
+    # ── 2. WC2026 match preview (daily — today's fixtures) ───────────────────
+    if not recently_generated("wc2026 preview", days=1):
+        fixtures = fetch_wc2026_fixtures()
+        if fixtures:
+            raw = call_llm(build_wc2026_match_preview_prompt(fixtures, date_str))
+            if raw:
+                summary, analysis, html = parse_response(raw)
+                save_draft(
+                    title=f"World Cup 2026 Match Preview — {date_str}",
+                    body=html,
+                    summary=summary,
+                    analysis=analysis,
+                    tags="world cup 2026, match preview, football, fixtures, wc2026 preview, sports",
+                )
+                created += 1
+        else:
+            logger.info("WC2026 fixtures unavailable — skipping match preview")
+
+    # ── 3. WC2026 Golden Boot race (every 2 days) ────────────────────────────
+    if not recently_generated("golden boot", days=2):
+        scorers = fetch_wc2026_top_scorers()
+        if scorers:
+            raw = call_llm(build_wc2026_golden_boot_prompt(scorers, date_str))
+            if raw:
+                summary, analysis, html = parse_response(raw)
+                save_draft(
+                    title=f"World Cup 2026 Golden Boot Race: Top Scorers — {date_str}",
+                    body=html,
+                    summary=summary,
+                    analysis=analysis,
+                    tags="world cup 2026, golden boot, top scorers, football, sports",
+                )
+                created += 1
+        else:
+            logger.info("WC2026 top scorers unavailable — skipping golden boot article")
+
+    # ── 4. EPL standings (once per 3 days — EPL season Aug–May only) ─────────
     if not recently_generated("premier league", days=3):
         table = fetch_epl_standings()
         if table:
@@ -522,7 +619,7 @@ def generate_sports_articles(self):
                 )
                 created += 1
 
-    # ── 2. Nigeria Super Eagles results (once per 4 days) ─────────────────────
+    # ── 5. Nigeria Super Eagles results (once per 4 days) ────────────────────
     if not recently_generated("super eagles", days=4):
         data = fetch_nigeria_results()
         if data and data.get("results"):
@@ -530,20 +627,20 @@ def generate_sports_articles(self):
             if raw:
                 summary, analysis, html = parse_response(raw)
                 save_draft(
-                    title=f"Super Eagles Form Guide: Recent Results Analysed — {now.strftime('%B %Y')}",
+                    title=f"Super Eagles: Recent Results Analysed — {date_str}",
                     body=html,
                     summary=summary,
                     analysis=analysis,
-                    tags="super eagles, nigeria, football, world cup 2026, caf, sports",
+                    tags="super eagles, nigeria, football, world cup 2026, sports",
                 )
                 created += 1
 
-    # ── 3. Static sports analysis topics (rotate by day of month) ────────────
+    # ── 6. Static sports analysis topics (rotate by day of month) ────────────
     topic_index = now.day % len(SPORTS_ANALYSIS_TOPICS)
     topic = SPORTS_ANALYSIS_TOPICS[topic_index]
 
     if not recently_generated(topic["key"], days=topic["frequency_days"]):
-        raw = call_llm(build_static_sports_prompt(topic))
+        raw = call_llm(build_static_sports_prompt(topic, date_str=date_str))
         if raw:
             summary, analysis, html = parse_response(raw)
             save_draft(
@@ -588,10 +685,12 @@ def generate_market_articles(self):
         fetch_ngx_index,
         fetch_commodity_prices,
         fetch_acled_nigeria,
+        fetch_crypto_prices,
         build_brent_prompt,
         build_ngx_prompt,
         build_commodity_prompt,
         build_acled_prompt,
+        build_crypto_prompt,
     )
 
     client = Groq(api_key=api_key)
@@ -605,7 +704,7 @@ def generate_market_articles(self):
         try:
             resp = client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
-                max_tokens=2200,
+                max_tokens=3000,
                 messages=[{"role": "user", "content": prompt}],
             )
             return resp.choices[0].message.content.strip()
@@ -762,6 +861,30 @@ def generate_market_articles(self):
                 )
                 created += 1
 
+    # ── 5. Crypto prices — BTC & ETH (daily) ─────────────────────────────────
+    if not recently_generated("bitcoin", days=1):
+        crypto_data = fetch_crypto_prices()
+        if crypto_data:
+            raw = call_llm(build_crypto_prompt(crypto_data, date_str))
+            if raw:
+                summary, analysis, html = parse_response(raw)
+                btc_price = (crypto_data.get("btc") or {}).get("price", "")
+                title_price = f"${btc_price:,.0f}" if btc_price else "Today"
+                save_draft(
+                    title=f"Bitcoin & Crypto Prices Today: BTC at {title_price} — {date_str}",
+                    body=html,
+                    summary=summary,
+                    analysis=analysis,
+                    tags=(
+                        f"bitcoin, ethereum, crypto, btc, eth, cryptocurrency, "
+                        f"nigeria, naira, digital assets, {now.strftime('%Y')}"
+                    ),
+                    category_hint="technology",
+                )
+                created += 1
+        else:
+            logger.info("Crypto price fetch failed — skipping crypto article")
+
     return f"Market articles task complete: {created} draft(s) created"
 
 
@@ -805,7 +928,7 @@ def generate_politics_articles(self):
         try:
             resp = client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
-                max_tokens=2200,
+                max_tokens=3000,
                 messages=[{"role": "user", "content": prompt}],
             )
             return resp.choices[0].message.content.strip()
