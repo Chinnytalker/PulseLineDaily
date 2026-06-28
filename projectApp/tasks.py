@@ -58,7 +58,7 @@ def send_weekly_newsletter():
                 plain_lines.append(f"   Read more: {p['url']}\n")
             plain_lines += [
                 "─────────────────────────────────",
-                "You're receiving this because you confirmed your subscription.",
+                "You're receiving this because you subscribed to PulseLineDaily.",
                 f"Unsubscribe: {unsubscribe_url}",
             ]
 

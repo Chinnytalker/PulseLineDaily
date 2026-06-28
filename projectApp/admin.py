@@ -85,9 +85,21 @@ class CommentAdmin(admin.ModelAdmin):
 
 
 class NewsletterSubscriberAdmin(admin.ModelAdmin):
-    list_display = ("email", "is_active")
+    list_display = ("email", "is_active", "subscribed_on")
+    list_editable = ("is_active",)
     search_fields = ("email",)
-    list_filter = ("is_active",)
+    list_filter = ("is_active", "subscribed_on")
+    actions = ["activate_subscribers", "deactivate_subscribers"]
+
+    def activate_subscribers(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f"{updated} subscriber(s) activated.")
+    activate_subscribers.short_description = "Activate selected subscribers"
+
+    def deactivate_subscribers(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f"{updated} subscriber(s) deactivated.")
+    deactivate_subscribers.short_description = "Deactivate selected subscribers"
 
 
 class VideoAdmin(admin.ModelAdmin):

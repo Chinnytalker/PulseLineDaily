@@ -348,36 +348,31 @@ def subscribe(request):
     if existing and existing.is_active:
         return _json_or_redirect('info', "You are already subscribed!")
 
-    token = uuid.uuid4().hex
     if existing:
-        existing.confirmation_token = token
-        existing.is_active = False
-        existing.save(update_fields=['confirmation_token', 'is_active'])
+        existing.is_active = True
+        existing.confirmation_token = None
+        existing.save(update_fields=['is_active', 'confirmation_token'])
     else:
-        NewsletterSubscriber.objects.create(
-            email=email, confirmation_token=token, is_active=False
+        NewsletterSubscriber.objects.create(email=email, is_active=True)
+
+    try:
+        plain_body = (
+            f"Hi,\n\nWelcome to PulseLineDaily!\n\n"
+            f"You're now subscribed and will receive our weekly news digest every Monday.\n\n"
+            f"To unsubscribe at any time, reply to this email.\n\n"
+            f"— The PulseLineDaily Team"
         )
-    confirm_url = request.build_absolute_uri(
-        reverse('newsletter_confirm', args=[token])
-    )
-    html_body = render_to_string('blog/email/newsletter_confirm.html', {
-        'confirm_url': confirm_url,
-    })
-    plain_body = (
-        f"Hi,\n\nThank you for subscribing to PulseLineDaily!\n\n"
-        f"Confirm your email here:\n{confirm_url}\n\n"
-        f"If you didn't subscribe, ignore this email.\n\n"
-        f"— The PulseLineDaily Team"
-    )
-    msg = EmailMultiAlternatives(
-        subject="Confirm your PulseLineDaily subscription",
-        body=plain_body,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[email],
-    )
-    msg.attach_alternative(html_body, "text/html")
-    msg.send(fail_silently=False)
-    return _json_or_redirect('success', "Almost there! Check your email to confirm your subscription.")
+        send_mail(
+            subject="Welcome to PulseLineDaily Newsletter",
+            message=plain_body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=True,
+        )
+    except Exception:
+        pass
+
+    return _json_or_redirect('success', "You're subscribed! Welcome to PulseLineDaily.")
 
 
 def newsletter_confirm(request, token):

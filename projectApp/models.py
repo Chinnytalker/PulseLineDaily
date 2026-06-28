@@ -161,7 +161,7 @@ class Comment(models.Model):
 class NewsletterSubscriber(models.Model):
     email = models.EmailField(unique=True)
     subscribed_on = models.DateTimeField(auto_now_add=True)
-    is_active = models.BooleanField(default=False, help_text="True only after email confirmation")
+    is_active = models.BooleanField(default=True, help_text="Uncheck to unsubscribe this address")
     confirmation_token = models.CharField(max_length=64, blank=True, null=True, unique=True)
 
     def __str__(self):
