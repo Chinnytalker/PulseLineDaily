@@ -4,7 +4,10 @@
 {% block meta_description %}Stay updated with the latest breaking news, trending stories, and in-depth articles across various categories on PulseLineDaily.{% endblock meta_description %}
 {% block og_title %}PulseLineDaily | Your Source for Breaking News and Trending Stories{% endblock og_title %}
 {% block og_description %}Stay updated with the latest breaking news, trending stories, and in-depth articles across various categories on PulseLineDaily.{% endblock og_description %}
-{% block og_image %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/Pulsemainlogo.jpg' %}{% endblock og_image %}
+{% block og_image %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/og-home.jpg' %}{% endblock og_image %}
+{% block twitter_image %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/og-home.jpg' %}{% endblock %}
+{% block og_image_width %}1200{% endblock %}
+{% block og_image_height %}630{% endblock %}
 {% block canonical %}<link rel="canonical" href="https://www.pulselinedaily.com/">{% endblock %}
 
 {% block content %}

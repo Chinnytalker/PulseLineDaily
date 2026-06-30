@@ -1,0 +1,117 @@
+{
+  "id": "/",
+  "name": "PulseLineDaily",
+  "short_name": "PulseLineDaily",
+  "description": "Breaking news, politics, sports, entertainment and international stories — trusted daily news from PulseLineDaily.",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "theme_color": "#1d4ed8",
+  "background_color": "#ffffff",
+  "lang": "en-US",
+  "dir": "ltr",
+  "categories": ["news", "politics", "sports", "entertainment"],
+  "icons": [
+    {
+      "src": "/static/favicon/favicon-16x16.png",
+      "sizes": "16x16",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/favicon/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/favicon/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/favicon/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/favicon/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/static/favicon/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/favicon/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/static/image/pulsemainlogo.jpg",
+      "sizes": "600x314",
+      "type": "image/jpeg",
+      "label": "PulseLineDaily — Breaking news and trending stories",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Politics",
+      "short_name": "Politics",
+      "description": "Latest politics news and government updates",
+      "url": "/category/Politics/?source=shortcut",
+      "icons": [
+        { "src": "/static/favicon/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" }
+      ]
+    },
+    {
+      "name": "Sports",
+      "short_name": "Sports",
+      "description": "Latest sports scores and match coverage",
+      "url": "/category/Sports/?source=shortcut",
+      "icons": [
+        { "src": "/static/favicon/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" }
+      ]
+    },
+    {
+      "name": "Entertainment",
+      "short_name": "Entertainment",
+      "description": "Celebrity news and entertainment updates",
+      "url": "/category/Entertainment/?source=shortcut",
+      "icons": [
+        { "src": "/static/favicon/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" }
+      ]
+    },
+    {
+      "name": "Breaking News",
+      "short_name": "Breaking",
+      "description": "Latest breaking news and trending stories",
+      "url": "/?source=shortcut",
+      "icons": [
+        { "src": "/static/favicon/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" }
+      ]
+    }
+  ],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://www.pulselinedaily.com/"
+    }
+  ],
+  "prefer_related_applications": false
+}
