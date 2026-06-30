@@ -2014,6 +2014,35 @@ def build_static_politics_prompt(topic, date_str=""):
     return topic["prompt"].replace("{date_str}", date_str)
 
 
+# ── Music chart fetcher ───────────────────────────────────────────────────────
+
+def fetch_nigeria_music_charts(limit=10):
+    """
+    Fetch top songs from Apple Music Nigeria via the public Apple Marketing
+    Tools RSS/JSON API.  Returns a list of dicts: {rank, song, artist}.
+    Falls back to an empty list so the caller can degrade gracefully.
+    """
+    url = (
+        f"https://rss.applemarketingtools.com/api/v2/ng/music/"
+        f"most-played/{limit}/songs.json"
+    )
+    try:
+        r = requests.get(url, timeout=10, headers={"User-Agent": "PulseLineDaily/1.0"})
+        r.raise_for_status()
+        results = r.json().get("feed", {}).get("results", [])
+        return [
+            {
+                "rank": idx + 1,
+                "song": item.get("name", ""),
+                "artist": item.get("artistName", ""),
+            }
+            for idx, item in enumerate(results)
+        ]
+    except Exception as exc:
+        logger.warning("fetch_nigeria_music_charts failed: %s", exc)
+        return []
+
+
 # ── Entertainment analysis topics ─────────────────────────────────────────────
 
 ENTERTAINMENT_ANALYSIS_TOPICS = [
@@ -2024,29 +2053,34 @@ ENTERTAINMENT_ANALYSIS_TOPICS = [
         "frequency_days": 7,
         "prompt": """You are a senior entertainment and music journalist at PulseLineDaily, Nigeria's leading digital news outlet.
 
-Write a complete, original HTML weekly Afrobeats roundup covering what is dominating Nigerian music culture right now.
+Write a complete, original HTML weekly Afrobeats roundup.
 
 TODAY'S DATE: {date_str}
 
+⚠️ REAL CHART DATA — Apple Music Nigeria Top Songs right now:
+{chart_data}
+
+CRITICAL: The numbered list above is LIVE DATA fetched TODAY. You MUST base the "This Week's Chart Leaders" section exclusively on these songs and artists. Do not substitute, invent, or add songs that are not on this list. Your knowledge cutoff means you do not know what is trending in {date_str} — trust the data above.
+
 OUTPUT FORMAT — three parts, exactly as shown:
-SUMMARY: <punchy one-liner teaser, max 160 chars — name the hottest song or artist right now>
-ANALYSIS: <2–3 sentences of editorial music analysis — the trend or sound defining Nigerian music at this moment>
+SUMMARY: <punchy one-liner teaser, max 160 chars — name the #1 charting song or artist>
+ANALYSIS: <2–3 sentences of editorial music analysis — the sound or trend these chart picks reveal>
 ---
 <HTML article body>
 
 ARTICLE REQUIREMENTS:
 - Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head>/<style> tags
-- <h2>: headline naming a specific hit or artist dominating Afrobeats this week
-- Opening paragraph: set the scene — what sound, mood, or movement is ruling Nigerian music right now
-- <h3>This Week's Biggest Songs</h3>: 4–6 songs currently dominating Nigerian airwaves and streaming — name the artist, song title, and why it is connecting with listeners; only name songs you are confident exist and are recent
-- <h3>Artists in Their Prime</h3>: 2–3 artists who are at the peak of their influence right now — Burna Boy, Wizkid, Davido, Asake, Rema, Ayra Starr, Tems, Olamide, or others — analyse their current momentum
-- <h3>The Sound of the Moment</h3>: what musical styles, production trends, or lyrical themes are defining the current Afrobeats wave — Amapiano influence, street-hop, Afro-soul, etc.
-- <h3>Rising Stars to Watch</h3>: 2–3 newer or emerging Nigerian artists making noise — only name artists you are confident about
-- <h3>Global Reach</h3>: Afrobeats' current international footprint — crossover collaborations, chart placements, global streaming milestones — use only established facts
+- <h2>: headline referencing the #1 or most notable song from the chart data above
+- Opening paragraph: set the scene using the chart data — what these songs collectively say about Nigerian music tastes right now
+- <h3>This Week's Chart Leaders</h3>: write about the songs from the Apple Music Nigeria list above — for each, name the artist and song, note its position, and analyse why it is resonating; do not add songs not in the data
+- <h3>Artists in Their Prime</h3>: based on the artists appearing in the chart data, analyse the ones with the most chart presence and their current momentum
+- <h3>The Sound of the Moment</h3>: what musical styles and production trends do these charting songs reveal — Amapiano influence, Afrobeats, street-hop, Afro-soul, etc.
+- <h3>Rising Stars to Watch</h3>: 2–3 newer or emerging Nigerian artists — only name artists you are confident about from your training knowledge
+- <h3>Global Reach</h3>: Afrobeats' international footprint — crossover collaborations, chart placements, streaming milestones — use only established facts from your training
 - Closing: a forward-looking sentence on where Nigerian music is headed
-- Length: 700–900 words | Tone: vibrant, knowledgeable, celebratory — the voice of a passionate music fan who knows the scene deeply
+- Length: 700–900 words | Tone: vibrant, knowledgeable, celebratory
 - SEO: "afrobeats 2026", "nigerian music chart", "hottest naija songs", "afrobeats weekly"
-- Do NOT fabricate specific chart positions, streaming numbers, or album release dates you are not certain about""",
+- Do NOT fabricate chart positions, streaming numbers, or songs not in the provided data""",
     },
     {
         "key": "nollywood_weekly",
@@ -2111,6 +2145,9 @@ ARTICLE REQUIREMENTS:
 ]
 
 
-def build_static_entertainment_prompt(topic, date_str=""):
-    """Return the topic's prompt with the current date injected."""
-    return topic["prompt"].replace("{date_str}", date_str)
+def build_static_entertainment_prompt(topic, date_str="", chart_data=None):
+    """Return the topic's prompt with date (and optionally chart data) injected."""
+    prompt = topic["prompt"].replace("{date_str}", date_str)
+    if chart_data is not None:
+        prompt = prompt.replace("{chart_data}", chart_data)
+    return prompt

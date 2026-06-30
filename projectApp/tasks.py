@@ -944,7 +944,12 @@ def generate_entertainment_articles(self):
         return "groq package missing"
 
     from .models import Post, Category, Author
-    from .data_journalism import ENTERTAINMENT_ANALYSIS_TOPICS, build_static_entertainment_prompt, parse_llm_response
+    from .data_journalism import (
+        ENTERTAINMENT_ANALYSIS_TOPICS,
+        build_static_entertainment_prompt,
+        fetch_nigeria_music_charts,
+        parse_llm_response,
+    )
 
     client = Groq(api_key=api_key)
     now = timezone.now()
@@ -1003,7 +1008,21 @@ def generate_entertainment_articles(self):
     topic = ENTERTAINMENT_ANALYSIS_TOPICS[topic_index]
 
     if not recently_generated(topic["key"], days=topic["frequency_days"]):
-        raw = call_llm(build_static_entertainment_prompt(topic, date_str=date_str))
+        # For afrobeats, fetch live Apple Music Nigeria chart data
+        chart_data = None
+        if topic["key"] == "afrobeats_weekly":
+            charts = fetch_nigeria_music_charts(limit=10)
+            if charts:
+                chart_data = "\n".join(
+                    f"{c['rank']}. {c['artist']} — \"{c['song']}\""
+                    for c in charts
+                )
+                logger.info("Fetched %d songs from Apple Music Nigeria", len(charts))
+            else:
+                logger.warning("Music chart fetch returned empty — LLM will generate without chart data")
+                chart_data = "(Chart data unavailable — write about recent Afrobeats trends generally without naming specific songs as 'this week's chart toppers')"
+
+        raw = call_llm(build_static_entertainment_prompt(topic, date_str=date_str, chart_data=chart_data))
         if raw:
             summary, analysis, html = parse_response(raw)
             save_draft(
