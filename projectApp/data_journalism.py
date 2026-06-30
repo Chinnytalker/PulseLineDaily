@@ -11,6 +11,65 @@ from html.parser import HTMLParser
 
 logger = logging.getLogger(__name__)
 
+
+# ── Shared LLM response parser ────────────────────────────────────────────────
+
+def parse_llm_response(raw):
+    """
+    Parse LLM output into (summary, analysis, html_body).
+
+    Expected format:
+        SUMMARY: <text>
+        ANALYSIS: <text>
+        ---
+        <HTML body starting with <h2>>
+
+    If the LLM omits the '---' separator (common), falls back to regex
+    extraction so SUMMARY/ANALYSIS never bleed into the body field.
+    """
+    raw = (raw or "").strip()
+    summary, analysis, html = "", "", raw
+
+    if "---" in raw:
+        head, body = raw.split("---", 1)
+        html = body.strip()
+        current_key, buf = None, []
+        for line in head.splitlines():
+            stripped = line.strip()
+            upper = stripped.upper()
+            if upper.startswith("SUMMARY:"):
+                current_key = "summary"
+                buf = [stripped[8:].strip()]
+            elif upper.startswith("ANALYSIS:"):
+                if current_key == "summary":
+                    summary = " ".join(buf).strip()
+                current_key = "analysis"
+                buf = [stripped[9:].strip()]
+            elif current_key and stripped:
+                buf.append(stripped)
+        if current_key == "summary":
+            summary = " ".join(buf).strip()
+        elif current_key == "analysis":
+            analysis = " ".join(buf).strip()
+    else:
+        # Fallback: extract SUMMARY/ANALYSIS via regex, body = everything from first HTML tag
+        s_match = re.search(
+            r'(?im)^SUMMARY\s*:\s*(.+?)(?=\n\s*ANALYSIS\s*:|\Z)', raw, re.DOTALL
+        )
+        a_match = re.search(
+            r'(?im)^ANALYSIS\s*:\s*(.+?)(?=\n\s*<[a-z]|\Z)', raw, re.DOTALL
+        )
+        if s_match:
+            summary = s_match.group(1).strip()
+        if a_match:
+            analysis = a_match.group(1).strip()
+        body_match = re.search(r'<(?:h[1-6]|p|div|ul|section)\b', raw, re.IGNORECASE)
+        if body_match:
+            html = raw[body_match.start():].strip()
+
+    return summary, analysis, html
+
+
 # ── RSS Sources (Option C) ────────────────────────────────────────────────────
 # Add / remove feeds freely.  category → matched against your Category table.
 RSS_SOURCES = [
@@ -312,34 +371,37 @@ def build_indicator_prompt(indicator_key, info, data_points):
 
 Write a complete, publish-ready HTML news article about Nigeria's {info['name']} using official World Bank data.
 
+IMPORTANT DATA CONTEXT: World Bank data is released 1–3 years after the reference year due to collection and verification delays. The most recent available figure is from {latest['year']}. This is normal and does NOT mean the data is outdated — it is the official, verified record. Frame the article as an analysis of the latest available World Bank data, NOT as breaking news. Always state the year ({latest['year']}) clearly so readers know the reference period.
+
 INDICATOR: {info['name']}
 BACKGROUND: {info['context']}
 
 WORLD BANK DATA — Nigeria (NGA):
 {history_lines}
 
-Latest: {latest['value']}{info['unit']} ({latest['year']}). {trend_sentence}
+Latest available: {latest['value']}{info['unit']} ({latest['year']}). {trend_sentence}
 
 OUTPUT FORMAT — three parts, exactly as shown:
-SUMMARY: <one punchy sentence max 160 characters — the article card teaser, no "PulseLineDaily" branding>
-ANALYSIS: <2–3 sentences of sharp expert takeaway — what this figure means at a macro level and what Nigerians should watch for next; no named quotes>
+SUMMARY: <one punchy sentence max 160 characters — must include the year {latest['year']} so readers know the data period; no "PulseLineDaily" branding>
+ANALYSIS: <2–3 sentences of sharp expert takeaway — what this figure reveals about Nigeria's trajectory and what to watch going forward; no named quotes>
 ---
 <full HTML article body starting with <h2>>
 
 ARTICLE REQUIREMENTS:
 - Pure HTML body content — use <h2>, <h3>, <p>, <strong>, <ul>, <li>
 - Do NOT include <html>, <body>, <head>, or <style> tags
-- Open with a strong <h2> headline that names the key figure and year
-- Paragraph 1: state the key statistic and why it matters to Nigerians right now
-- <h3>Trend Analysis</h3>: compare the past 3–5 years of data; note whether the situation is improving, worsening, or stable
+- Open with a strong <h2> headline that names the key figure AND the year (e.g. "Nigeria's X in {latest['year']}: What the Data Shows")
+- Paragraph 1: state the statistic clearly, name the year {latest['year']}, explain this is the latest available World Bank figure, and why the trend it reveals still matters today
+- <h3>Trend Analysis</h3>: compare the full data series; note whether the trajectory is improving, worsening, or stable — and what that direction means going forward
 - <h3>What This Means for Everyday Nigerians</h3>: 4–5 concrete implications for consumers, workers, businesses, or families — use bullet points
 - <h3>Expert Perspective</h3>: 3–4 sentences of authoritative commentary — do NOT invent named quotes or named individuals
-- <h3>Looking Ahead</h3>: a measured, forward-looking paragraph with what to watch in the coming months
-- Attribute data to the World Bank
+- <h3>What to Watch Next</h3>: what indicators or policy changes Nigerians should track to see if the trend is continuing or reversing
+- Attribute data to the World Bank and note the {latest['year']} reference year
 - Length: 600–800 words
-- Tone: professional, balanced, accessible to a general Nigerian audience
-- Naturally include SEO keywords: "Nigeria {info['name'].lower()}", "{info['category'].lower()} Nigeria {latest['year']}"
-- Do NOT invent statistics beyond the data provided above"""
+- Tone: analytical, authoritative, accessible to a general Nigerian audience — trend analysis, not breaking news
+- Naturally include SEO keywords: "Nigeria {info['name'].lower()} {latest['year']}", "{info['category'].lower()} Nigeria data"
+- Do NOT invent statistics beyond the data provided above
+- Do NOT write phrases like "latest data shows" or "recent figures reveal" without specifying the year {latest['year']}"""
 
 
 def build_exchange_rate_prompt(rate_data):
@@ -384,6 +446,9 @@ def fetch_parallel_market_rate():
     official = official_data["rate"] if official_data else None
 
     parallel = None
+    # Years that commonly appear on financial pages and must not be treated as rates
+    _YEAR_BLACKLIST = set(range(2015, 2031))
+
     try:
         resp = requests.get(
             "https://abokifx.com/",
@@ -398,15 +463,37 @@ def fetch_parallel_market_rate():
             timeout=12,
         )
         resp.raise_for_status()
-        # Extract 4-digit numbers in a realistic NGN/USD range (₦1,000–₦2,999)
-        candidates = []
-        for raw in re.findall(r'\b([12]\d{3})(?:[,\.]\d{1,2})?\b', resp.text):
-            val = float(raw)
-            if 1000 <= val <= 2999:
-                candidates.append(val)
-        if candidates:
-            candidates.sort()
-            parallel = round(candidates[len(candidates) // 2], 2)
+
+        # Separate candidates with decimals (real rates) from bare integers (may be years)
+        decimal_pool = []
+        integer_pool = []
+        for int_part, dec_part in re.findall(r'\b([12]\d{3})([.,]\d{1,2})?\b', resp.text):
+            int_val = int(int_part)
+            if not (1000 <= int_val <= 2999):
+                continue
+            # Bare integer that matches a calendar year — skip
+            if not dec_part and int_val in _YEAR_BLACKLIST:
+                continue
+            val = float(int_part + (dec_part.replace(",", ".") if dec_part else ""))
+            (decimal_pool if dec_part else integer_pool).append(val)
+
+        # Prefer decimal candidates; fall back to integers only if necessary
+        pool = decimal_pool if decimal_pool else integer_pool
+        if pool:
+            pool.sort()
+            candidate = round(pool[len(pool) // 2], 2)
+            # Sanity-check: parallel rate must be 2–80% above the official rate
+            if official:
+                premium = (candidate - official) / official
+                if 0.02 <= premium <= 0.80:
+                    parallel = candidate
+                else:
+                    logger.warning(
+                        "AbokiFX candidate ₦%s rejected — premium %.1f%% outside 2–80%% band vs official ₦%s",
+                        candidate, premium * 100, official,
+                    )
+            else:
+                parallel = candidate
     except Exception as exc:
         logger.warning("AbokiFX parallel rate fetch failed: %s", exc)
 
@@ -443,7 +530,7 @@ Write a complete, publish-ready HTML article comparing today's official CBN exch
 
 TODAY: {date_str}
 
-LIVE RATE DATA:
+LIVE RATE DATA (use these exact figures — do NOT invent or adjust them):
 - Official CBN / interbank rate: 1 USD = {official_line}
 - Parallel (black) market rate:  1 USD = {parallel_line}
 - Parallel market premium: {premium_line}
@@ -456,14 +543,16 @@ ANALYSIS: <2–3 sentences of expert takeaway — what the gap between rates rev
 <full HTML article body starting with <h2>>
 
 ARTICLE REQUIREMENTS:
-- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head>/<style> tags
-- <h2>: headline including today's parallel market rate (or the gap) — e.g. "Black Market Dollar Rate Today: ₦X,XXX as CBN Rate Sits at ₦Y,YYY"
-- Paragraph 1: state both rates clearly and the spread between them
-- <h3>Why Two Rates Exist</h3>: explain the dual exchange rate system — CBN official vs parallel market — in plain language for everyday Nigerians
-- <h3>What This Means for You</h3>: practical impact on importers, travellers, students abroad, online shoppers, remittance receivers — use bullet points
-- <h3>What Is Driving the Gap</h3>: structural causes — forex scarcity, CBN policy, oil revenue, demand pressure — use only established economic context; do NOT fabricate specific CBN announcements
-- <h3>CBN's Position and What to Watch</h3>: current monetary policy stance and indicators to watch for rate stability or further pressure
-- Closing: a brief, practical closing for Nigerian readers — what to do with this information today
+- Pure HTML — every section title MUST be in <h3>...</h3> tags, every paragraph in <p>...</p>, every list in <ul><li>...</li></ul>
+- Do NOT include <html>, <body>, <head>, or <style> tags
+- Do NOT use plain bold text as section headers — use <h3> tags only
+- <h2>: headline naming both rates — e.g. "Black Market Dollar Rate Today: ₦X,XXX as CBN Rate Sits at ₦Y,YYY"
+- <p> Opening: state both rates from the data above and the exact premium spread — use the figures provided, not invented ones
+- <h3>Why Two Rates Exist</h3>: <p> explaining the dual exchange rate system in plain language for everyday Nigerians
+- <h3>What This Means for You</h3>: <ul> with one <li> per group — importers, travellers, students abroad, online shoppers, remittance receivers — specific impact for each
+- <h3>What Is Driving the Gap</h3>: <p> on structural causes — forex scarcity, CBN policy, oil revenue, demand pressure — established economic context only; do NOT fabricate specific CBN announcements
+- <h3>CBN's Position and What to Watch</h3>: <ul> with 3–4 <li> indicators Nigerians should monitor for rate stability or further pressure
+- Closing <p>: a sharp, practical sentence on what Nigerians should do with this information today — do NOT open with "In conclusion"
 - Attribute official rate to Open Exchange Rates; parallel rate to AbokiFX
 - Length: 700–900 words | Tone: practical, informative, authoritative
 - SEO: "dollar to naira black market today", "parallel market rate", "aboki dollar rate", "cbn exchange rate", "naira black market"
@@ -1420,21 +1509,39 @@ def fetch_crypto_prices():
     return {"btc": btc, "eth": eth}
 
 
-def build_crypto_prompt(data, date_str):
+def build_crypto_prompt(data, date_str, ngn_rate=None):
     lines = []
+    btc_ngn = eth_ngn = None
+
     if data.get("btc"):
         b = data["btc"]
         sign = "+" if b["change_pct"] >= 0 else ""
         lines.append(
             f"- Bitcoin (BTC): ${b['price']:,.2f} USD  ({sign}{b['change_pct']}% today)"
         )
+        if ngn_rate:
+            btc_ngn = b["price"] * ngn_rate
+
     if data.get("eth"):
         e = data["eth"]
         sign = "+" if e["change_pct"] >= 0 else ""
         lines.append(
             f"- Ethereum (ETH): ${e['price']:,.2f} USD  ({sign}{e['change_pct']}% today)"
         )
+        if ngn_rate:
+            eth_ngn = e["price"] * ngn_rate
+
     prices_text = "\n".join(lines)
+
+    naira_block = ""
+    if ngn_rate:
+        naira_block = f"\nLIVE USD/NGN RATE (use this — do NOT guess the exchange rate): 1 USD = ₦{ngn_rate:,.2f}"
+        if btc_ngn:
+            naira_block += f"\n- 1 BTC ≈ ₦{btc_ngn:,.0f}"
+        if eth_ngn:
+            naira_block += f"\n- 1 ETH ≈ ₦{eth_ngn:,.0f}"
+    else:
+        naira_block = "\nNaira equivalent: do NOT guess the USD/NGN exchange rate — omit specific Naira figures if the rate is unavailable."
 
     return f"""You are a senior financial and technology journalist at PulseLineDaily, Nigeria's leading digital news outlet.
 
@@ -1444,6 +1551,7 @@ TODAY: {date_str}
 
 LIVE CRYPTO PRICES (Yahoo Finance):
 {prices_text}
+{naira_block}
 
 OUTPUT FORMAT — three parts, exactly as shown:
 SUMMARY: <one punchy sentence max 160 characters — include BTC price and direction>
@@ -1452,19 +1560,21 @@ ANALYSIS: <2–3 sentences of expert takeaway — what today's crypto prices mea
 <full HTML article body starting with <h2>>
 
 ARTICLE REQUIREMENTS:
-- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head> tags
-- <h2>: headline naming the BTC price and daily movement
-- Paragraph 1: state both prices, their daily changes, and why this matters to Nigerian crypto users
-- <h3>What This Means for Nigerian Investors</h3>: Nigeria is one of Africa's largest crypto markets — how do today's prices affect local holders, P2P traders, and remittance users? Include Naira context (note approximate Naira equivalent at current exchange rates)
-- <h3>Market Drivers</h3>: what macro factors (US economic data, institutional moves, global sentiment) are behind today's price movement — use general market knowledge, do NOT fabricate specific news events
-- <h3>Bitcoin vs Ethereum</h3>: brief comparison of both assets' performance and what the gap between them signals
-- <h3>What Should Nigerian Crypto Users Do?</h3>: 3–4 practical tips — holding, trading, risk management, regulatory awareness
-- <h3>Regulatory Watch</h3>: context on Nigeria's crypto regulatory environment (SEC Nigeria, CBN stance) — use only established facts
-- Closing: a cautious, balanced outlook — do NOT predict a specific price target
-- Attribute data to Yahoo Finance / market data
+- Pure HTML — every section title MUST be wrapped in <h3>...</h3> tags, every paragraph in <p>...</p>, every list in <ul><li>...</li></ul>
+- Do NOT include <html>, <body>, <head>, or <style> tags
+- Do NOT use plain bold text as section headers — use <h3> tags only
+- <h2>: punchy headline naming the BTC price, percentage change, and date
+- <p> Opening: state both prices and their daily changes; use the Naira equivalents provided above to give local context — do NOT invent your own exchange rate
+- <h3>What This Means for Nigerian Investors</h3>: <p> explaining impact on local holders, P2P traders, and remittance users; reference the Naira equivalents from the data above
+- <h3>Market Drivers</h3>: <p> covering macro factors (US economic data, institutional moves, global risk sentiment) — do NOT fabricate specific news events
+- <h3>Bitcoin vs Ethereum</h3>: <p> comparing both assets' daily performance and what the divergence signals about market sentiment
+- <h3>What Should Nigerian Crypto Users Do?</h3>: <ul> with 4 <li> practical tips — holding strategy, risk management, staying informed, security practices
+- <h3>Regulatory Watch</h3>: <p> on Nigeria's crypto regulatory environment (SEC Nigeria, CBN stance) — use only established facts
+- Closing <p>: a sharp, specific final observation about what today's prices mean for Nigeria's crypto future — do NOT open with "In conclusion"
+- Attribute data to Yahoo Finance
 - Length: 550–700 words | Tone: informative, practical, balanced — not hype
 - SEO: "bitcoin price today nigeria", "ethereum price naira", "crypto nigeria", "btc today"
-- Do NOT fabricate specific regulatory announcements or named quotes"""
+- Do NOT fabricate specific regulatory announcements, named quotes, or exchange rates not provided above"""
 
 
 # ── Agriculture commodity fetchers ────────────────────────────────────────────
@@ -1559,7 +1669,7 @@ def fetch_acled_nigeria(api_key, email, days=30):
 
 # ── Market & security prompt builders ────────────────────────────────────────
 
-def build_brent_prompt(data):
+def build_brent_prompt(data, date_str=""):
     brent = data["brent_price"]
     change = data["brent_change_pct"]
     direction = "rose" if change >= 0 else "fell"
@@ -1572,28 +1682,33 @@ def build_brent_prompt(data):
 
 Write a complete, publish-ready HTML article about today's Brent crude oil price and its implications for Nigeria.
 
-DATA (live market):
+TODAY: {date_str}
+
+DATA (live market — use these exact figures):
 - Brent Crude (global benchmark): ${brent:.2f}/barrel{wti_line}
 - Change today: {sign}{change}% — price {direction}
 
 OUTPUT FORMAT — three parts, exactly as shown:
-SUMMARY: <one punchy sentence max 160 characters — include the exact price>
+SUMMARY: <one punchy sentence max 160 characters — include the exact Brent price and direction>
 ANALYSIS: <2–3 sentences of expert takeaway — what this price signals about global oil markets and Nigeria's fiscal position>
 ---
 <full HTML article body starting with <h2>>
 
 ARTICLE REQUIREMENTS:
-- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head> tags
-- <h2>: headline naming the exact Brent price and daily movement
-- Paragraph 1: state the price, the daily change, and why it matters to Nigeria
-- <h3>What This Means for Nigeria's Budget</h3>: explain Nigeria's oil benchmark price in the national budget and the fiscal impact of today's level
-- <h3>Impact on the Naira and Petrol Prices</h3>: how crude price affects forex earnings, naira pressure, and domestic fuel costs
-- <h3>OPEC and Nigeria's Production</h3>: context on OPEC+ quota dynamics and Nigeria's output trajectory — do NOT fabricate specific barrel-per-day figures
-- <h3>Outlook</h3>: balanced forward look at oil market drivers (geopolitics, OPEC+ decisions, global demand)
-- Attribute data to live market data
+- Pure HTML — every section title MUST be in <h3>...</h3> tags, every paragraph in <p>...</p>, every list in <ul><li>...</li></ul>
+- Do NOT include <html>, <body>, <head>, or <style> tags
+- Do NOT use plain bold text as section headers — use <h3> tags only
+- <h2>: headline naming the exact Brent price (${brent:.2f}/barrel), the daily movement, and the date
+- <p> Opening: state the price, the exact daily change ({sign}{change}%), and why today's level matters to Nigeria specifically
+- <h3>What This Means for Nigeria's Budget</h3>: <p> explaining Nigeria's crude benchmark in the national budget and the fiscal gap or surplus created by today's price
+- <h3>Impact on the Naira and Petrol Prices</h3>: <p> on how this crude price affects forex earnings, naira stability, and domestic fuel costs for Nigerians
+- <h3>OPEC and Nigeria's Production</h3>: <p> on OPEC+ quota dynamics and Nigeria's output trajectory — do NOT fabricate specific barrel-per-day figures
+- <h3>Outlook</h3>: <p> with a balanced forward look at oil market drivers (geopolitics, OPEC+ decisions, global demand)
+- Closing <p>: a sharp, specific sentence on what Nigerian policymakers and citizens should watch next — do NOT open with "In conclusion"
+- Attribute data to Yahoo Finance / live market data
 - Length: 500–650 words | Tone: expert, financial, accessible
 - SEO: "brent crude price today", "nigeria oil price", "opec nigeria", "naira oil revenue"
-- Do NOT fabricate specific policy announcements or named quotes"""
+- Do NOT fabricate specific policy announcements, named quotes, or barrel-per-day production figures"""
 
 
 def build_ngx_prompt(data, date_str):
@@ -1617,14 +1732,17 @@ ANALYSIS: <2–3 sentences of expert analysis — what is driving today's market
 <full HTML article body starting with <h2>>
 
 ARTICLE REQUIREMENTS:
-- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head> tags
-- <h2>: headline naming the index level and market direction
-- Paragraph 1: state the index level, change, and day's market tone
-- <h3>What's Driving the Market</h3>: macro factors (FX stability, oil price, interest rates, investor sentiment) — do NOT fabricate specific stock prices or volumes
-- <h3>Sectors in Focus</h3>: which sectors move Nigerian equities (banking, telecoms, FMCG, cement) — use general knowledge
-- <h3>What Nigerian Investors Should Know</h3>: 4–5 practical takeaways for retail and institutional investors
-- <h3>Outlook</h3>: balanced forward-looking view on Nigerian equities
-- Attribute data to NGX
+- Pure HTML — every section title MUST be in <h3>...</h3> tags, every paragraph in <p>...</p>, every list in <ul><li>...</li></ul>
+- Do NOT include <html>, <body>, <head>, or <style> tags
+- Do NOT use plain bold text as section headers — use <h3> tags only
+- <h2>: headline naming the exact index level ({value:,.2f}), direction, and date
+- <p> Opening: state the index level, the exact daily change ({sign}{change}%), and the market tone for the day
+- <h3>What's Driving the Market</h3>: <p> on macro factors (FX stability, oil price, interest rates, investor sentiment) — do NOT fabricate specific stock prices or volumes
+- <h3>Sectors in Focus</h3>: <p> on which sectors are moving Nigerian equities (banking, telecoms, FMCG, cement) — use general knowledge, not invented figures
+- <h3>What Nigerian Investors Should Know</h3>: <ul> with 4–5 <li> practical takeaways for retail and institutional investors
+- <h3>Outlook</h3>: <p> with a balanced forward-looking view on Nigerian equities
+- Closing <p>: a specific, actionable sentence for Nigerian investors — do NOT open with "In conclusion"
+- Attribute data to NGX / Yahoo Finance
 - Length: 500–600 words | Tone: professional, financial, accessible to retail investors
 - SEO: "ngx all share index today", "nigerian stock market", "ngx market wrap"
 - Do NOT invent specific stock tickers, price moves, or named quotes"""
@@ -1665,14 +1783,17 @@ ANALYSIS: <2–3 sentences of expert analysis — what these prices mean for Nig
 <full HTML article body starting with <h2>>
 
 ARTICLE REQUIREMENTS:
-- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head> tags
-- <h2>: headline covering Nigerian agricultural commodity prices
-- Paragraph 1: lead with the most newsworthy price and its significance for Nigeria
-- <h3>Cocoa Prices and Nigerian Farmers</h3>: Nigeria is Africa's 4th-largest cocoa producer — what does the price mean for farmers in Ondo, Osun, Cross River?
-- <h3>Palm Oil Market</h3>: price impact on farmers, processors, and local consumers
-- <h3>Groundnuts and Northern Agriculture</h3>: importance to Kano, Kaduna, Katsina farmers and export earnings
-- <h3>What Government and Exporters Should Do</h3>: 3–4 policy and business recommendations
-- <h3>Outlook</h3>: general market direction for agricultural commodities
+- Pure HTML — every section title MUST be in <h3>...</h3> tags, every paragraph in <p>...</p>, every list in <ul><li>...</li></ul>
+- Do NOT include <html>, <body>, <head>, or <style> tags
+- Do NOT use plain bold text as section headers — use <h3> tags only
+- <h2>: headline naming the most newsworthy commodity price from the data above and the period
+- <p> Opening: lead with the single most newsworthy price figure from the data and its direct significance for Nigeria
+- <h3>Cocoa Prices and Nigerian Farmers</h3>: <p> Nigeria is Africa's 4th-largest cocoa producer — what does the price mean for farmers in Ondo, Osun, Cross River?
+- <h3>Palm Oil Market</h3>: <p> price impact on farmers, processors, and local consumers
+- <h3>Groundnuts and Northern Agriculture</h3>: <p> importance to Kano, Kaduna, Katsina farmers and export earnings
+- <h3>What Government and Exporters Should Do</h3>: <ul> with 3–4 <li> policy and business recommendations
+- <h3>Outlook</h3>: <p> general market direction for agricultural commodities
+- Closing <p>: a sharp sentence on what Nigerian farmers and traders should act on now — do NOT open with "In conclusion"
 - Attribute cocoa data to ICE Futures; palm oil and groundnut data to World Bank
 - Length: 550–700 words | Tone: expert, accessible, pro-farmer
 - SEO: "nigeria cocoa price", "palm oil price nigeria", "groundnut price nigeria"
@@ -1735,7 +1856,11 @@ POLITICS_ANALYSIS_TOPICS = [
 
 Write a complete, original HTML analysis article about Nigeria's 2027 general elections.
 
-CONTEXT: The 2027 Nigerian general elections will be held in February 2027. President Bola Tinubu (APC) is the incumbent. The opposition includes PDP, Labour Party, NNPP, and others. INEC is the electoral body.
+TODAY'S DATE: {date_str}
+
+CRITICAL — KNOWLEDGE CUTOFF WARNING: Your training data ends around August 2025. Today is {date_str}, meaning roughly 10 months have passed since your cutoff. Events that were "upcoming" in your training knowledge — such as party primaries, candidate declarations, INEC registration drives, and court rulings — may have already occurred or been resolved. Do NOT write about these as future events. Instead, write about structural factors, established political dynamics, and what the election outcome will hinge on. Avoid any specific predictions about things that may have changed since August 2025.
+
+CONTEXT: The 2027 Nigerian general elections are scheduled for February 2027. President Bola Tinubu (APC) is the incumbent. The opposition includes PDP, Labour Party, NNPP, and others. INEC is the electoral body.
 
 OUTPUT FORMAT — three parts, exactly as shown:
 SUMMARY: <punchy one-liner teaser, max 160 chars>
@@ -1745,16 +1870,17 @@ ANALYSIS: <2–3 sentences of expert analysis — the single biggest factor that
 
 ARTICLE REQUIREMENTS:
 - Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head> tags
-- <h2>: strong headline about the 2027 elections outlook
-- Opening: why the 2027 elections matter for Nigeria's democratic trajectory
-- <h3>The Incumbent's Position</h3>: Tinubu and APC's current political standing — use only established facts
-- <h3>Opposition Landscape</h3>: PDP, Labour Party, and other parties' prospects — use only established facts about party dynamics
-- <h3>Key Issues Voters Care About</h3>: economy, security, cost of living, fuel subsidy removal fallout, education — what will drive voter decisions?
-- <h3>INEC and Electoral Process</h3>: lessons from 2023, what reforms are needed, role of technology (BVAS, IReV)
-- <h3>What to Watch</h3>: 3–4 early indicators — primaries, defections, court rulings, voter registration drives
-- Closing: a measured forecast paragraph
+- <h2>: strong headline about the 2027 elections outlook, referencing today's perspective ({date_str})
+- Opening: why the 2027 elections matter for Nigeria's democratic trajectory — frame this as analysis written in {date_str}
+- <h3>The Incumbent's Position</h3>: Tinubu and APC's standing based on established facts up to your knowledge cutoff — acknowledge that the political landscape is evolving
+- <h3>Opposition Landscape</h3>: PDP, Labour Party, and other parties' structural prospects — focus on party strengths, weaknesses, and historical patterns rather than recent events you cannot verify
+- <h3>Key Issues Voters Care About</h3>: economy, security, cost of living, subsidy removal fallout, education — structural issues that will drive voter decisions regardless of what has happened recently
+- <h3>INEC and Electoral Integrity</h3>: lessons from 2023, the role of technology (BVAS, IReV), and what a credible 2027 process requires
+- <h3>What Will Decide 2027</h3>: 3–4 structural factors — economic performance, opposition unity, voter turnout, regional bloc dynamics — that analysts agree will shape the outcome
+- Closing: a measured, evidence-based forecast paragraph
 - Length: 600–750 words | Tone: analytical, balanced, non-partisan
-- Use only established political knowledge; do NOT fabricate polling numbers or specific alliances not yet formed""",
+- Do NOT write about primaries, candidate lists, or specific alliances as future events — these processes may have already concluded
+- Do NOT fabricate polling numbers, specific defections, or court outcomes from after August 2025""",
     },
     {
         "key": "tinubu_policy_scorecard",
@@ -1765,7 +1891,9 @@ ARTICLE REQUIREMENTS:
 
 Write a complete, original HTML analysis article assessing the Tinubu administration's major policy decisions and their impact on Nigerians.
 
-CONTEXT: President Bola Tinubu took office on 29 May 2023. Key decisions include removal of petrol subsidy (Day 1), unification of the naira exchange rate, tax reform bills, and security initiatives. These have had significant economic consequences for ordinary Nigerians.
+TODAY'S DATE: {date_str}
+
+CONTEXT: President Bola Tinubu took office on 29 May 2023. Key decisions include removal of petrol subsidy (Day 1), unification of the naira exchange rate, tax reform bills, and security initiatives. These have had significant economic consequences for ordinary Nigerians. Your training data ends around August 2025 — focus on established policy impacts and structural analysis rather than specific events you cannot verify after that date.
 
 OUTPUT FORMAT — three parts, exactly as shown:
 SUMMARY: <punchy one-liner teaser, max 160 chars>
@@ -1795,7 +1923,9 @@ ARTICLE REQUIREMENTS:
 
 Write a complete, original HTML article covering the key activities and priorities of Nigeria's National Assembly.
 
-CONTEXT: Nigeria's National Assembly comprises the Senate (109 senators) and House of Representatives (360 members). The current assembly was inaugurated in June 2023. Senate President is Godswill Akpabio; Speaker of the House is Tajudeen Abbas.
+TODAY'S DATE: {date_str}
+
+CONTEXT: Nigeria's National Assembly comprises the Senate (109 senators) and House of Representatives (360 members). The current assembly was inaugurated in June 2023. Senate President is Godswill Akpabio; Speaker of the House is Tajudeen Abbas. Your training data ends around August 2025 — write about structural legislative roles and established bills; do NOT present pending legislation from your training as still pending if it may have been resolved.
 
 OUTPUT FORMAT — three parts, exactly as shown:
 SUMMARY: <punchy one-liner teaser, max 160 chars>
@@ -1824,6 +1954,10 @@ ARTICLE REQUIREMENTS:
 
 Write a complete, original HTML analysis article about subnational politics in Nigeria — focusing on key state governors and the political dynamics shaping Nigeria's 36 states.
 
+TODAY'S DATE: {date_str}
+
+KNOWLEDGE CUTOFF NOTE: Your training ends around August 2025. Only name governors you are confident hold office as of that date. State that governorship details may have evolved since your training cutoff.
+
 OUTPUT FORMAT — three parts, exactly as shown:
 SUMMARY: <punchy one-liner teaser, max 160 chars>
 ANALYSIS: <2–3 sentences of expert analysis — the single most important subnational political trend shaping Nigeria's national politics>
@@ -1851,7 +1985,9 @@ ARTICLE REQUIREMENTS:
 
 Write a complete, original HTML analysis article about Nigeria's foreign policy direction under President Tinubu.
 
-CONTEXT: Nigeria is Africa's largest economy and most populous nation. Under Tinubu, Nigeria has maintained its ECOWAS leadership role, responded to the Niger coup (2023), pursued investment diplomacy, and maintained strong bilateral ties with the UK, US, and UAE. Nigeria is a member of the UN Security Council (non-permanent) and African Union.
+TODAY'S DATE: {date_str}
+
+CONTEXT: Nigeria is Africa's largest economy and most populous nation. Under Tinubu, Nigeria has maintained its ECOWAS leadership role, responded to the Niger coup (2023), pursued investment diplomacy, and maintained strong bilateral ties with the UK, US, and UAE. Nigeria is a member of the UN Security Council (non-permanent) and African Union. Your training data ends around August 2025 — focus on structural foreign policy dynamics; do NOT present bilateral negotiations or ECOWAS decisions as pending if they may have concluded.
 
 OUTPUT FORMAT — three parts, exactly as shown:
 SUMMARY: <punchy one-liner teaser, max 160 chars>
@@ -1867,15 +2003,15 @@ ARTICLE REQUIREMENTS:
 - <h3>Investment and Economic Diplomacy</h3>: Tinubu's investor roadshows, diaspora engagement, key bilateral agreements
 - <h3>Nigeria and Global Powers</h3>: relations with the US, UK, China, EU — opportunities and risks
 - <h3>Unresolved Issues</h3>: Bakassi, Lake Chad basin, Boko Haram cross-border dimensions, undocumented diaspora
-- Closing: what a bold Nigerian foreign policy agenda should look like in 2025–2027
+- Closing: what a bold Nigerian foreign policy agenda should prioritise for the remainder of the Tinubu term
 - Length: 550–700 words | Tone: expert, measured, pro-Africa
 - Use only established foreign policy facts; do NOT fabricate specific treaty terms or summit outcomes""",
     },
 ]
 
 
-def build_static_politics_prompt(topic):
-    return topic["prompt"]
+def build_static_politics_prompt(topic, date_str=""):
+    return topic["prompt"].replace("{date_str}", date_str)
 
 
 # ── Entertainment analysis topics ─────────────────────────────────────────────

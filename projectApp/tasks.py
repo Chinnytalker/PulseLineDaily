@@ -106,6 +106,7 @@ def generate_data_journalism_articles(self):
         fetch_usd_ngn_rate,
         build_indicator_prompt,
         build_exchange_rate_prompt,
+        parse_llm_response,
     )
 
     client = Groq(api_key=api_key)
@@ -131,32 +132,7 @@ def generate_data_journalism_articles(self):
             logger.error("Groq API error: %s", exc)
             return None
 
-    def parse_response(raw):
-        """Extract SUMMARY, ANALYSIS, and HTML body from LLM response."""
-        summary, analysis, html = "", "", raw
-        if "---" in raw:
-            head, body = raw.split("---", 1)
-            html = body.strip()
-            current_key = None
-            buf = []
-            for line in head.splitlines():
-                stripped = line.strip()
-                upper = stripped.upper()
-                if upper.startswith("SUMMARY:"):
-                    current_key = "summary"
-                    buf = [stripped[8:].strip()]
-                elif upper.startswith("ANALYSIS:"):
-                    if current_key == "summary":
-                        summary = " ".join(buf).strip()
-                    current_key = "analysis"
-                    buf = [stripped[9:].strip()]
-                elif current_key and stripped:
-                    buf.append(stripped)
-            if current_key == "summary":
-                summary = " ".join(buf).strip()
-            elif current_key == "analysis":
-                analysis = " ".join(buf).strip()
-        return summary, analysis, html
+    parse_response = parse_llm_response
 
     def category_for(hint):
         """Return the first Category whose name contains hint (case-insensitive)."""
@@ -287,7 +263,7 @@ def generate_rss_articles(self):
         return "groq package missing"
 
     from .models import Post, Category, Author
-    from .data_journalism import fetch_rss_stories, fetch_article_body, build_rewrite_prompt, detect_story_category
+    from .data_journalism import fetch_rss_stories, fetch_article_body, build_rewrite_prompt, detect_story_category, parse_llm_response
 
     client = Groq(api_key=api_key)
     now = timezone.now()
@@ -310,31 +286,7 @@ def generate_rss_articles(self):
             logger.error("Groq API error: %s", exc)
             return None
 
-    def parse_response(raw):
-        summary, analysis, html = "", "", raw
-        if "---" in raw:
-            head, body = raw.split("---", 1)
-            html = body.strip()
-            current_key = None
-            buf = []
-            for line in head.splitlines():
-                stripped = line.strip()
-                upper = stripped.upper()
-                if upper.startswith("SUMMARY:"):
-                    current_key = "summary"
-                    buf = [stripped[8:].strip()]
-                elif upper.startswith("ANALYSIS:"):
-                    if current_key == "summary":
-                        summary = " ".join(buf).strip()
-                    current_key = "analysis"
-                    buf = [stripped[9:].strip()]
-                elif current_key and stripped:
-                    buf.append(stripped)
-            if current_key == "summary":
-                summary = " ".join(buf).strip()
-            elif current_key == "analysis":
-                analysis = " ".join(buf).strip()
-        return summary, analysis, html
+    parse_response = parse_llm_response
 
     def category_for(hint):
         return Category.objects.filter(name__icontains=hint).first()
@@ -474,6 +426,7 @@ def generate_sports_articles(self):
         build_wc2026_golden_boot_prompt,
         SPORTS_ANALYSIS_TOPICS,
         build_static_sports_prompt,
+        parse_llm_response,
     )
 
     client = Groq(api_key=api_key)
@@ -500,31 +453,7 @@ def generate_sports_articles(self):
             logger.error("Groq API error: %s", exc)
             return None
 
-    def parse_response(raw):
-        summary, analysis, html = "", "", raw
-        if "---" in raw:
-            head, body = raw.split("---", 1)
-            html = body.strip()
-            current_key = None
-            buf = []
-            for line in head.splitlines():
-                stripped = line.strip()
-                upper = stripped.upper()
-                if upper.startswith("SUMMARY:"):
-                    current_key = "summary"
-                    buf = [stripped[8:].strip()]
-                elif upper.startswith("ANALYSIS:"):
-                    if current_key == "summary":
-                        summary = " ".join(buf).strip()
-                    current_key = "analysis"
-                    buf = [stripped[9:].strip()]
-                elif current_key and stripped:
-                    buf.append(stripped)
-            if current_key == "summary":
-                summary = " ".join(buf).strip()
-            elif current_key == "analysis":
-                analysis = " ".join(buf).strip()
-        return summary, analysis, html
+    parse_response = parse_llm_response
 
     def recently_generated(tag_snippet, days):
         cutoff = now - timedelta(days=days)
@@ -697,6 +626,7 @@ def generate_market_articles(self):
         build_acled_prompt,
         build_crypto_prompt,
         build_parallel_rate_prompt,
+        parse_llm_response,
     )
 
     client = Groq(api_key=api_key)
@@ -718,31 +648,7 @@ def generate_market_articles(self):
             logger.error("Groq API error: %s", exc)
             return None
 
-    def parse_response(raw):
-        summary, analysis, html = "", "", raw
-        if "---" in raw:
-            head, body = raw.split("---", 1)
-            html = body.strip()
-            current_key = None
-            buf = []
-            for line in head.splitlines():
-                stripped = line.strip()
-                upper = stripped.upper()
-                if upper.startswith("SUMMARY:"):
-                    current_key = "summary"
-                    buf = [stripped[8:].strip()]
-                elif upper.startswith("ANALYSIS:"):
-                    if current_key == "summary":
-                        summary = " ".join(buf).strip()
-                    current_key = "analysis"
-                    buf = [stripped[9:].strip()]
-                elif current_key and stripped:
-                    buf.append(stripped)
-            if current_key == "summary":
-                summary = " ".join(buf).strip()
-            elif current_key == "analysis":
-                analysis = " ".join(buf).strip()
-        return summary, analysis, html
+    parse_response = parse_llm_response
 
     def recently_generated(tag_snippet, days):
         cutoff = now - timedelta(days=days)
@@ -782,7 +688,7 @@ def generate_market_articles(self):
     if not recently_generated("brent crude", days=1):
         data = fetch_brent_crude()
         if data:
-            raw = call_llm(build_brent_prompt(data))
+            raw = call_llm(build_brent_prompt(data, date_str=date_str))
             if raw:
                 summary, analysis, html = parse_response(raw)
                 save_draft(
@@ -892,10 +798,13 @@ def generate_market_articles(self):
             logger.info("Parallel market rate fetch failed — skipping")
 
     # ── 6. Crypto prices — BTC & ETH (daily) ─────────────────────────────────
-    if not recently_generated("bitcoin", days=1):
+    if not recently_generated("bitcoin", days=7):
         crypto_data = fetch_crypto_prices()
         if crypto_data:
-            raw = call_llm(build_crypto_prompt(crypto_data, date_str))
+            from .data_journalism import fetch_usd_ngn_rate as _fetch_ngn
+            _ngn = _fetch_ngn()
+            ngn_rate = _ngn["rate"] if _ngn else None
+            raw = call_llm(build_crypto_prompt(crypto_data, date_str, ngn_rate=ngn_rate))
             if raw:
                 summary, analysis, html = parse_response(raw)
                 btc_price = (crypto_data.get("btc") or {}).get("price", "")
@@ -941,7 +850,7 @@ def generate_politics_articles(self):
         return "groq package missing"
 
     from .models import Post, Category, Author
-    from .data_journalism import POLITICS_ANALYSIS_TOPICS, build_static_politics_prompt
+    from .data_journalism import POLITICS_ANALYSIS_TOPICS, build_static_politics_prompt, parse_llm_response
 
     client = Groq(api_key=api_key)
     now = timezone.now()
@@ -966,31 +875,7 @@ def generate_politics_articles(self):
             logger.error("Groq API error: %s", exc)
             return None
 
-    def parse_response(raw):
-        summary, analysis, html = "", "", raw
-        if "---" in raw:
-            head, body = raw.split("---", 1)
-            html = body.strip()
-            current_key = None
-            buf = []
-            for line in head.splitlines():
-                stripped = line.strip()
-                upper = stripped.upper()
-                if upper.startswith("SUMMARY:"):
-                    current_key = "summary"
-                    buf = [stripped[8:].strip()]
-                elif upper.startswith("ANALYSIS:"):
-                    if current_key == "summary":
-                        summary = " ".join(buf).strip()
-                    current_key = "analysis"
-                    buf = [stripped[9:].strip()]
-                elif current_key and stripped:
-                    buf.append(stripped)
-            if current_key == "summary":
-                summary = " ".join(buf).strip()
-            elif current_key == "analysis":
-                analysis = " ".join(buf).strip()
-        return summary, analysis, html
+    parse_response = parse_llm_response
 
     def recently_generated(tag_snippet, days):
         cutoff = now - timedelta(days=days)
@@ -1022,7 +907,7 @@ def generate_politics_articles(self):
     topic = POLITICS_ANALYSIS_TOPICS[topic_index]
 
     if not recently_generated(topic["key"], days=topic["frequency_days"]):
-        raw = call_llm(build_static_politics_prompt(topic))
+        raw = call_llm(build_static_politics_prompt(topic, date_str=now.strftime("%d %B %Y")))
         if raw:
             summary, analysis, html = parse_response(raw)
             save_draft(
@@ -1059,7 +944,7 @@ def generate_entertainment_articles(self):
         return "groq package missing"
 
     from .models import Post, Category, Author
-    from .data_journalism import ENTERTAINMENT_ANALYSIS_TOPICS, build_static_entertainment_prompt
+    from .data_journalism import ENTERTAINMENT_ANALYSIS_TOPICS, build_static_entertainment_prompt, parse_llm_response
 
     client = Groq(api_key=api_key)
     now = timezone.now()
@@ -1086,31 +971,7 @@ def generate_entertainment_articles(self):
             logger.error("Groq API error: %s", exc)
             return None
 
-    def parse_response(raw):
-        summary, analysis, html = "", "", raw
-        if "---" in raw:
-            head, body = raw.split("---", 1)
-            html = body.strip()
-            current_key = None
-            buf = []
-            for line in head.splitlines():
-                stripped = line.strip()
-                upper = stripped.upper()
-                if upper.startswith("SUMMARY:"):
-                    current_key = "summary"
-                    buf = [stripped[8:].strip()]
-                elif upper.startswith("ANALYSIS:"):
-                    if current_key == "summary":
-                        summary = " ".join(buf).strip()
-                    current_key = "analysis"
-                    buf = [stripped[9:].strip()]
-                elif current_key and stripped:
-                    buf.append(stripped)
-            if current_key == "summary":
-                summary = " ".join(buf).strip()
-            elif current_key == "analysis":
-                analysis = " ".join(buf).strip()
-        return summary, analysis, html
+    parse_response = parse_llm_response
 
     def recently_generated(tag_snippet, days):
         cutoff = now - timedelta(days=days)
