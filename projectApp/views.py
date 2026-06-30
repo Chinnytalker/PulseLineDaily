@@ -292,10 +292,12 @@ def privacy(request):
 
 
 def contact_us(request):
+    form_success = None
+    form_error = None
     if request.method == 'POST':
         if _is_rate_limited(request, 'contact', limit=5, period=300):
-            messages.error(request, "Too many submissions. Please wait a few minutes and try again.")
-            return redirect("Contact us")
+            form_error = "Too many submissions. Please wait a few minutes and try again."
+            return render(request, "blog/contact_us.html", {"form": ContactForm(), "form_error": form_error})
         form = ContactForm(request.POST)
         if form.is_valid():
             msg = form.save()
@@ -311,8 +313,8 @@ def contact_us(request):
                 recipient_list=[settings.CONTACT_EMAIL],
                 fail_silently=False,
             )
-            messages.success(request, "Message sent successfully!")
-            return redirect("Contact us")
+            form_success = "Message sent successfully! We'll get back to you within 24–48 hours."
+            return render(request, "blog/contact_us.html", {"form": ContactForm(), "form_success": form_success})
     else:
         form = ContactForm()
     return render(request, "blog/contact_us.html", {"form": form})
@@ -359,7 +361,7 @@ def subscribe(request):
         plain_body = (
             f"Hi,\n\nWelcome to PulseLineDaily!\n\n"
             f"You're now subscribed and will receive our weekly news digest every Monday.\n\n"
-            f"To unsubscribe at any time, reply to this email.\n\n"
+            f"To unsubscribe at any time, visit: https://www.pulselinedaily.com/newsletter/unsubscribe/\n\n"
             f"— The PulseLineDaily Team"
         )
         send_mail(
@@ -367,10 +369,11 @@ def subscribe(request):
             message=plain_body,
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[email],
-            fail_silently=True,
+            fail_silently=False,
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).error("Welcome email failed for %s: %s", email, exc)
 
     return _json_or_redirect('success', "You're subscribed! Welcome to PulseLineDaily.")
 

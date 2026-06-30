@@ -72,8 +72,9 @@ def send_weekly_newsletter():
             msg.send()
             sent += 1
         except Exception as exc:
-            logger.warning("Newsletter failed for %s: %s", email, exc)
+            logger.error("Newsletter SMTP failed for %s: %s: %s", email, type(exc).__name__, exc)
 
+    logger.info("Newsletter task finished: %d/%d sent", sent, len(subscribers))
     return f"Newsletter sent to {sent}/{len(subscribers)} confirmed subscribers."
 
 

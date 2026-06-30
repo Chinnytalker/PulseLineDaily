@@ -18,14 +18,15 @@
     </p>
   </div>
 
-  {% if messages %}
-    {% for message in messages %}
-      <div class="mb-6 p-4 rounded-xl border
-          {% if 'success' in message.tags %}bg-green-50 border-green-200 text-green-800 dark:bg-green-900/30 dark:border-green-700 dark:text-green-300
-          {% else %}bg-red-50 border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-700 dark:text-red-300{% endif %}">
-        {{ message }}
-      </div>
-    {% endfor %}
+  {% if form_success %}
+    <div class="mb-6 p-4 rounded-xl border bg-green-50 border-green-200 text-green-800 dark:bg-green-900/30 dark:border-green-700 dark:text-green-300">
+      {{ form_success }}
+    </div>
+  {% endif %}
+  {% if form_error %}
+    <div class="mb-6 p-4 rounded-xl border bg-red-50 border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-700 dark:text-red-300">
+      {{ form_error }}
+    </div>
   {% endif %}
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
