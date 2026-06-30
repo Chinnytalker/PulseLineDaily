@@ -6,10 +6,10 @@
 {% block og_title %}{{ author.name }} | PulseLineDaily{% endblock %}
 {% block og_description %}{% if author.bio %}{{ author.bio|truncatewords:25 }}{% else %}Articles and news by {{ author.name }} on PulseLineDaily.{% endif %}{% endblock %}
 {% block og_type %}profile{% endblock %}
-{% block og_image %}{% if author.photo %}{{ request.scheme }}://{{ request.get_host }}{{ author.photo.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/Pulsemainlogo.jpg' %}{% endif %}{% endblock %}
+{% block og_image %}{% if author.photo %}{{ request.scheme }}://{{ request.get_host }}{{ author.photo.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/og-home-v2.jpg' %}{% endif %}{% endblock %}
 {% block twitter_title %}{{ author.name }} | PulseLineDaily{% endblock %}
 {% block twitter_description %}{% if author.bio %}{{ author.bio|truncatewords:25 }}{% else %}Articles and news by {{ author.name }} on PulseLineDaily.{% endif %}{% endblock %}
-{% block twitter_image %}{% if author.photo %}{{ request.scheme }}://{{ request.get_host }}{{ author.photo.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/Pulsemainlogo.jpg' %}{% endif %}{% endblock %}
+{% block twitter_image %}{% if author.photo %}{{ request.scheme }}://{{ request.get_host }}{{ author.photo.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/og-home-v2.jpg' %}{% endif %}{% endblock %}
 {% block twitter_image_alt %}{{ author.name }} profile photo{% endblock %}
 {% block canonical %}<link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ author.get_absolute_url }}">{% endblock %}
 

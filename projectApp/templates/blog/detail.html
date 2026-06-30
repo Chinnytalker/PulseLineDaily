@@ -7,10 +7,10 @@
 {% block og_type %}article{% endblock %}
 {% block og_title %}{{ post.title }}{% endblock %}
 {% block og_description %}{% if post.summary %}{{ post.summary }}{% else %}{{ post.body|truncatewords:30 }}{% endif %}{% endblock %}
-{% block og_image %}{% if post.image %}{{ request.scheme }}://{{ request.get_host }}{{ post.image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/Pulsemainlogo.jpg' %}{% endif %}{% endblock %}
+{% block og_image %}{% if post.image %}{{ request.scheme }}://{{ request.get_host }}{{ post.image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/og-home-v2.jpg' %}{% endif %}{% endblock %}
 {% block twitter_title %}{{ post.title }}{% endblock %}
 {% block twitter_description %}{% if post.summary %}{{ post.summary }}{% else %}{{ post.body|truncatewords:30 }}{% endif %}{% endblock %}
-{% block twitter_image %}{% if post.image %}{{ request.scheme }}://{{ request.get_host }}{{ post.image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/Pulsemainlogo.jpg' %}{% endif %}{% endblock %}
+{% block twitter_image %}{% if post.image %}{{ request.scheme }}://{{ request.get_host }}{{ post.image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/og-home-v2.jpg' %}{% endif %}{% endblock %}
 {% block twitter_image_alt %}{{ post.title }}{% endblock %}
 {% block twitter_creator %}{% if post.author %}@{{ post.author.name }}{% else %}@pulselinedaily{% endif %}{% endblock %}
 
@@ -26,7 +26,7 @@
   "@type": "NewsArticle",
   "headline": "{{ post.title|escapejs }}",
   "description": "{{ post.summary|default:post.body|truncatewords:30|escapejs }}",
-  "image": ["{% if post.image %}{{ request.scheme }}://{{ request.get_host }}{{ post.image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/Pulsemainlogo.jpg' %}{% endif %}"],
+  "image": ["{% if post.image %}{{ request.scheme }}://{{ request.get_host }}{{ post.image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/og-home-v2.jpg' %}{% endif %}"],
   "datePublished": "{{ post.date_created|date:'c' }}",
   "dateModified": "{{ post.last_modified|date:'c' }}",
   "author": {
@@ -38,7 +38,7 @@
     "@type": "NewsMediaOrganization",
     "name": "PulseLineDaily",
     "url": "{{ request.scheme }}://{{ request.get_host }}/",
-    "logo": { "@type": "ImageObject", "url": "{{ request.scheme }}://{{ request.get_host }}{% static 'image/Pulsemainlogo.jpg' %}", "width": 600, "height": 60 }
+    "logo": { "@type": "ImageObject", "url": "{{ request.scheme }}://{{ request.get_host }}{% static 'image/og-home-v2.jpg' %}", "width": 600, "height": 60 }
   },
   "mainEntityOfPage": { "@type": "WebPage", "@id": "{{ request.build_absolute_uri }}" }{% if post.tags %},
   "keywords": "{{ post.tags }}"{% endif %}{% if post.word_count %},
