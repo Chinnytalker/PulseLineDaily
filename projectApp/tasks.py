@@ -1130,7 +1130,7 @@ def scrape_government_agencies(self):
             except (ValueError, TypeError):
                 pass
 
-        return False  # can't determine age — allow it through
+        return None  # date unknown — caller decides
 
     def similar_title_exists(title):
         kw = _kw(title)
@@ -1158,34 +1158,79 @@ def scrape_government_agencies(self):
             logger.error("Groq API error (gov scraper): %s", exc)
             return None
 
-    def build_gov_prompt(agency, item, body_text, date_str):
+    def build_gov_prompt(agency, item, body_text, date_str, has_known_date=True):
         sector_label = sector_labels.get(agency.sector, agency.sector)
         source_excerpt = body_text or item.get('summary') or item.get('title')
-        return f"""You are a senior Nigerian journalist writing for PulseLineDaily, a professional online news platform.
+        date_warning = (
+            "\n⚠️ NO PUBLICATION DATE FOUND — This content has no verifiable date in the URL or feed. "
+            "Be EXTRA strict: reject unless the content describes a clearly recent, specific named event "
+            "with verifiable details. Evergreen or undated content must be rejected.\n"
+            if not has_known_date else ""
+        )
+        return f"""You are a senior Nigerian journalist and editor at PulseLineDaily, a leading Nigerian news platform.
 
-A Nigerian government agency has published the following press release or news item. Your job is to rewrite it as an original, well-structured news article that is informative, factual, and written in clear journalistic English suitable for a Nigerian general audience.
+TODAY'S DATE: {date_str}
+{date_warning}
+A Nigerian government agency has shared the content below. Before writing anything, make a hard editorial judgement:
+
+REJECT THIS CONTENT (respond only with SKIP: <reason>) if ANY of the following are true:
+- It describes a service, portal, or programme that has existed for a long time with no NEW development announced
+- It is generic promotional or informational content with no specific newsworthy event
+- It reads like an evergreen "about us", FAQ, or awareness page — not a news announcement
+- The source content is too thin or vague to write a factual article without inventing details
+- There is no clear answer to "what specific thing happened that makes this news right now?"
+
+ONLY WRITE THE ARTICLE if it reports a SPECIFIC, RECENT event: a new decision, regulation, crackdown, data/figures released, appointment, fine issued, policy launched, contract awarded, or a direct response to a public issue.
 
 SOURCE AGENCY: {agency.name} ({agency.acronym}) — {sector_label} sector
 ORIGINAL HEADLINE: {item.get('title', '')}
 SOURCE URL: {item.get('url', '')}
-DATE: {date_str}
 SOURCE CONTENT:
 {source_excerpt[:2500]}
 
-INSTRUCTIONS:
-- Write a proper news article, NOT a copy of the press release
-- Lead with the most newsworthy fact in the first paragraph
-- Include context that helps Nigerian readers understand why this matters
-- Use short paragraphs, active voice, and plain English
-- Do NOT fabricate statistics or quotes not present in the source
-- Attribute all claims to "{agency.name}" or "{agency.acronym}"
-- End with one paragraph of broader context or background
-- Output must follow this exact format:
+IF YOU DECIDE TO WRITE THE ARTICLE — follow these strict rules:
 
-SUMMARY: <one sentence, under 160 characters, suitable as a social media caption>
-ANALYSIS: <two sentences explaining the significance for Nigeria>
+WHAT YOU CANNOT FABRICATE (no fake news):
+- Do NOT invent specific figures, fines, dates, names, or statistics that are not in the source
+- Do NOT fabricate or paraphrase quotes — only include a quote if it appears word-for-word in the source
+- Do NOT attribute specific claims to the agency unless they appear in the source
+- Do NOT write "the agency said X" unless X is explicitly in the source content
+
+WHAT YOU CAN AND MUST ADD (depth and context):
+- You MUST add context about why this matters to ordinary Nigerians — draw on your general knowledge of Nigeria's economy, telecoms sector, business climate, or regulatory history
+- You MUST explain the broader implications: what problem does this solve? Who benefits? Who is affected?
+- You CAN reference general background (e.g. "Nigeria has over 220 million mobile subscribers" or "this is the third regulatory action against network operators this year") — clearly frame these as context, not as claims from the source
+- You SHOULD include a forward-looking paragraph: what should Nigerians watch for next?
+
+WRITING RULES (journalism quality):
+- Open with the IMPACT or ACTION — not the agency name
+- First paragraph answers: WHO did WHAT, and why does it matter to Nigerians RIGHT NOW?
+- Use subheadings to break the article into clear sections
+- Short paragraphs, active voice, plain English
+- Length: 550–800 words — substantial and informative, not thin
+
+SEO HEADLINE RULES:
+- Write a headline that is 55–70 characters, includes the key search term, and tells the reader exactly what happened
+- Good: "NCC Fines MTN N1bn Over Subscriber Data Breach" | "FIRS Extends Tax Filing Deadline to August for Small Businesses"
+- Bad: "NCC Introduces E-Services Portal" | "Government Launches New Initiative" | "Agency Releases Statement on Policy"
+
+OUTPUT FORMAT (if writing the article) — exactly as shown, no deviation:
+HEADLINE: <SEO headline 55–70 chars — specific, action-driven, includes key names/figures>
+SUMMARY: <one punchy sentence under 160 chars — the single most impactful fact, written for social media sharing>
+ANALYSIS: <two sentences — the significance for Nigeria's economy or citizens, and what it signals going forward>
 ---
-<article HTML body starting with <h2> subheading — use <h2>, <p>, <ul>/<li> only>"""
+<article HTML — use <h2>, <h3>, <p>, <ul>, <li> — structure the article with clear subheadings for each section>
+
+SUGGESTED ARTICLE STRUCTURE:
+<h2> — mirrors the headline
+Opening paragraph — the core news fact
+<h3>What Happened</h3> — detailed breakdown of the announcement, decision, or action (source facts only)
+<h3>What This Means for Nigerians</h3> — impact on citizens, businesses, or consumers (your analysis + context)
+<h3>Background</h3> — relevant context about the agency, sector, or issue (general knowledge, clearly framed)
+<h3>What to Watch</h3> — forward-looking paragraph: next steps, deadlines, what to expect
+
+OUTPUT FORMAT (if rejecting):
+SKIP: <one sentence explaining why this is not genuinely new or specific news>"""
 
     total_created = 0
     agencies_processed = 0
@@ -1216,10 +1261,17 @@ ANALYSIS: <two sentences explaining the significance for Nigeria>
                     logger.debug("Gov scraper — recently covered URL: %s", url)
                     continue
 
+                # Determine if we can verify the content's age
+                has_known_date = bool(item.get('published_iso')) or bool(
+                    _re.search(r'/(\d{4})[/_-](\d{1,2})', url)
+                )
+
                 # Skip if item is older than 45 days
-                if is_too_old(item):
+                age_check = is_too_old(item)
+                if age_check is True:
                     logger.debug("Gov scraper — stale item skipped: %s", title[:80])
                     continue
+                # age_check is None means no date found — let LLM decide via has_known_date flag
 
                 # Skip if a near-identical title was already published in the last 7 days
                 if similar_title_exists(title):
@@ -1229,10 +1281,25 @@ ANALYSIS: <two sentences explaining the significance for Nigeria>
                 # Fetch full content — handles HTML pages, PDFs, and skips images
                 body_text = fetch_gov_content(url, max_chars=2500)
 
-                prompt = build_gov_prompt(agency, item, body_text, date_str)
+                prompt = build_gov_prompt(agency, item, body_text, date_str, has_known_date=has_known_date)
                 raw = call_llm(prompt)
                 if not raw:
                     continue
+
+                # LLM editorial rejection — not genuinely new or specific news
+                if raw.strip().upper().startswith('SKIP:'):
+                    reason = raw.strip()[5:].strip()[:120]
+                    logger.info("Gov scraper — LLM rejected '%s': %s", title[:60], reason)
+                    continue
+
+                # Extract SEO headline if LLM provided one
+                seo_title = title
+                headline_match = _re.search(r'^HEADLINE:\s*(.+)', raw, _re.MULTILINE | _re.IGNORECASE)
+                if headline_match:
+                    candidate = headline_match.group(1).strip()[:200]
+                    if len(candidate) > 15:
+                        seo_title = candidate
+                    raw = _re.sub(r'^HEADLINE:.*\n?', '', raw, flags=_re.MULTILINE | _re.IGNORECASE).strip()
 
                 summary, analysis, html_body = parse_llm_response(raw)
 
@@ -1242,13 +1309,13 @@ ANALYSIS: <two sentences explaining the significance for Nigeria>
                     continue
 
                 if not summary:
-                    summary = title[:160]
+                    summary = seo_title[:160]
 
                 sector_label = sector_labels.get(agency.sector, agency.sector)
 
                 try:
                     post = Post.objects.create(
-                        title=title,
+                        title=seo_title,
                         body=html_body,
                         summary=summary,
                         analysis=analysis or None,
