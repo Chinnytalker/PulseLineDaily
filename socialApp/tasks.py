@@ -88,31 +88,60 @@ def _share_to_telegram(post):
         logger.warning("Telegram: credentials not configured — skipping post '%s'", post.title[:50])
         return
 
-    excerpt = _plain_excerpt(post, max_chars=300)
     post_url = _post_full_url(post)
-
-    # Escape angle brackets in title/excerpt so Telegram HTML parser doesn't choke
     safe_title = post.title.replace('<', '&lt;').replace('>', '&gt;')
-    safe_excerpt = excerpt.replace('<', '&lt;').replace('>', '&gt;')
 
-    text = (
-        f"📰 <b>{safe_title}</b>\n\n"
-        f"{safe_excerpt}\n\n"
-        f'<a href="{post_url}">Read the full story →</a>\n\n'
-        f"#PulseLineDaily #NigeriaNews"
-    )
+    # Try to get the Cloudinary image URL directly
+    image_url = None
+    try:
+        if post.image:
+            image_url = post.image.url
+    except Exception:
+        image_url = None
 
     try:
-        resp = requests.post(
-            f"https://api.telegram.org/bot{bot_token}/sendMessage",
-            json={
-                'chat_id': channel_id,
-                'text': text,
-                'parse_mode': 'HTML',
-                'disable_web_page_preview': False,
-            },
-            timeout=15,
-        )
+        if image_url:
+            # sendPhoto: attach article image directly — no more site logo previews
+            # Caption max is 1024 chars so keep excerpt short
+            excerpt = _plain_excerpt(post, max_chars=200)
+            safe_excerpt = excerpt.replace('<', '&lt;').replace('>', '&gt;')
+            caption = (
+                f"<b>{safe_title}</b>\n\n"
+                f"{safe_excerpt}\n\n"
+                f'<a href="{post_url}">Read the full story</a>\n\n'
+                f"#PulseLineDaily #NigeriaNews"
+            )
+            resp = requests.post(
+                f"https://api.telegram.org/bot{bot_token}/sendPhoto",
+                json={
+                    'chat_id': channel_id,
+                    'photo': image_url,
+                    'caption': caption,
+                    'parse_mode': 'HTML',
+                },
+                timeout=15,
+            )
+        else:
+            # No image — fall back to text message with link preview
+            excerpt = _plain_excerpt(post, max_chars=300)
+            safe_excerpt = excerpt.replace('<', '&lt;').replace('>', '&gt;')
+            text = (
+                f"<b>{safe_title}</b>\n\n"
+                f"{safe_excerpt}\n\n"
+                f'<a href="{post_url}">Read the full story</a>\n\n'
+                f"#PulseLineDaily #NigeriaNews"
+            )
+            resp = requests.post(
+                f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                json={
+                    'chat_id': channel_id,
+                    'text': text,
+                    'parse_mode': 'HTML',
+                    'disable_web_page_preview': False,
+                },
+                timeout=15,
+            )
+
         data = resp.json()
 
         if data.get('ok'):
