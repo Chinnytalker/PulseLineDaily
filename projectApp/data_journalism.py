@@ -1018,25 +1018,27 @@ SPORTS_ANALYSIS_TOPICS = [
 
 Write a complete, original HTML sports analysis article about African nations at the FIFA World Cup 2026.
 
-CONTEXT: The FIFA World Cup 2026 is currently being hosted by USA, Canada, and Mexico. It features 48 teams for the first time, with CAF (Africa) allocated 9 spots. Nigeria did NOT qualify. The 9 CAF nations that qualified include Morocco, Senegal, Egypt, Ivory Coast, Cameroon, South Africa, and others. Write about this tournament as currently ongoing.
+CONTEXT: The FIFA World Cup 2026 is currently being hosted by USA, Canada, and Mexico. It features 48 teams for the first time, with CAF (Africa) allocated 9 spots. Nigeria did NOT qualify. The 9 CAF nations that qualified include Morocco, Senegal, Egypt, Ivory Coast, Cameroon, South Africa, and others.
 
 TODAY'S DATE: {date_str}
 
+⚠️ CRITICAL: Your training data ends around August 2025. You do NOT know actual WC2026 match results, group table standings, or which African nations have already advanced or been eliminated. Do NOT fabricate specific scores, results, or group standings from this tournament. Write analytically about squad quality, tactical strengths, and what each African nation needed to do to advance — NOT about outcomes you cannot know. Use language like "needed to", "would need to", "their best chance lies in", NOT "they won", "they advanced", or "they were eliminated".
+
 OUTPUT FORMAT — three parts, exactly as shown:
 SUMMARY: <punchy one-liner teaser, max 160 chars>
-ANALYSIS: <2–3 sentences of expert analysis — Africa's overall World Cup 2026 performance and whether the continent is living up to the historic 9-slot opportunity>
+ANALYSIS: <2–3 sentences of expert analysis — Africa's overall World Cup 2026 ambitions and whether the continent has the squads to capitalise on the historic 9-slot opportunity>
 ---
 <HTML article body>
 
 ARTICLE REQUIREMENTS:
 - Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li>
-- <h2>: strong headline about Africa's World Cup 2026 campaign (frame as ongoing tournament)
-- Opening: how many African nations qualified and the historic 9-slot opportunity for CAF
-- <h3>Africa's Strongest Contenders</h3>: Morocco, Senegal, Egypt, Ivory Coast, Cameroon, South Africa — which CAF nations have the best shot at the knockout rounds and why
-- <h3>The New Round of 32</h3>: how the expanded 48-team format's Round of 32 gives African nations a better chance than the old format
-- <h3>Stars to Watch</h3>: African players who could define this tournament — name only players you are confident about
-- <h3>What This Means for African Football</h3>: what a strong African showing at WC2026 would mean for the continent's global standing
-- Closing: a measured look at Africa's realistic chances of a deep run
+- <h2>: strong headline about Africa's World Cup 2026 campaign — frame as analytical preview/assessment, not a results report
+- Opening: how many African nations qualified and the historic significance of CAF's 9-slot allocation in this expanded 48-team tournament
+- <h3>Africa's Strongest Contenders</h3>: Morocco, Senegal, Egypt, Ivory Coast, Cameroon, South Africa — assess each nation's squad quality, tactical identity, and what a deep run would require — do NOT claim any has "already advanced" or "was eliminated"
+- <h3>The New Round of 32</h3>: how the expanded 48-team format's Round of 32 gives African nations a structural advantage over the old format
+- <h3>African Stars at the Tournament</h3>: African players who could define this tournament — name only players you are confident were selected and are at the tournament; do not name specific goal scorers or award winners from 2026 matches
+- <h3>What This Means for African Football</h3>: what a strong African showing at WC2026 would mean for CAF's push for more World Cup slots and the continent's global football standing
+- Closing: a measured look at Africa's realistic ambition at this World Cup
 - Length: 550–700 words | Tone: expert, analytical, fan-first
 - Do NOT mention Nigeria as a participant — Nigeria did not qualify for World Cup 2026""",
     },
@@ -2122,67 +2124,98 @@ ARTICLE REQUIREMENTS:
     },
     {
         "key": "nollywood_weekly",
-        "title": "Nollywood Now: Movies and Series Every Nigerian Is Watching",
+        "title": "Nollywood in 2026: How Nigeria's Film Industry Conquered the World",
         "tags": "nollywood, nigerian movies, netflix nigeria, showmax, film, cinema, entertainment",
         "frequency_days": 7,
         "prompt": """You are a senior film and entertainment journalist at PulseLineDaily, Nigeria's leading digital news outlet.
 
-Write a complete, original HTML Nollywood feature article for {date_str}.
+Write a complete, original HTML industry analysis feature about Nollywood's position in 2026. This is NOT a "what to watch this week" article — it is an analytical deep-dive into the business, creativity, and cultural power of Nigerian cinema.
 
 TODAY'S DATE: {date_str}
 
-⚠️ KNOWLEDGE CUTOFF WARNING: Your training data ends around August 2025. Today is {date_str}. You do NOT know what Nollywood titles dropped in late 2025 or 2026. Do NOT write about any film, series, or release as if it is "currently trending" or "just released" unless you are certain it exists and was released before August 2025. Instead, frame this as an analytical feature about the state of Nollywood in 2026, drawing on established works, confirmed streaming deals, and structural industry trends you are confident about. Do NOT present 2024 content as breaking 2026 news.
+⚠️ CRITICAL CONSTRAINT — READ BEFORE WRITING:
+Your AI training data ends around August 2025. You do NOT know what films are currently in Nigerian cinemas, what series dropped on Netflix or Showmax in 2026, or what is "trending right now." If you try to answer those questions you WILL fabricate film titles or present 2022–2024 releases as current 2026 content — which is wrong and embarrassing for the publication.
+
+WHAT YOU CAN WRITE ABOUT WITH CONFIDENCE:
+- The structural growth of Nollywood as a global industry (box office trajectory, streaming expansion, international co-productions up to 2025)
+- Genres and creative trends that have defined modern Nollywood (crime thrillers, Yoruba romance, diaspora stories, historical epics)
+- Landmark films and series from 2019–2025 that shaped the industry — name these with their actual release year so readers know they are not new
+- Directors and actors who have established themselves as industry leaders — write about their career arc, not "what they're currently working on"
+- Nollywood's relationship with Netflix, Showmax, Prime Video, and cinemas — how distribution has evolved
+- AFRIFF, AMAA, and other awards/festival ecosystems
+
+WHAT YOU MUST NOT DO:
+- Do NOT say any film is "currently in cinemas", "just dropped on Netflix", "this week's must-watch", or "trending right now"
+- Do NOT fabricate film titles you are not 100% certain exist
+- Do NOT write as if you know what happened in Nigerian entertainment in 2026
+- Do NOT present a 2022 film as a 2026 release
+- Do NOT say "this month" or "this week" in relation to any specific film or series
 
 OUTPUT FORMAT — three parts, exactly as shown:
-SUMMARY: <punchy one-liner teaser, max 160 chars — capture the Nollywood mood in 2026>
-ANALYSIS: <2–3 sentences of editorial analysis — the creative wave or business trend defining Nollywood right now>
+SUMMARY: <punchy one-liner teaser, max 160 chars — e.g. "Nollywood is no longer just Nigerian — here's how the world became the audience">
+ANALYSIS: <2–3 sentences of sharp industry analysis — the defining trend or business shift shaping Nollywood's global rise>
 ---
 <HTML article body>
 
 ARTICLE REQUIREMENTS:
 - Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head>/<style> tags
-- <h2>: headline about the state of Nollywood in 2026 — frame as an industry overview, not a breaking news headline
-- Opening paragraph: set the scene of Nollywood's position in 2026 — growth, global reach, streaming dominance
-- <h3>Films and Series Worth Watching</h3>: name only Nollywood titles you are confident exist and were released before August 2025 — their platform, lead actors, and why they still matter; do not claim they "just dropped"
-- <h3>The Stars Shaping Nollywood</h3>: established actors and directors who are defining the industry — their trajectory and body of work
-- <h3>The Creative Trends Driving Nollywood</h3>: themes, genres, and storytelling styles dominating Nigerian cinema — crime thrillers, Yoruba romanticism, diaspora stories, political satire
-- <h3>Nollywood Goes Global</h3>: Netflix deals, international festival presence, diaspora audiences, crossover collaborations — use only confirmed facts
-- Closing: where Nollywood is headed and what fans should be excited about
-- Length: 700–900 words | Tone: engaging, culturally sharp, celebratory but honest
-- SEO: "nollywood 2026", "nigerian movies to watch", "nollywood netflix", "naija movies"
-- Do NOT fabricate box office numbers, streaming figures, release dates, or award wins you are not certain about""",
+- <h2>: strong headline about Nollywood's power and trajectory in 2026 — analytical, not "breaking news"
+- Opening paragraph: Nollywood's place in the global entertainment landscape — scale, global audience, industry value
+- <h3>The Streaming Revolution</h3>: how Netflix, Showmax, and Prime Video transformed Nollywood's reach and business model — distribution deals, subscriber access, diaspora engagement
+- <h3>Genres Defining the Modern Era</h3>: the creative currents driving Nigerian cinema — crime thrillers, political dramas, Yoruba romanticism, diaspora stories — with examples of landmark titles from the 2019–2025 era (name the film AND its release year)
+- <h3>The Filmmakers Shaping Nollywood's Future</h3>: established directors and producers who have defined the industry — their creative vision and body of work
+- <h3>Nollywood on the World Stage</h3>: international festival selections, awards, global distribution, African film diplomacy
+- Closing: what the continued rise of Nollywood means for African storytelling and Nigerian soft power
+- Length: 700–900 words | Tone: authoritative, culturally sharp, analytical — the voice of someone who respects both cinema and business
+- SEO: "nollywood 2026", "nigerian film industry", "nollywood netflix", "nigerian cinema global"
+- Any specific film or series you mention must include its real release year in the text (e.g., "King of Boys: The Return of the King (2021)")""",
     },
     {
         "key": "nigerian_celebrity_culture",
-        "title": "Nigerian Celebrity Culture: What Everyone Is Talking About",
+        "title": "Fame in Nigeria: How Celebrity Culture Has Evolved in 2026",
         "tags": "nigerian celebrities, entertainment, bbnaija, social media, influencers, culture, entertainment",
         "frequency_days": 14,
         "prompt": """You are a senior entertainment journalist at PulseLineDaily, Nigeria's leading digital news outlet.
 
-Write a complete, original HTML entertainment feature about Nigerian celebrity culture as of {date_str}.
+Write a complete, original HTML cultural analysis feature about the nature of celebrity and fame in Nigeria in 2026. This is NOT a gossip roundup or "what happened this week" article — it is a thoughtful analysis of how Nigerian celebrity culture works, who drives it, and what it says about modern Nigeria.
 
 TODAY'S DATE: {date_str}
 
-⚠️ KNOWLEDGE CUTOFF WARNING: Your training data ends around August 2025. Today is {date_str}. You do NOT know what viral moments, feuds, celebrity news, or social media storms have happened in late 2025 or 2026. Do NOT write about any celebrity incident, collaboration, controversy, or social media moment as if it is "happening right now" unless you are certain it occurred before August 2025. Instead, write an analytical feature about the state of Nigerian celebrity culture in 2026 — the stars who have established themselves, the platforms shaping fame, and the cultural dynamics at play. Use established facts and confident observations, NOT fabricated breaking news. Do NOT write headlines like "This week, [celebrity] shocked fans when..." unless you are certain it happened.
+⚠️ CRITICAL CONSTRAINT — READ BEFORE WRITING:
+Your AI training data ends around August 2025. You do NOT know what viral moments, feuds, controversies, or social media storms happened in 2026. If you try to write "what everyone is talking about right now" you WILL fabricate incidents, misattribute events, or present 2023–2024 stories as current — which is wrong and damages the publication's credibility.
+
+WHAT YOU CAN WRITE ABOUT WITH CONFIDENCE:
+- The cultural mechanics of Nigerian celebrity — how fame works, what sustains it, how it differs from Western celebrity culture
+- Established stars who have built lasting influence: musicians like Burna Boy, Davido, Wizkid, Tiwa Savage; actors like Funke Akindele, Toyin Abraham, Ramsey Nouah; skit makers and comedians who crossed over to mainstream
+- The platforms that define Nigerian celebrity: Instagram, TikTok, Twitter/X — how each shapes influence differently
+- BBNaija as a celebrity factory — its cultural role, how housemates leverage fame
+- The intersection of music, film, brand deals, and social media that defines modern Nigerian celebrity
+- Fashion, Afrobeats, and how Nigerian celebrities are pushing the country's culture globally
+
+WHAT YOU MUST NOT DO:
+- Do NOT write about any incident, feud, controversy, or viral moment as "happening right now" or "this week"
+- Do NOT say "[celebrity] recently announced..." or "fans were shocked when..." unless you are 100% certain of the specific event and when it happened
+- Do NOT fabricate brand deals, collaborations, or relationship drama
+- Do NOT write as if you know who won BBNaija in 2026 or what happened on social media in 2026
 
 OUTPUT FORMAT — three parts, exactly as shown:
-SUMMARY: <punchy one-liner teaser, max 160 chars — capture the current state of Nigerian celebrity culture>
-ANALYSIS: <2–3 sentences of editorial analysis — what defines fame, influence, and celebrity in Nigeria in 2026>
+SUMMARY: <punchy one-liner teaser, max 160 chars — capture the essence of Nigerian celebrity culture in 2026>
+ANALYSIS: <2–3 sentences of sharp cultural analysis — what fame means in Nigeria right now and what drives it>
 ---
 <HTML article body>
 
 ARTICLE REQUIREMENTS:
 - Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head>/<style> tags
-- <h2>: headline about Nigerian celebrity culture in 2026 — frame as an industry overview or cultural analysis
-- Opening paragraph: set the scene of Nigerian celebrity culture right now — who holds influence, how fame has evolved
-- <h3>Stars Who Define the Moment</h3>: 3–4 established Nigerian celebrities — musicians, actors, comedians, skit makers — explain their cultural weight and established trajectory; only discuss facts you are confident about
-- <h3>The Platforms Shaping Fame</h3>: how Instagram, TikTok, Twitter/X, and YouTube are redefining Nigerian celebrity — trends and platforms you can speak to with confidence
-- <h3>Fashion, Style and Brand Power</h3>: how top Nigerian celebrities engage fashion brands, red carpets, and African design — use only confirmed collaborations or established style trends
-- <h3>What It Means to Be Famous in Nigeria in 2026</h3>: a cultural analysis of the pressures, expectations, and power that come with Nigerian celebrity — the intersection of social media, music, film, and brand deals
-- Closing: a sharp observation about where Nigerian celebrity culture is headed
-- Length: 650–850 words | Tone: culturally aware, stylish, engaging — the voice of someone who genuinely loves Nigerian entertainment
-- SEO: "nigerian celebrities", "naija entertainment", "nigeria celebrity news"
-- Do NOT fabricate controversies, feuds, viral moments, or incidents you are not certain occurred""",
+- <h2>: strong headline about the nature of celebrity and fame in Nigeria in 2026 — analytical and cultural in tone
+- Opening paragraph: the scale and global reach of Nigerian celebrity in 2026 — Afrobeats, Nollywood, social media creating a new generation of global Nigerian stars
+- <h3>The Stars Who Built Lasting Influence</h3>: 4–5 established Nigerian celebrities with real cultural weight — explain WHY they matter, their career arcs, and what they represent; write about what they have already achieved, not what they are "currently doing"
+- <h3>How Nigerian Fame Is Made in 2026</h3>: the platforms, moments, and mechanisms that create celebrity in Nigeria — BBNaija, viral music, skit culture, social media — write analytically about the system, not specific 2026 incidents
+- <h3>Fashion, Afrobeats and the Global Stage</h3>: how Nigerian celebrities are using culture as a vehicle for global presence — the intersection of music, fashion, and international brand visibility
+- <h3>The Price of Fame in Nigeria</h3>: the pressures, expectations, and scrutiny that come with Nigerian celebrity — public morality debates, parasocial fandom, the cost of staying relevant
+- Closing: what Nigerian celebrity culture says about the country's self-confidence, ambition, and global identity
+- Length: 650–850 words | Tone: culturally aware, analytical, stylish — the voice of someone who takes Nigerian culture seriously
+- SEO: "nigerian celebrities 2026", "naija entertainment", "nigeria celebrity culture"
+- Any specific celebrity incident you reference must be something you are certain happened, not assumed or inferred""",
     },
 ]
 
