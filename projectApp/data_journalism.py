@@ -1911,7 +1911,7 @@ Write a complete, original HTML analysis article assessing the Tinubu administra
 
 TODAY'S DATE: {date_str}
 
-CONTEXT: President Bola Tinubu took office on 29 May 2023. Key decisions include removal of petrol subsidy (Day 1), unification of the naira exchange rate, tax reform bills, and security initiatives. These have had significant economic consequences for ordinary Nigerians. Your training data ends around August 2025 — focus on established policy impacts and structural analysis rather than specific events you cannot verify after that date.
+CONTEXT: President Bola Tinubu took office on 29 May 2023. As of {date_str}, he has been in office for exactly {tenure}. CRITICAL: Do NOT write "over a year", "one year", or any tenure description other than "{tenure}" — he has been president for {tenure}. Key decisions include removal of petrol subsidy (Day 1), unification of the naira exchange rate, tax reform bills, and security initiatives. These have had significant economic consequences for ordinary Nigerians. Your training data ends around August 2025 — focus on established policy impacts and structural analysis rather than specific events you cannot verify after that date.
 
 OUTPUT FORMAT — three parts, exactly as shown:
 SUMMARY: <punchy one-liner teaser, max 160 chars>
@@ -2029,7 +2029,27 @@ ARTICLE REQUIREMENTS:
 
 
 def build_static_politics_prompt(topic, date_str=""):
-    return topic["prompt"].replace("{date_str}", date_str)
+    result = topic["prompt"].replace("{date_str}", date_str)
+
+    if "{tenure}" in result:
+        try:
+            from datetime import date as _date, datetime as _datetime
+            inauguration = _date(2023, 5, 29)
+            today = _datetime.strptime(date_str, "%d %B %Y").date() if date_str else _date.today()
+            days = (today - inauguration).days
+            years = days // 365
+            months = (days % 365) // 30
+            if years > 0 and months > 0:
+                tenure = f"{years} year{'s' if years != 1 else ''} and {months} month{'s' if months != 1 else ''}"
+            elif years > 0:
+                tenure = f"{years} year{'s' if years != 1 else ''}"
+            else:
+                tenure = f"{months} month{'s' if months != 1 else ''}"
+        except Exception:
+            tenure = "over three years"
+        result = result.replace("{tenure}", tenure)
+
+    return result
 
 
 # ── Music chart fetcher ───────────────────────────────────────────────────────
@@ -2107,28 +2127,30 @@ ARTICLE REQUIREMENTS:
         "frequency_days": 7,
         "prompt": """You are a senior film and entertainment journalist at PulseLineDaily, Nigeria's leading digital news outlet.
 
-Write a complete, original HTML weekly Nollywood roundup covering what Nigerians are watching and talking about right now.
+Write a complete, original HTML Nollywood feature article for {date_str}.
 
 TODAY'S DATE: {date_str}
 
+⚠️ KNOWLEDGE CUTOFF WARNING: Your training data ends around August 2025. Today is {date_str}. You do NOT know what Nollywood titles dropped in late 2025 or 2026. Do NOT write about any film, series, or release as if it is "currently trending" or "just released" unless you are certain it exists and was released before August 2025. Instead, frame this as an analytical feature about the state of Nollywood in 2026, drawing on established works, confirmed streaming deals, and structural industry trends you are confident about. Do NOT present 2024 content as breaking 2026 news.
+
 OUTPUT FORMAT — three parts, exactly as shown:
-SUMMARY: <punchy one-liner teaser, max 160 chars — name the hottest Nollywood title right now>
-ANALYSIS: <2–3 sentences of editorial analysis — the trend, theme, or creative wave defining Nollywood at this moment>
+SUMMARY: <punchy one-liner teaser, max 160 chars — capture the Nollywood mood in 2026>
+ANALYSIS: <2–3 sentences of editorial analysis — the creative wave or business trend defining Nollywood right now>
 ---
 <HTML article body>
 
 ARTICLE REQUIREMENTS:
 - Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head>/<style> tags
-- <h2>: headline naming a specific film, series, or Nollywood moment dominating conversation
-- Opening paragraph: set the scene — what Nollywood film or series is everyone talking about right now
-- <h3>What to Watch This Week</h3>: 3–5 Nollywood films or series currently streaming or in cinemas — name the title, platform (Netflix, Showmax, Prime Video, cinema), lead actors, and a brief review or description; only name titles you are confident exist
-- <h3>The Breakout Stars</h3>: 2–3 Nollywood actors or directors who are having a defining moment — their latest project, their trajectory, why they matter
-- <h3>Nollywood Trends</h3>: recurring themes dominating Nigerian cinema right now — Yoruba romanticism, crime thrillers, political satire, diaspora stories, etc.
-- <h3>International Recognition</h3>: Nollywood on the global stage — international festival selections, streaming deals, diaspora viewership — use only established facts
-- Closing: what Nollywood title or event to look out for in the coming weeks
+- <h2>: headline about the state of Nollywood in 2026 — frame as an industry overview, not a breaking news headline
+- Opening paragraph: set the scene of Nollywood's position in 2026 — growth, global reach, streaming dominance
+- <h3>Films and Series Worth Watching</h3>: name only Nollywood titles you are confident exist and were released before August 2025 — their platform, lead actors, and why they still matter; do not claim they "just dropped"
+- <h3>The Stars Shaping Nollywood</h3>: established actors and directors who are defining the industry — their trajectory and body of work
+- <h3>The Creative Trends Driving Nollywood</h3>: themes, genres, and storytelling styles dominating Nigerian cinema — crime thrillers, Yoruba romanticism, diaspora stories, political satire
+- <h3>Nollywood Goes Global</h3>: Netflix deals, international festival presence, diaspora audiences, crossover collaborations — use only confirmed facts
+- Closing: where Nollywood is headed and what fans should be excited about
 - Length: 700–900 words | Tone: engaging, culturally sharp, celebratory but honest
 - SEO: "nollywood 2026", "nigerian movies to watch", "nollywood netflix", "naija movies"
-- Do NOT fabricate box office numbers, specific streaming figures, or award wins you are not certain about""",
+- Do NOT fabricate box office numbers, streaming figures, release dates, or award wins you are not certain about""",
     },
     {
         "key": "nigerian_celebrity_culture",
@@ -2137,28 +2159,30 @@ ARTICLE REQUIREMENTS:
         "frequency_days": 14,
         "prompt": """You are a senior entertainment journalist at PulseLineDaily, Nigeria's leading digital news outlet.
 
-Write a complete, original HTML entertainment feature about the people, moments, and conversations dominating Nigerian celebrity culture.
+Write a complete, original HTML entertainment feature about Nigerian celebrity culture as of {date_str}.
 
 TODAY'S DATE: {date_str}
 
+⚠️ KNOWLEDGE CUTOFF WARNING: Your training data ends around August 2025. Today is {date_str}. You do NOT know what viral moments, feuds, celebrity news, or social media storms have happened in late 2025 or 2026. Do NOT write about any celebrity incident, collaboration, controversy, or social media moment as if it is "happening right now" unless you are certain it occurred before August 2025. Instead, write an analytical feature about the state of Nigerian celebrity culture in 2026 — the stars who have established themselves, the platforms shaping fame, and the cultural dynamics at play. Use established facts and confident observations, NOT fabricated breaking news. Do NOT write headlines like "This week, [celebrity] shocked fans when..." unless you are certain it happened.
+
 OUTPUT FORMAT — three parts, exactly as shown:
-SUMMARY: <punchy one-liner teaser, max 160 chars — name the celebrity moment or story capturing attention>
-ANALYSIS: <2–3 sentences of editorial analysis — what this moment reveals about Nigerian celebrity culture and the broader entertainment industry>
+SUMMARY: <punchy one-liner teaser, max 160 chars — capture the current state of Nigerian celebrity culture>
+ANALYSIS: <2–3 sentences of editorial analysis — what defines fame, influence, and celebrity in Nigeria in 2026>
 ---
 <HTML article body>
 
 ARTICLE REQUIREMENTS:
 - Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head>/<style> tags
-- <h2>: headline capturing the biggest celebrity story or cultural moment right now
-- Opening paragraph: introduce the dominant story or theme in Nigerian celebrity culture this week
-- <h3>The Conversation Everyone Is Having</h3>: the top 2–3 stories or moments dominating Nigerian social media, Twitter/X, and entertainment blogs — be specific about who is involved and what happened; only cover stories you are confident about
-- <h3>Ones to Watch</h3>: 3–4 celebrities — musicians, actors, comedians, influencers, skit makers — who are building major momentum right now and why
-- <h3>Fashion and Style Moments</h3>: notable red carpet looks, fashion collaborations, or style moments that have sparked conversation — Nigerian designers and the global fashion stage
-- <h3>What Social Media Is Saying</h3>: the tone of public conversation around these stories — praise, controversy, debate — without amplifying harmful content
-- Closing: a sharp cultural observation about what these stories say about Nigeria in {date_str[:4]}
+- <h2>: headline about Nigerian celebrity culture in 2026 — frame as an industry overview or cultural analysis
+- Opening paragraph: set the scene of Nigerian celebrity culture right now — who holds influence, how fame has evolved
+- <h3>Stars Who Define the Moment</h3>: 3–4 established Nigerian celebrities — musicians, actors, comedians, skit makers — explain their cultural weight and established trajectory; only discuss facts you are confident about
+- <h3>The Platforms Shaping Fame</h3>: how Instagram, TikTok, Twitter/X, and YouTube are redefining Nigerian celebrity — trends and platforms you can speak to with confidence
+- <h3>Fashion, Style and Brand Power</h3>: how top Nigerian celebrities engage fashion brands, red carpets, and African design — use only confirmed collaborations or established style trends
+- <h3>What It Means to Be Famous in Nigeria in 2026</h3>: a cultural analysis of the pressures, expectations, and power that come with Nigerian celebrity — the intersection of social media, music, film, and brand deals
+- Closing: a sharp observation about where Nigerian celebrity culture is headed
 - Length: 650–850 words | Tone: culturally aware, stylish, engaging — the voice of someone who genuinely loves Nigerian entertainment
 - SEO: "nigerian celebrities", "naija entertainment", "nigeria celebrity news"
-- Do NOT publish unverified gossip, defamatory claims, or fabricated controversies""",
+- Do NOT fabricate controversies, feuds, viral moments, or incidents you are not certain occurred""",
     },
 ]
 
