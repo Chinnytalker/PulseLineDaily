@@ -51,6 +51,12 @@ TASKS = [
         'cron': {'minute': '0', 'hour': '7,13,19', 'day_of_week': '*',
                  'day_of_month': '*', 'month_of_year': '*'},
     },
+    {
+        'name': 'social-auto-poster',
+        'task': 'socialApp.tasks.share_published_posts',
+        'cron': {'minute': '*/15', 'hour': '*', 'day_of_week': '*',
+                 'day_of_month': '*', 'month_of_year': '*'},
+    },
 ]
 
 

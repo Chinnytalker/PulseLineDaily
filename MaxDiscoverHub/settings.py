@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.sitemaps',
     'projectApp',
+    'socialApp',
     'tailwind',
     'theme',
     'widget_tweaks',
@@ -310,6 +311,19 @@ CLOUDINARY_STORAGE = {
     'API_KEY': config('API_KEY'),
     'API_SECRET': config('API_SECRET'),
 }
+
+# ── Social Media Auto-Poster ───────────────────────────────────────────────────
+# Full URL of the site — used to build article links in social posts
+SITE_URL = config('SITE_URL', default='https://www.pulselinedaily.com')
+
+# Facebook Page — get a Page Access Token at developers.facebook.com
+# Needs pages_manage_posts + pages_read_engagement permissions
+FACEBOOK_PAGE_ACCESS_TOKEN = config('FACEBOOK_PAGE_ACCESS_TOKEN', default='')
+FACEBOOK_PAGE_ID = config('FACEBOOK_PAGE_ID', default='')
+
+# Telegram Channel — create a bot via @BotFather, add it as admin to your channel
+TELEGRAM_BOT_TOKEN = config('TELEGRAM_BOT_TOKEN', default='')
+TELEGRAM_CHANNEL_ID = config('TELEGRAM_CHANNEL_ID', default='')
 
 
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
