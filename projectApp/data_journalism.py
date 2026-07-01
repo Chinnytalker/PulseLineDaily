@@ -681,7 +681,7 @@ def build_rewrite_prompt(story):
             f"(limited context — use what is available):\n{story['excerpt']}"
         )
 
-    return f"""You are a senior journalist at PulseLineDaily, a leading Nigerian digital news outlet. Your articles are published, indexed by Google, and reviewed for AdSense quality — they must be genuinely original, substantive, and add clear value beyond what the source article says.
+    return f"""You are a senior journalist at PulseLineDaily, a leading Nigerian digital news outlet. Your articles are published, indexed by Google, and reviewed for AdSense quality.
 
 STORY TOPIC:
 Headline: {story['title']}
@@ -689,32 +689,36 @@ Source: {story['source_label']}
 
 {source_block}
 
+ABSOLUTE RULES — NEVER BREAK THESE:
+- Do NOT invent quotes of any kind — no named quotes, no anonymous quotes, no "in the words of a wise observer", no "analysts say", no "experts believe", no "critics argue" unless these appear word-for-word in the source
+- Do NOT pad with generic statements that could apply to any story — every sentence must be specific to THIS story
+- Do NOT write more than 700 words — tight, punchy journalism beats long padding every time
+- Do NOT write a "Why This Matters to Nigerians" section unless this story has a DIRECT, SPECIFIC connection to Nigeria — not a vague ripple-effect argument; if the story is purely international with no direct Nigerian angle, skip that section entirely
+- Write ONLY what is supported by the source content or by widely established facts you are confident about
+
 YOUR TASK:
-Write a 900–1100 word fully original HTML news article. Your article must:
-1. Use every specific fact from the source (names, figures, rankings, dates, institutions) — never skip specifics
-2. Add original editorial context, historical background, or expert-level analysis NOT present in the source
-3. Offer a perspective or angle that makes this article more valuable than the source itself
-4. Read like it was written by an experienced Nigerian journalist, not a summary bot
+Write a 550–700 word fully original HTML news article that:
+1. Uses every specific fact from the source (names, figures, dates, institutions) — never skip specifics
+2. Adds sharp editorial context where genuinely useful — historical precedent, what led to this, what it signals
+3. Reads like it was written by an experienced Nigerian journalist, not a summary bot
 
 OUTPUT FORMAT — three parts, exactly as shown:
-SUMMARY: <one punchy sentence max 160 characters — the story hook, specific not vague>
-ANALYSIS: <2–3 sentences of original editorial analysis — insight a reader won't find in the source article>
+SUMMARY: <2–3 sentences, 250–350 characters — first sentence: the most striking specific fact (name, figure, or event); second sentence: why this matters or what it reveals; do not just rephrase the headline>
+ANALYSIS: <2–3 sentences of sharp editorial analysis — what this really means, not just what happened>
 ---
 <full HTML article body starting with <h2>>
 
-ARTICLE REQUIREMENTS:
-- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head>/<style> tags
-- <h2>: original headline — rewrite the source headline with a fresh angle
-- Paragraph 1: gripping lead naming the single most important specific fact (person, figure, institution, or event) from the source
-- <h3>Key Facts</h3>: bullet list of ALL specific entities, names, figures, statistics, rankings, or dates from the source — never be vague when specifics exist; if the story names 24 universities, list them; if it names officials, name them
-- <h3>Background and Context</h3>: 2–3 paragraphs of original context — historical precedent, how this fits a bigger trend, what led to this development; this section must go BEYOND the source article
-- <h3>Why This Matters to Nigerians</h3>: 4–5 concrete, specific implications — economic impact, social consequence, political significance; avoid generic statements like "this is important" — say WHY and HOW
-- <h3>Expert Perspective</h3>: 3–4 sentences of original authoritative analysis — what this development reveals, what risks or opportunities it creates; do NOT invent named quotes or attribute views to specific people
-- <h3>What Happens Next</h3>: specific, informed analysis of the next steps, timeline, or likely developments — not vague speculation
-- Closing paragraph: a sharp, memorable closing sentence that reinforces the article's core message
-- Tone: authoritative, intelligent, engaging — the voice of Nigeria's best journalism
-- Do NOT copy sentences from the source, do NOT be vague when facts are available, do NOT pad with filler
-- Include natural SEO keywords relevant to the Nigerian context throughout the article"""
+ARTICLE STRUCTURE:
+- <h2>: strong SEO headline — include the key name/figure/amount, 55–75 chars, tells the reader exactly what happened
+- Opening paragraph: gripping lead with the single most important specific fact — who, what, how much, when
+- <h3>Key Facts</h3>: bullet list of ALL specific names, figures, statistics, dates from the source — be precise
+- <h3>Background and Context</h3>: 2 paragraphs — what led to this, historical precedent, how it fits a bigger trend; use only facts you are confident about
+- <h3>Editorial Analysis</h3>: 3–4 sentences of the journalist's direct analysis — what this reveals, what risks or opportunities it creates; this is YOUR analysis as a journalist, NOT attributed to any "expert" or "observer" — write it in first-person plural ("This signals...", "The pattern here is...", "What stands out is...")
+- <h3>What Happens Next</h3>: 2–3 sentences on the likely next steps or timeline — specific, not vague
+- One sharp closing sentence
+
+TONE: authoritative, intelligent, direct — the voice of Nigeria's best journalism
+HTML: pure <h2>, <h3>, <p>, <strong>, <ul>, <li> — no html/body/head/style tags"""
 
 
 # ── Sports helpers ────────────────────────────────────────────────────────────
@@ -958,7 +962,7 @@ RELEGATION ZONE (bottom 3):
 {btm_rows}
 
 OUTPUT FORMAT — three parts, exactly as shown:
-SUMMARY: <punchy one-liner teaser, max 160 chars>
+SUMMARY: <2–3 sentences, 250–350 characters — first sentence: the key fact or hook; second sentence: why it matters or what it signals; do not just repeat the headline>
 ANALYSIS: <2–3 sentences of expert tactical/contextual analysis — what these standings reveal about the season's story and what Nigerian fans should read into it>
 ---
 <HTML article body>
@@ -989,7 +993,7 @@ RECENT RESULTS:
 {results_text}
 
 OUTPUT FORMAT — three parts, exactly as shown:
-SUMMARY: <punchy one-liner teaser, max 160 chars>
+SUMMARY: <2–3 sentences, 250–350 characters — first sentence: the key fact or hook; second sentence: why it matters or what it signals; do not just repeat the headline>
 ANALYSIS: <2–3 sentences of expert analysis — what this run of form says about the team's prospects and what needs to change or continue>
 ---
 <HTML article body>
@@ -1025,7 +1029,7 @@ TODAY'S DATE: {date_str}
 ⚠️ CRITICAL: Your training data ends around August 2025. You do NOT know actual WC2026 match results, group table standings, or which African nations have already advanced or been eliminated. Do NOT fabricate specific scores, results, or group standings from this tournament. Write analytically about squad quality, tactical strengths, and what each African nation needed to do to advance — NOT about outcomes you cannot know. Use language like "needed to", "would need to", "their best chance lies in", NOT "they won", "they advanced", or "they were eliminated".
 
 OUTPUT FORMAT — three parts, exactly as shown:
-SUMMARY: <punchy one-liner teaser, max 160 chars>
+SUMMARY: <2–3 sentences, 250–350 characters — first sentence: the key fact or hook; second sentence: why it matters or what it signals; do not just repeat the headline>
 ANALYSIS: <2–3 sentences of expert analysis — Africa's overall World Cup 2026 ambitions and whether the continent has the squads to capitalise on the historic 9-slot opportunity>
 ---
 <HTML article body>
@@ -1054,7 +1058,7 @@ Write a complete, original HTML sports feature about Nigeria's history at the FI
 TODAY'S DATE: {date_str}
 
 OUTPUT FORMAT — three parts, exactly as shown:
-SUMMARY: <punchy one-liner teaser, max 160 chars>
+SUMMARY: <2–3 sentences, 250–350 characters — first sentence: the key fact or hook; second sentence: why it matters or what it signals; do not just repeat the headline>
 ANALYSIS: <2–3 sentences reflecting on Nigeria's World Cup legacy — what the history reveals about the team's potential and what the country must learn from missing 2026>
 ---
 <HTML article body>
@@ -1085,7 +1089,7 @@ CONTEXT: World Cup 2026 is currently being played in USA, Canada, and Mexico. 48
 TODAY'S DATE: {date_str}
 
 OUTPUT FORMAT — three parts, exactly as shown:
-SUMMARY: <punchy one-liner teaser, max 160 chars>
+SUMMARY: <2–3 sentences, 250–350 characters — first sentence: the key fact or hook; second sentence: why it matters or what it signals; do not just repeat the headline>
 ANALYSIS: <2–3 sentences of expert analysis — the single biggest story defining WC2026 so far>
 ---
 <HTML article body>
@@ -1883,7 +1887,7 @@ CRITICAL — KNOWLEDGE CUTOFF WARNING: Your training data ends around August 202
 CONTEXT: The 2027 Nigerian general elections are scheduled for February 2027. President Bola Tinubu (APC) is the incumbent. The opposition includes PDP, Labour Party, NNPP, and others. INEC is the electoral body.
 
 OUTPUT FORMAT — three parts, exactly as shown:
-SUMMARY: <punchy one-liner teaser, max 160 chars>
+SUMMARY: <2–3 sentences, 250–350 characters — first sentence: the key fact or hook; second sentence: why it matters or what it signals; do not just repeat the headline>
 ANALYSIS: <2–3 sentences of expert analysis — the single biggest factor that will determine the 2027 outcome and what Nigerian voters should watch>
 ---
 <HTML article body>
@@ -1916,7 +1920,7 @@ TODAY'S DATE: {date_str}
 CONTEXT: President Bola Tinubu took office on 29 May 2023. As of {date_str}, he has been in office for exactly {tenure}. CRITICAL: Do NOT write "over a year", "one year", or any tenure description other than "{tenure}" — he has been president for {tenure}. Key decisions include removal of petrol subsidy (Day 1), unification of the naira exchange rate, tax reform bills, and security initiatives. These have had significant economic consequences for ordinary Nigerians. Your training data ends around August 2025 — focus on established policy impacts and structural analysis rather than specific events you cannot verify after that date.
 
 OUTPUT FORMAT — three parts, exactly as shown:
-SUMMARY: <punchy one-liner teaser, max 160 chars>
+SUMMARY: <2–3 sentences, 250–350 characters — first sentence: the key fact or hook; second sentence: why it matters or what it signals; do not just repeat the headline>
 ANALYSIS: <2–3 sentences of expert analysis — the single most consequential policy decision so far and whether the administration is on the right track>
 ---
 <HTML article body>
@@ -1948,7 +1952,7 @@ TODAY'S DATE: {date_str}
 CONTEXT: Nigeria's National Assembly comprises the Senate (109 senators) and House of Representatives (360 members). The current assembly was inaugurated in June 2023. Senate President is Godswill Akpabio; Speaker of the House is Tajudeen Abbas. Your training data ends around August 2025 — write about structural legislative roles and established bills; do NOT present pending legislation from your training as still pending if it may have been resolved.
 
 OUTPUT FORMAT — three parts, exactly as shown:
-SUMMARY: <punchy one-liner teaser, max 160 chars>
+SUMMARY: <2–3 sentences, 250–350 characters — first sentence: the key fact or hook; second sentence: why it matters or what it signals; do not just repeat the headline>
 ANALYSIS: <2–3 sentences of expert analysis — the most consequential bill or legislative development Nigerians should be paying attention to>
 ---
 <HTML article body>
@@ -1979,7 +1983,7 @@ TODAY'S DATE: {date_str}
 KNOWLEDGE CUTOFF NOTE: Your training ends around August 2025. Only name governors you are confident hold office as of that date. State that governorship details may have evolved since your training cutoff.
 
 OUTPUT FORMAT — three parts, exactly as shown:
-SUMMARY: <punchy one-liner teaser, max 160 chars>
+SUMMARY: <2–3 sentences, 250–350 characters — first sentence: the key fact or hook; second sentence: why it matters or what it signals; do not just repeat the headline>
 ANALYSIS: <2–3 sentences of expert analysis — the single most important subnational political trend shaping Nigeria's national politics>
 ---
 <HTML article body>
@@ -2010,7 +2014,7 @@ TODAY'S DATE: {date_str}
 CONTEXT: Nigeria is Africa's largest economy and most populous nation. Under Tinubu, Nigeria has maintained its ECOWAS leadership role, responded to the Niger coup (2023), pursued investment diplomacy, and maintained strong bilateral ties with the UK, US, and UAE. Nigeria is a member of the UN Security Council (non-permanent) and African Union. Your training data ends around August 2025 — focus on structural foreign policy dynamics; do NOT present bilateral negotiations or ECOWAS decisions as pending if they may have concluded.
 
 OUTPUT FORMAT — three parts, exactly as shown:
-SUMMARY: <punchy one-liner teaser, max 160 chars>
+SUMMARY: <2–3 sentences, 250–350 characters — first sentence: the key fact or hook; second sentence: why it matters or what it signals; do not just repeat the headline>
 ANALYSIS: <2–3 sentences of expert analysis — the most important foreign policy challenge Nigeria faces and whether the Tinubu government is handling it well>
 ---
 <HTML article body>
@@ -2103,7 +2107,7 @@ TODAY'S DATE: {date_str}
 CRITICAL: The numbered list above is LIVE DATA fetched TODAY. You MUST base the "This Week's Chart Leaders" section exclusively on these songs and artists. Do not substitute, invent, or add songs that are not on this list. Your knowledge cutoff means you do not know what is trending in {date_str} — trust the data above.
 
 OUTPUT FORMAT — three parts, exactly as shown:
-SUMMARY: <punchy one-liner teaser, max 160 chars — name the #1 charting song or artist>
+SUMMARY: <2–3 sentences, 250–350 characters — first sentence: name the #1 charting song and artist; second sentence: what the chart collectively says about Nigerian music taste right now>
 ANALYSIS: <2–3 sentences of editorial music analysis — the sound or trend these chart picks reveal>
 ---
 <HTML article body>
@@ -2152,7 +2156,7 @@ WHAT YOU MUST NOT DO:
 - Do NOT say "this month" or "this week" in relation to any specific film or series
 
 OUTPUT FORMAT — three parts, exactly as shown:
-SUMMARY: <punchy one-liner teaser, max 160 chars — e.g. "Nollywood is no longer just Nigerian — here's how the world became the audience">
+SUMMARY: <2–3 sentences, 250–350 characters — first sentence: Nollywood's defining story or achievement; second sentence: what it means for the industry and Nigerian storytelling globally>
 ANALYSIS: <2–3 sentences of sharp industry analysis — the defining trend or business shift shaping Nollywood's global rise>
 ---
 <HTML article body>
@@ -2199,7 +2203,7 @@ WHAT YOU MUST NOT DO:
 - Do NOT write as if you know who won BBNaija in 2026 or what happened on social media in 2026
 
 OUTPUT FORMAT — three parts, exactly as shown:
-SUMMARY: <punchy one-liner teaser, max 160 chars — capture the essence of Nigerian celebrity culture in 2026>
+SUMMARY: <2–3 sentences, 250–350 characters — first sentence: the defining characteristic of Nigerian celebrity in 2026; second sentence: what is driving fame and influence right now>
 ANALYSIS: <2–3 sentences of sharp cultural analysis — what fame means in Nigeria right now and what drives it>
 ---
 <HTML article body>

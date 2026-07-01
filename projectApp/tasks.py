@@ -1216,7 +1216,7 @@ SEO HEADLINE RULES:
 
 OUTPUT FORMAT (if writing the article) — exactly as shown, no deviation:
 HEADLINE: <SEO headline 55–70 chars — specific, action-driven, includes key names/figures>
-SUMMARY: <one punchy sentence under 160 chars — the single most impactful fact, written for social media sharing>
+SUMMARY: <2–3 sentences, 250–350 characters — first sentence: the most impactful specific fact from this press release; second sentence: what it means for Nigerians or the sector; do not just restate the headline>
 ANALYSIS: <two sentences — the significance for Nigeria's economy or citizens, and what it signals going forward>
 ---
 <article HTML — use <h2>, <h3>, <p>, <ul>, <li> — structure the article with clear subheadings for each section>

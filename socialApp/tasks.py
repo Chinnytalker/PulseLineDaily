@@ -21,13 +21,29 @@ def _post_full_url(post):
     return f"{_site_url()}{post.get_absolute_url()}"
 
 
-def _plain_excerpt(post, max_chars=280):
-    """Return a plain-text excerpt from summary or body (strips HTML tags)."""
-    text = post.summary or ''
-    if not text and post.body:
-        text = re.sub(r'<[^>]+>', ' ', post.body)
-        text = re.sub(r'\s+', ' ', text).strip()
-    return text[:max_chars].rstrip()
+def _plain_excerpt(post, max_chars=500):
+    """
+    Return a plain-text excerpt for social sharing.
+    Prefers body content (richer) over the short summary field.
+    Falls back to summary if body is not available.
+    """
+    # Strip HTML from body for a fuller, richer excerpt
+    body_text = ''
+    if post.body:
+        body_text = re.sub(r'<[^>]+>', ' ', post.body)
+        body_text = re.sub(r'\s+', ' ', body_text).strip()
+
+    text = body_text or post.summary or ''
+
+    if len(text) <= max_chars:
+        return text.rstrip()
+
+    # Cut at the last full sentence within the limit
+    truncated = text[:max_chars]
+    last_period = max(truncated.rfind('. '), truncated.rfind('.\n'))
+    if last_period > max_chars // 2:
+        return truncated[:last_period + 1]
+    return truncated.rstrip() + '...'
 
 
 # ── Facebook ──────────────────────────────────────────────────────────────────
@@ -42,7 +58,7 @@ def _share_to_facebook(post):
         logger.warning("Facebook: credentials not configured — skipping post '%s'", post.title[:50])
         return
 
-    excerpt = _plain_excerpt(post)
+    excerpt = _plain_excerpt(post, max_chars=600)
     post_url = _post_full_url(post)
     message = f"{post.title}\n\n{excerpt}\n\n#PulseLineDaily #NigeriaNews"
 
@@ -102,8 +118,8 @@ def _share_to_telegram(post):
     try:
         if image_url:
             # sendPhoto: attach article image directly — no more site logo previews
-            # Caption max is 1024 chars so keep excerpt short
-            excerpt = _plain_excerpt(post, max_chars=200)
+            # Caption max is 1024 chars
+            excerpt = _plain_excerpt(post, max_chars=600)
             safe_excerpt = excerpt.replace('<', '&lt;').replace('>', '&gt;')
             caption = (
                 f"<b>{safe_title}</b>\n\n"
@@ -123,7 +139,7 @@ def _share_to_telegram(post):
             )
         else:
             # No image — fall back to text message with link preview
-            excerpt = _plain_excerpt(post, max_chars=300)
+            excerpt = _plain_excerpt(post, max_chars=700)
             safe_excerpt = excerpt.replace('<', '&lt;').replace('>', '&gt;')
             text = (
                 f"<b>{safe_title}</b>\n\n"
