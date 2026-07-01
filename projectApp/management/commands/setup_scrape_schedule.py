@@ -45,6 +45,12 @@ TASKS = [
         'cron': {'minute': '0', 'hour': '11', 'day_of_week': '*',
                  'day_of_month': '*', 'month_of_year': '*'},
     },
+    {
+        'name': 'gov-agency-scraper',
+        'task': 'projectApp.tasks.scrape_government_agencies',
+        'cron': {'minute': '0', 'hour': '7,13,19', 'day_of_week': '*',
+                 'day_of_month': '*', 'month_of_year': '*'},
+    },
 ]
 
 

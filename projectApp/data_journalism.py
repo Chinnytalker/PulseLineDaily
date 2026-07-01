@@ -898,6 +898,24 @@ def fetch_nigeria_results():
         )
         evts.raise_for_status()
         raw = evts.json().get("results") or []
+        if not raw:
+            return None
+
+        # Freshness gate: skip if the most recent match is older than 60 days
+        from datetime import datetime as _dt, timedelta as _td
+        most_recent_date = raw[-1].get("dateEvent", "")
+        if most_recent_date:
+            try:
+                age_days = (_dt.utcnow() - _dt.strptime(most_recent_date, "%Y-%m-%d")).days
+                if age_days > 60:
+                    logger.info(
+                        "Super Eagles results stale (%s, %d days old) — skipping article",
+                        most_recent_date, age_days,
+                    )
+                    return None
+            except ValueError:
+                pass
+
         results = [
             {
                 "date": e.get("dateEvent", ""),

@@ -6,6 +6,7 @@ from django.utils.html import format_html
 from .models import (
     Post, Category, Comment, NewsletterSubscriber, Video,
     ContactMessage, Job, Advertisement, Author, Applicant,
+    GovernmentAgency,
 )
 
 
@@ -132,6 +133,25 @@ class ApplicantAdmin(admin.ModelAdmin):
     list_filter = ("applied_on",)
 
 
+class GovernmentAgencyAdmin(admin.ModelAdmin):
+    list_display = ('acronym', 'name', 'sector', 'scrape_strategy', 'is_active', 'last_scraped_at', 'priority')
+    list_filter = ('sector', 'scrape_strategy', 'is_active')
+    search_fields = ('name', 'acronym')
+    list_editable = ('is_active', 'priority')
+    ordering = ('priority', 'name')
+    actions = ['activate_agencies', 'deactivate_agencies']
+
+    def activate_agencies(self, request, queryset):
+        updated = queryset.update(is_active=True)
+        self.message_user(request, f"{updated} agency(ies) activated.")
+    activate_agencies.short_description = "Activate selected agencies"
+
+    def deactivate_agencies(self, request, queryset):
+        updated = queryset.update(is_active=False)
+        self.message_user(request, f"{updated} agency(ies) deactivated.")
+    deactivate_agencies.short_description = "Deactivate selected agencies"
+
+
 admin.site.register(Post, PostAdmin)
 admin.site.register(Category, CategoryAdmin)
 admin.site.register(Comment, CommentAdmin)
@@ -142,3 +162,4 @@ admin.site.register(Job, JobAdmin)
 admin.site.register(Advertisement, AdvertisementAdmin)
 admin.site.register(Author, AuthorAdmin)
 admin.site.register(Applicant, ApplicantAdmin)
+admin.site.register(GovernmentAgency, GovernmentAgencyAdmin)

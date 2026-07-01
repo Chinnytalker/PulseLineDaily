@@ -24,7 +24,10 @@ django-tailwind==4.2.0
 django-timezone-field==7.1
 django-widget-tweaks==1.5.0
 docopt==0.6.2
+beautifulsoup4==4.15.0
 feedparser==6.0.11
+lxml==6.1.1
+pdfplumber==0.11.10
 filelock==3.18.0
 fsspec==2025.5.1
 groq==0.29.0

@@ -246,3 +246,45 @@ class Applicant(models.Model):
 
     def __str__(self):
         return self.applicant_name
+
+
+class GovernmentAgency(models.Model):
+    SECTOR_CHOICES = [
+        ('financial', 'Financial & Economic'),
+        ('energy', 'Oil, Gas & Energy'),
+        ('telecom', 'Telecoms & Technology'),
+        ('health', 'Health'),
+        ('transport', 'Transport & Infrastructure'),
+        ('environment', 'Environment & Agriculture'),
+        ('justice', 'Anti-Corruption & Justice'),
+        ('development', 'Development & Investment'),
+        ('education', 'Education'),
+        ('labour', 'Labour, Pension & Immigration'),
+        ('security', 'Security & Defence'),
+        ('elections', 'Elections & Democracy'),
+    ]
+
+    STRATEGY_CHOICES = [
+        ('rss', 'RSS Feed'),
+        ('html', 'HTML Scrape'),
+    ]
+
+    name = models.CharField(max_length=200)
+    acronym = models.CharField(max_length=20, blank=True)
+    sector = models.CharField(max_length=50, choices=SECTOR_CHOICES, default='financial')
+    website = models.URLField()
+    news_url = models.URLField(help_text="Direct URL to the news/press releases page")
+    rss_url = models.URLField(blank=True, null=True, help_text="RSS feed URL if available")
+    scrape_strategy = models.CharField(max_length=10, choices=STRATEGY_CHOICES, default='html')
+    is_active = models.BooleanField(default=True)
+    last_scraped_at = models.DateTimeField(blank=True, null=True)
+    priority = models.PositiveIntegerField(default=1, help_text="Lower number = higher priority")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Government Agency'
+        verbose_name_plural = 'Government Agencies'
+        ordering = ['priority', 'name']
+
+    def __str__(self):
+        return f"{self.acronym} — {self.name}" if self.acronym else self.name

@@ -538,7 +538,7 @@ def generate_sports_articles(self):
             logger.info("WC2026 top scorers unavailable — skipping golden boot article")
 
     # ── 4. EPL standings (once per 3 days — EPL season Aug–May only) ─────────
-    if not recently_generated("premier league", days=3):
+    if now.month not in [6, 7] and not recently_generated("premier league", days=3):
         table = fetch_epl_standings()
         if table:
             raw = call_llm(build_epl_standings_prompt(table))
@@ -1036,3 +1036,254 @@ def generate_entertainment_articles(self):
             created += 1
 
     return f"Entertainment articles task complete: {created} draft(s) created"
+
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=300)
+def scrape_government_agencies(self):
+    """
+    Scrape press releases from 51 Nigerian government agency websites.
+    Runs 3×/day (7am, 1pm, 7pm). Each agency has a 12-hour cooldown so it is
+    scraped at most twice a day. Each new item is rewritten by Groq into an
+    original article and saved as an unpublished draft for human review.
+    """
+    import time as _time
+    from django.conf import settings
+    from django.db.models import Q
+    from django.utils import timezone
+    from datetime import timedelta
+    from .models import GovernmentAgency, Post, Category, Author
+    from .gov_scraper import scrape_agency, fetch_gov_content
+    from .data_journalism import parse_llm_response
+
+    api_key = getattr(settings, "GROQ_API_KEY", "")
+    if not api_key:
+        logger.warning("GROQ_API_KEY not set — skipping gov agency scraper")
+        return "GROQ_API_KEY not configured"
+
+    try:
+        from groq import Groq
+    except ImportError:
+        logger.error("groq package not installed")
+        return "groq package missing"
+
+    client = Groq(api_key=api_key)
+    now = timezone.now()
+    date_str = now.strftime("%d %B %Y")
+    # Each agency is scraped at most twice a day — 12-hour per-agency cooldown
+    twelve_hours_ago = now - timedelta(hours=12)
+    MAX_PER_RUN = 3
+
+    agencies = GovernmentAgency.objects.filter(
+        is_active=True
+    ).filter(
+        Q(last_scraped_at__isnull=True) | Q(last_scraped_at__lte=twelve_hours_ago)
+    ).order_by('priority', 'last_scraped_at')
+
+    if not agencies.exists():
+        return "Gov scraper: all agencies scraped recently, nothing to do"
+
+    gov_category = (
+        Category.objects.filter(name__icontains='government').first()
+        or Category.objects.filter(name__icontains='politics').first()
+        or Category.objects.filter(name__icontains='news').first()
+        or Category.objects.first()
+    )
+
+    default_author = Author.objects.filter(slug="clinton-nwachukwu").first()
+    sector_labels = dict(GovernmentAgency.SECTOR_CHOICES)
+
+    import re as _re
+    _GOV_STOPWORDS = {
+        "a", "an", "the", "is", "are", "was", "were", "of", "in", "on", "at",
+        "to", "for", "with", "and", "or", "but", "as", "by", "from", "that",
+        "this", "it", "its", "be", "has", "have", "had", "will", "not", "no",
+        "over", "than", "more", "after", "about", "been", "into", "nigeria",
+        "nigerian", "federal", "national", "government", "says", "their",
+    }
+
+    def _kw(text):
+        return {w for w in _re.findall(r'\b[a-z]{4,}\b', text.lower()) if w not in _GOV_STOPWORDS}
+
+    def is_too_old(item, max_age_days=45):
+        from datetime import datetime as _dt, timezone as _tz
+        cutoff = now - timedelta(days=max_age_days)
+        # Ensure cutoff is timezone-aware for safe comparison
+        if cutoff.tzinfo is None:
+            cutoff = cutoff.replace(tzinfo=_tz.utc)
+
+        pub_iso = item.get('published_iso')
+        if pub_iso:
+            try:
+                pub_dt = _dt.fromisoformat(pub_iso)
+                if pub_dt.tzinfo is None:
+                    pub_dt = pub_dt.replace(tzinfo=_tz.utc)
+                return pub_dt < cutoff
+            except Exception:
+                pass
+
+        # Fall back to year/month embedded in the URL path (e.g. /2024/11/)
+        match = _re.search(r'/(\d{4})[/_-](\d{1,2})', item.get('url', ''))
+        if match:
+            try:
+                item_date = _dt(int(match.group(1)), int(match.group(2)), 1, tzinfo=_tz.utc)
+                return item_date < cutoff
+            except (ValueError, TypeError):
+                pass
+
+        return False  # can't determine age — allow it through
+
+    def similar_title_exists(title):
+        kw = _kw(title)
+        if len(kw) < 3:
+            return False
+        cutoff = now - timedelta(days=7)
+        recent = Post.objects.filter(
+            updated_by='gov-auto',
+            date_created__gte=cutoff,
+        ).values_list('title', flat=True)[:300]
+        for existing in recent:
+            if len(kw & _kw(existing)) >= 3:
+                return True
+        return False
+
+    def call_llm(prompt):
+        try:
+            resp = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                max_tokens=3000,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return resp.choices[0].message.content.strip()
+        except Exception as exc:
+            logger.error("Groq API error (gov scraper): %s", exc)
+            return None
+
+    def build_gov_prompt(agency, item, body_text, date_str):
+        sector_label = sector_labels.get(agency.sector, agency.sector)
+        source_excerpt = body_text or item.get('summary') or item.get('title')
+        return f"""You are a senior Nigerian journalist writing for PulseLineDaily, a professional online news platform.
+
+A Nigerian government agency has published the following press release or news item. Your job is to rewrite it as an original, well-structured news article that is informative, factual, and written in clear journalistic English suitable for a Nigerian general audience.
+
+SOURCE AGENCY: {agency.name} ({agency.acronym}) — {sector_label} sector
+ORIGINAL HEADLINE: {item.get('title', '')}
+SOURCE URL: {item.get('url', '')}
+DATE: {date_str}
+SOURCE CONTENT:
+{source_excerpt[:2500]}
+
+INSTRUCTIONS:
+- Write a proper news article, NOT a copy of the press release
+- Lead with the most newsworthy fact in the first paragraph
+- Include context that helps Nigerian readers understand why this matters
+- Use short paragraphs, active voice, and plain English
+- Do NOT fabricate statistics or quotes not present in the source
+- Attribute all claims to "{agency.name}" or "{agency.acronym}"
+- End with one paragraph of broader context or background
+- Output must follow this exact format:
+
+SUMMARY: <one sentence, under 160 characters, suitable as a social media caption>
+ANALYSIS: <two sentences explaining the significance for Nigeria>
+---
+<article HTML body starting with <h2> subheading — use <h2>, <p>, <ul>/<li> only>"""
+
+    total_created = 0
+    agencies_processed = 0
+    thirty_days_ago = now - timedelta(days=30)
+
+    for agency in agencies:
+        if total_created >= MAX_PER_RUN:
+            break
+
+        try:
+            items = scrape_agency(agency)
+            created_for_agency = 0
+            # Short label for source_domain field (max_length=100)
+            agency_domain = agency.website.replace('https://', '').replace('http://', '').rstrip('/')[:100]
+
+            for item in items:
+                if total_created >= MAX_PER_RUN:
+                    break
+
+                url = (item.get('url') or '').strip()[:500]
+                title = (item.get('title') or '').strip()[:200]
+
+                if not url or not title or len(title) < 10:
+                    continue
+
+                # Skip if we already have an article from this exact URL in the last 30 days
+                if Post.objects.filter(link=url, date_created__gte=thirty_days_ago).exists():
+                    logger.debug("Gov scraper — recently covered URL: %s", url)
+                    continue
+
+                # Skip if item is older than 45 days
+                if is_too_old(item):
+                    logger.debug("Gov scraper — stale item skipped: %s", title[:80])
+                    continue
+
+                # Skip if a near-identical title was already published in the last 7 days
+                if similar_title_exists(title):
+                    logger.debug("Gov scraper — similar title already covered: %s", title[:80])
+                    continue
+
+                # Fetch full content — handles HTML pages, PDFs, and skips images
+                body_text = fetch_gov_content(url, max_chars=2500)
+
+                prompt = build_gov_prompt(agency, item, body_text, date_str)
+                raw = call_llm(prompt)
+                if not raw:
+                    continue
+
+                summary, analysis, html_body = parse_llm_response(raw)
+
+                # Guard: skip if LLM returned no usable body
+                if not html_body or len(html_body.strip()) < 50:
+                    logger.warning("Gov scraper — LLM returned empty body for: %s", title[:80])
+                    continue
+
+                if not summary:
+                    summary = title[:160]
+
+                sector_label = sector_labels.get(agency.sector, agency.sector)
+
+                try:
+                    post = Post.objects.create(
+                        title=title,
+                        body=html_body,
+                        summary=summary,
+                        analysis=analysis or None,
+                        link=url,
+                        source='scrape',
+                        source_domain=agency_domain,
+                        is_published=False,
+                        updated_by='gov-auto',
+                        author=default_author,
+                        tags=(
+                            f"nigeria, government, press release, {agency.acronym.lower()}, "
+                            f"{agency.name.lower()}, {sector_label.lower()}"
+                        ),
+                    )
+                    if gov_category:
+                        post.categories.add(gov_category)
+                    created_for_agency += 1
+                    total_created += 1
+                    logger.info("Gov scraper — created article: [%s] %s", agency.acronym, title[:80])
+                except Exception as exc:
+                    logger.error("Gov scraper — save failed [%s]: %s", title[:80], exc)
+
+                _time.sleep(1)
+
+            agency.last_scraped_at = now
+            agency.save(update_fields=['last_scraped_at'])
+            agencies_processed += 1
+
+            if created_for_agency:
+                logger.info("Gov scraper — %s: %d new article(s)", agency.acronym, created_for_agency)
+
+        except Exception as exc:
+            logger.error("Gov scraper — agency %s failed: %s", agency.name, exc)
+
+    return (
+        f"Gov scraper complete: {total_created} original article(s) "
+        f"from {agencies_processed} agencies"
+    )
