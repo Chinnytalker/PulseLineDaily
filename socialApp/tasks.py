@@ -167,6 +167,61 @@ def _share_to_telegram(post):
         logger.error("Telegram: exception for '%s': %s", post.title[:50], exc)
 
 
+# ── OneSignal Push Notifications ─────────────────────────────────────────────
+
+def _send_push_notification(post):
+    from .models import SocialPostLog
+
+    app_id = getattr(settings, 'ONESIGNAL_APP_ID', '')
+    api_key = getattr(settings, 'ONESIGNAL_REST_API_KEY', '')
+
+    if not app_id or not api_key:
+        logger.warning("OneSignal: credentials not configured — skipping post '%s'", post.title[:50])
+        return
+
+    post_url = _post_full_url(post)
+    summary = _summary_text(post, max_chars=200)
+
+    try:
+        resp = requests.post(
+            'https://onesignal.com/api/v1/notifications',
+            headers={
+                'Authorization': f'Basic {api_key}',
+                'Content-Type': 'application/json',
+            },
+            json={
+                'app_id': app_id,
+                'included_segments': ['All'],
+                'headings': {'en': post.title[:100]},
+                'contents': {'en': summary or post.title[:200]},
+                'url': post_url,
+            },
+            timeout=15,
+        )
+        data = resp.json()
+
+        if data.get('id'):
+            SocialPostLog.objects.create(
+                post=post, platform='onesignal',
+                success=True, platform_post_id=data['id'],
+            )
+            logger.info("OneSignal: push sent '%s' → %s", post.title[:50], data['id'])
+        else:
+            error = str(data.get('errors', data))
+            SocialPostLog.objects.create(
+                post=post, platform='onesignal',
+                success=False, error_message=error,
+            )
+            logger.warning("OneSignal: push failed for '%s': %s", post.title[:50], error)
+
+    except Exception as exc:
+        SocialPostLog.objects.create(
+            post=post, platform='onesignal',
+            success=False, error_message=str(exc),
+        )
+        logger.error("OneSignal: exception for '%s': %s", post.title[:50], exc)
+
+
 # ── Main periodic task ────────────────────────────────────────────────────────
 
 @shared_task(name='socialApp.tasks.share_published_posts')
@@ -191,9 +246,15 @@ def share_published_posts():
             platform='telegram', success=True, post__in=candidates,
         ).values_list('post_id', flat=True)
     )
+    already_push = set(
+        SocialPostLog.objects.filter(
+            platform='onesignal', success=True, post__in=candidates,
+        ).values_list('post_id', flat=True)
+    )
 
     pending_fb = list(candidates.exclude(pk__in=already_fb).order_by('date_created')[:MAX_PER_RUN])
     pending_tg = list(candidates.exclude(pk__in=already_tg).order_by('date_created')[:MAX_PER_RUN])
+    pending_push = list(candidates.exclude(pk__in=already_push).order_by('date_created')[:MAX_PER_RUN])
 
     for post in pending_fb:
         _share_to_facebook(post)
@@ -201,7 +262,10 @@ def share_published_posts():
     for post in pending_tg:
         _share_to_telegram(post)
 
+    for post in pending_push:
+        _send_push_notification(post)
+
     logger.info(
-        "Social poster run complete — Facebook: %d, Telegram: %d",
-        len(pending_fb), len(pending_tg),
+        "Social poster run complete — Facebook: %d, Telegram: %d, Push: %d",
+        len(pending_fb), len(pending_tg), len(pending_push),
     )

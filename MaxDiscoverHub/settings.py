@@ -325,6 +325,13 @@ FACEBOOK_PAGE_ID = config('FACEBOOK_PAGE_ID', default='')
 TELEGRAM_BOT_TOKEN = config('TELEGRAM_BOT_TOKEN', default='')
 TELEGRAM_CHANNEL_ID = config('TELEGRAM_CHANNEL_ID', default='')
 
+# OneSignal Push Notifications
+ONESIGNAL_APP_ID = config('ONESIGNAL_APP_ID', default='')
+ONESIGNAL_REST_API_KEY = config('ONESIGNAL_REST_API_KEY', default='')
+
+# Admin draft notification email
+ADMIN_NOTIFICATION_EMAIL = config('ADMIN_NOTIFICATION_EMAIL', default='')
+
 
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 

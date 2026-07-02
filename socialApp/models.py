@@ -5,6 +5,7 @@ class SocialPostLog(models.Model):
     PLATFORM_CHOICES = [
         ('facebook', 'Facebook'),
         ('telegram', 'Telegram'),
+        ('onesignal', 'Push Notification'),
     ]
 
     post = models.ForeignKey(

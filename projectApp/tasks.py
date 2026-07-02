@@ -1170,6 +1170,65 @@ def generate_wc2026_match_reports(self):
     return f"WC2026 match reports: {created} new article(s) created"
 
 
+@shared_task(name='projectApp.tasks.notify_admin_new_drafts')
+def notify_admin_new_drafts():
+    """
+    Check for unpublished draft articles created in the last 65 minutes
+    and email a summary to the admin. Runs every hour via Celery Beat.
+    """
+    from django.conf import settings
+    from django.core.mail import send_mail
+    from django.utils import timezone
+    from datetime import timedelta
+    from .models import Post
+
+    admin_email = getattr(settings, 'ADMIN_NOTIFICATION_EMAIL', '')
+    if not admin_email:
+        logger.warning("ADMIN_NOTIFICATION_EMAIL not set — skipping draft notification")
+        return "ADMIN_NOTIFICATION_EMAIL not configured"
+
+    since = timezone.now() - timedelta(minutes=65)
+    new_drafts = list(
+        Post.objects.filter(is_published=False, date_created__gte=since)
+        .order_by('date_created')
+        .values('id', 'title', 'updated_by', 'date_created')
+    )
+
+    if not new_drafts:
+        return "No new drafts to notify"
+
+    base_url = getattr(settings, 'SITE_URL', 'https://www.pulselinedaily.com').rstrip('/')
+    lines = [f"{len(new_drafts)} new article draft(s) are waiting for review:\n"]
+    for d in new_drafts:
+        source = d['updated_by'] or 'unknown'
+        admin_link = f"{base_url}/admin/projectApp/post/{d['id']}/change/"
+        lines.append(f"• [{source}] {d['title'][:90]}")
+        lines.append(f"  {admin_link}\n")
+
+    lines += [
+        "──────────────────────────────",
+        f"View all unpublished drafts:",
+        f"{base_url}/admin/projectApp/post/?is_published__exact=0",
+    ]
+
+    body = "\n".join(lines)
+    subject = f"PulseLineDaily — {len(new_drafts)} new draft(s) ready for review"
+
+    try:
+        send_mail(
+            subject=subject,
+            message=body,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[admin_email],
+            fail_silently=False,
+        )
+        logger.info("Draft notification sent: %d draft(s)", len(new_drafts))
+        return f"Draft notification sent: {len(new_drafts)} drafts"
+    except Exception as exc:
+        logger.error("Draft notification email failed: %s", exc)
+        return f"Email failed: {exc}"
+
+
 @shared_task(bind=True, max_retries=2, default_retry_delay=300)
 def scrape_government_agencies(self):
     """

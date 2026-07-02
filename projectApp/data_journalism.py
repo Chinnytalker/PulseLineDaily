@@ -934,13 +934,13 @@ def fetch_nigeria_results():
         if not raw:
             return None
 
-        # Freshness gate: skip if the most recent match is older than 60 days
+        # Freshness gate: skip if the most recent match is older than 14 days
         from datetime import datetime as _dt, timedelta as _td
         most_recent_date = raw[-1].get("dateEvent", "")
         if most_recent_date:
             try:
                 age_days = (_dt.utcnow() - _dt.strptime(most_recent_date, "%Y-%m-%d")).days
-                if age_days > 60:
+                if age_days > 14:
                     logger.info(
                         "Super Eagles results stale (%s, %d days old) — skipping article",
                         most_recent_date, age_days,

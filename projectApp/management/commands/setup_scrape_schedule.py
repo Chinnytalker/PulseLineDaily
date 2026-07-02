@@ -66,6 +66,12 @@ TASKS = [
         'cron': {'minute': '*/30', 'hour': '*', 'day_of_week': '*',
                  'day_of_month': '*', 'month_of_year': '*'},
     },
+    {
+        'name': 'admin-draft-notifications',
+        'task': 'projectApp.tasks.notify_admin_new_drafts',
+        'cron': {'minute': '0', 'hour': '*', 'day_of_week': '*',
+                 'day_of_month': '*', 'month_of_year': '*'},
+    },
 ]
 
 
