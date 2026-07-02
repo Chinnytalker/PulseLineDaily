@@ -1,7 +1,10 @@
 from django.contrib import admin
+from django.core.cache import cache
 from django.urls import path
 from django.template.response import TemplateResponse
 from django.utils.html import format_html
+
+_HP_CACHE_KEYS = ['hp_trending', 'hp_categories', 'hp_breaking', 'all_categories_page']
 
 from .models import (
     Post, Category, Comment, NewsletterSubscriber, Video,
@@ -38,8 +41,14 @@ class PostAdmin(admin.ModelAdmin):
         return "No Image"
     thumbnail.short_description = "Image"
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if obj.is_published:
+            cache.delete_many(_HP_CACHE_KEYS)
+
     def approve_posts(self, request, queryset):
         updated = queryset.update(is_published=True)
+        cache.delete_many(_HP_CACHE_KEYS)
         self.message_user(request, f"{updated} post(s) approved and published.")
     approve_posts.short_description = "Approve and publish selected posts"
 
