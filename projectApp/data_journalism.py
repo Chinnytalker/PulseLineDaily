@@ -95,6 +95,11 @@ RSS_SOURCES = [
     {"url": "https://www.legit.ng/rss/all.rss",                 "category": "Education",     "label": "Legit NG"},
     {"url": "https://saharareporters.com/feed",                 "category": "News",          "label": "Sahara Reporters"},
     {"url": "https://www.thecable.ng/category/education/feed/", "category": "Education",     "label": "The Cable Education"},
+    # ── Sports & Football (World Cup, Transfers, Global) ─────────────────────
+    {"url": "https://feeds.bbci.co.uk/sport/football/rss.xml",  "category": "Sports",        "label": "BBC Sport Football"},
+    {"url": "https://www.skysports.com/rss/12040",               "category": "Sports",        "label": "Sky Sports Football"},
+    {"url": "https://www.goal.com/feeds/en/news",                "category": "Sports",        "label": "Goal.com Football"},
+    {"url": "https://www.pulse.ng/sports/rss",                   "category": "Sports",        "label": "Pulse NG Sports"},
 ]
 
 WORLDBANK_BASE = "https://api.worldbank.org/v2"
@@ -621,6 +626,7 @@ def fetch_article_body(url, max_chars=3000):
 def fetch_rss_stories(max_per_source=2):
     """
     Fetch recent stories from RSS_SOURCES using feedparser.
+    Skips any entry older than 48 hours.
     Returns a list of dicts: {title, excerpt, link, source_label, category}.
     Silently skips any feed that fails or if feedparser is not installed.
     """
@@ -630,16 +636,40 @@ def fetch_rss_stories(max_per_source=2):
         logger.error("feedparser not installed — run: pip install feedparser")
         return []
 
+    import time as _time
+    from datetime import datetime as _dt, timezone as _tz, timedelta as _td
+
+    cutoff = _dt.now(_tz.utc) - _td(hours=48)
+
     stories = []
     for source in RSS_SOURCES:
         try:
             feed = feedparser.parse(source["url"])
-            entries = feed.entries[:max_per_source]
-            for entry in entries:
+            added = 0
+            for entry in feed.entries:
+                if added >= max_per_source:
+                    break
+
                 title = (entry.get("title") or "").strip()
                 if not title:
                     continue
-                # Prefer full content, then summary, then description
+
+                link = entry.get("link") or ""
+                if not link:
+                    continue
+
+                # Age filter — skip entries older than 48 hours
+                pub = entry.get("published_parsed") or entry.get("updated_parsed")
+                if pub:
+                    try:
+                        pub_dt = _dt(*pub[:6], tzinfo=_tz.utc)
+                        if pub_dt < cutoff:
+                            logger.debug("RSS age filter — skipping old entry [%s]: %s", source["label"], title[:60])
+                            continue
+                    except Exception:
+                        pass
+                # No date in feed — allow through (most live feeds are fresh)
+
                 raw_excerpt = (
                     (entry.get("content") or [{}])[0].get("value", "")
                     or entry.get("summary")
@@ -647,9 +677,7 @@ def fetch_rss_stories(max_per_source=2):
                     or ""
                 )
                 excerpt = _strip_html(raw_excerpt)[:1500]
-                link = entry.get("link") or ""
-                if not link:
-                    continue
+
                 # body_text is fetched lazily in the task (after dedup checks pass)
                 stories.append({
                     "title": title,
@@ -658,6 +686,7 @@ def fetch_rss_stories(max_per_source=2):
                     "source_label": source["label"],
                     "category": source["category"],
                 })
+                added += 1
         except Exception as exc:
             logger.warning("RSS fetch error [%s]: %s", source["label"], exc)
 
@@ -1434,6 +1463,130 @@ ARTICLE REQUIREMENTS:
 - Length: 500–650 words | Tone: analytical, engaging, stat-driven
 - Attribute data to ESPN/FIFA
 - Do NOT invent goal tallies beyond the data above"""
+
+
+# ── WC2026 completed match results ───────────────────────────────────────────
+
+def fetch_wc2026_completed_matches(days_back=2):
+    """
+    Fetch all completed WC2026 matches from ESPN for the last `days_back` days.
+    Returns a list of match dicts (each with 'id' for dedup), or empty list.
+    """
+    from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+
+    now = _dt.now(_tz.utc)
+    all_matches = []
+    seen_ids = set()
+
+    for d in range(days_back + 1):
+        target = now - _td(days=d)
+        date_key = target.strftime("%Y%m%d")
+        try:
+            resp = requests.get(
+                "https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/scoreboard",
+                params={"dates": date_key},
+                timeout=12,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            for event in (data.get("events") or []):
+                event_id = str(event.get("id", ""))
+                if not event_id or event_id in seen_ids:
+                    continue
+                status = event.get("status", {}).get("type", {})
+                if not status.get("completed", False):
+                    continue
+                comp = (event.get("competitions") or [{}])[0]
+                competitors = comp.get("competitors", [])
+                if len(competitors) < 2:
+                    continue
+                home = next((c for c in competitors if c.get("homeAway") == "home"), competitors[0])
+                away = next((c for c in competitors if c.get("homeAway") == "away"), competitors[1])
+                note = (comp.get("notes") or [{}])[0]
+                seen_ids.add(event_id)
+                all_matches.append({
+                    "id": event_id,
+                    "date": event.get("date", "")[:10],
+                    "home": home.get("team", {}).get("displayName", ""),
+                    "away": away.get("team", {}).get("displayName", ""),
+                    "home_score": int(home.get("score", 0) or 0),
+                    "away_score": int(away.get("score", 0) or 0),
+                    "stage": note.get("headline", ""),
+                    "venue": comp.get("venue", {}).get("fullName", ""),
+                })
+        except Exception as exc:
+            logger.warning("ESPN WC2026 completed matches [%s] error: %s", date_key, exc)
+
+    return all_matches
+
+
+def build_match_result_prompt(match, date_str):
+    """
+    Build a prompt for a full WC2026 match report article.
+    Uses only the verified ESPN score — does NOT invent scorers or incidents.
+    """
+    home = match["home"]
+    away = match["away"]
+    hs = match["home_score"]
+    as_ = match["away_score"]
+    stage = match.get("stage", "")
+    venue = match.get("venue", "")
+
+    if hs > as_:
+        result_line = f"{home} beat {away} {hs}–{as_}"
+    elif as_ > hs:
+        result_line = f"{away} beat {home} {as_}–{hs}"
+    else:
+        result_line = f"{home} and {away} drew {hs}–{as_}"
+
+    _AFRICAN_NATIONS = {
+        "morocco", "senegal", "egypt", "ivory coast", "côte d'ivoire",
+        "cameroon", "south africa", "mali", "ghana", "algeria", "tunisia",
+    }
+    has_african_side = any(
+        n in home.lower() or n in away.lower()
+        for n in _AFRICAN_NATIONS
+    )
+    african_section = (
+        "\n- <h3>African Connection</h3>: Focus on this African nation's performance — "
+        "what it showed about the team's quality and their World Cup ambitions. "
+        "Mention the team's coach if you are confident of the name; otherwise omit."
+        if has_african_side else
+        "\n- Skip the African Connection section entirely — neither team is an African nation."
+    )
+
+    return f"""You are a senior sports journalist at PulseLineDaily, Nigeria's top digital news outlet.
+Write an immediate, publish-ready match report for the FIFA World Cup 2026.
+
+TODAY: {date_str}
+NIGERIA IS NOT AT THIS WORLD CUP — do not mention Nigeria as a participant.
+
+VERIFIED MATCH RESULT (ESPN/FIFA live data — use these exact figures):
+{home} {hs} – {as_} {away}
+{f"Stage / Round: {stage}" if stage else ""}
+{f"Venue: {venue}" if venue else ""}
+Summary: {result_line}
+
+OUTPUT FORMAT — four parts, exactly as shown:
+HEADLINE: <strong match report headline, 55-70 chars — includes both team names and the score>
+SUMMARY: <2-3 sentences, 280-350 characters — the result, one decisive factor, and what it means for the tournament>
+ANALYSIS: <2 sentences — what this result reveals about both teams' World Cup prospects>
+---
+<full HTML match report body starting with <h2>>
+
+MATCH REPORT REQUIREMENTS:
+- Pure HTML — <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head> tags
+- <h2>: mirrors the headline exactly — both teams and the score
+- Opening paragraph: the final score, the stakes of this match ({stage or "World Cup 2026"}), and the key storyline that defined it
+- <h3>How the Game Unfolded</h3>: describe the flow of play — which team dominated, momentum shifts, how pressure built — based on what the scoreline implies and your knowledge of these nations' playing styles; do NOT invent specific scorers, minute markers, or cards
+- <h3>What This Result Means</h3>: tournament implications for BOTH teams — does the winner advance, face elimination, top a group? Who do they face next?
+{african_section}
+- <h3>Players to Credit</h3>: name 2-3 players from the winning team (or standout performers in a draw) whose style and quality you are confident about from your knowledge of these squads — do NOT fabricate specific goal scorers or man-of-the-match statistics from this game
+- <h3>What Fans Should Watch Next</h3>: what both teams' next fixtures look like and what this result sets up in the broader tournament picture
+- Closing: one sharp sentence on what this result adds to the World Cup 2026 narrative
+- Length: 500-650 words | Tone: immediate, authoritative, match-report energy
+- Do NOT invent scorers, assists, yellow/red cards, or substitution details — stick to the verified score above and analytical inference
+- Attribute the score to ESPN/FIFA"""
 
 
 # ── Yahoo Finance helper ──────────────────────────────────────────────────────

@@ -1038,6 +1038,138 @@ def generate_entertainment_articles(self):
     return f"Entertainment articles task complete: {created} draft(s) created"
 
 
+@shared_task(bind=True, max_retries=2, default_retry_delay=60)
+def generate_wc2026_match_reports(self):
+    """
+    Poll ESPN every 30 minutes for newly completed WC2026 matches and write a
+    full match report article for each one not yet covered.
+    Uses ESPN match ID stored in post.link as dedup key.
+    Saves as unpublished draft for rapid review.
+    """
+    from django.conf import settings
+    from django.utils import timezone
+
+    api_key = getattr(settings, 'GROQ_API_KEY', '')
+    if not api_key:
+        return "GROQ_API_KEY not configured"
+
+    try:
+        from groq import Groq
+    except ImportError:
+        return "groq package missing"
+
+    from .models import Post, Category, Author
+    from .data_journalism import (
+        fetch_wc2026_completed_matches,
+        build_match_result_prompt,
+        parse_llm_response,
+    )
+
+    import re as _re
+
+    client = Groq(api_key=api_key)
+    now = timezone.now()
+    date_str = now.strftime("%d %B %Y")
+    created = 0
+
+    default_author = Author.objects.filter(slug="clinton-nwachukwu").first()
+    sports_cat = (
+        Category.objects.filter(name__icontains="sport").first()
+        or Category.objects.first()
+    )
+
+    def call_llm(prompt):
+        try:
+            resp = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                max_tokens=2500,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return resp.choices[0].message.content.strip()
+        except Exception as exc:
+            logger.error("Groq API error (WC2026 match reports): %s", exc)
+            return None
+
+    matches = fetch_wc2026_completed_matches(days_back=1)
+    if not matches:
+        return "WC2026 match reports: no completed matches found"
+
+    for match in matches:
+        match_id = match.get("id", "")
+        if not match_id:
+            continue
+
+        dedup_link = f"espn-wc2026-match-{match_id}"
+
+        # Skip if we already wrote a report for this match
+        if Post.objects.filter(link=dedup_link).exists():
+            logger.debug("WC2026 match already covered: %s vs %s", match["home"], match["away"])
+            continue
+
+        home = match["home"]
+        away = match["away"]
+        hs = match["home_score"]
+        as_ = match["away_score"]
+
+        if not home or not away:
+            continue
+
+        prompt = build_match_result_prompt(match, date_str)
+        raw = call_llm(prompt)
+        if not raw:
+            continue
+
+        # Extract HEADLINE if LLM provided one
+        seo_title = f"{home} {hs}–{as_} {away}: World Cup 2026 Match Report"
+        headline_match = _re.search(r'^HEADLINE:\s*(.+)', raw, _re.MULTILINE | _re.IGNORECASE)
+        if headline_match:
+            candidate = headline_match.group(1).strip()[:200]
+            if len(candidate) > 15:
+                seo_title = candidate
+            raw = _re.sub(r'^HEADLINE:.*\n?', '', raw, flags=_re.MULTILINE | _re.IGNORECASE).strip()
+
+        summary, analysis, html_body = parse_llm_response(raw)
+
+        if not html_body or len(html_body.strip()) < 50:
+            logger.warning("WC2026 match report — empty body for %s vs %s", home, away)
+            continue
+
+        if not summary:
+            summary = seo_title[:160]
+
+        stage = match.get("stage", "World Cup 2026")
+        tags = (
+            f"world cup 2026, football, {home.lower()}, {away.lower()}, "
+            f"match report, {stage.lower()}, wc2026, sports"
+        )
+
+        try:
+            post = Post.objects.create(
+                title=seo_title,
+                body=html_body,
+                summary=summary,
+                analysis=analysis or None,
+                link=dedup_link,
+                source="api",
+                source_domain="espn.com",
+                is_published=False,
+                updated_by="wc2026-auto",
+                author=default_author,
+                tags=tags,
+            )
+            if sports_cat:
+                post.categories.add(sports_cat)
+            created += 1
+            logger.info(
+                "WC2026 match report created: %s %d–%d %s [%s]",
+                home, hs, as_, away, stage,
+            )
+        except Exception as exc:
+            logger.error("WC2026 match report save failed [%s vs %s]: %s", home, away, exc)
+
+    return f"WC2026 match reports: {created} new article(s) created"
+
+
 @shared_task(bind=True, max_retries=2, default_retry_delay=300)
 def scrape_government_agencies(self):
     """
@@ -1069,14 +1201,14 @@ def scrape_government_agencies(self):
     client = Groq(api_key=api_key)
     now = timezone.now()
     date_str = now.strftime("%d %B %Y")
-    # Each agency is scraped at most twice a day — 12-hour per-agency cooldown
-    twelve_hours_ago = now - timedelta(hours=12)
-    MAX_PER_RUN = 3
+    # Per-agency cooldown: 4 hours — allows 6 scrape windows per day
+    cooldown_ago = now - timedelta(hours=4)
+    MAX_PER_RUN = 10
 
     agencies = GovernmentAgency.objects.filter(
         is_active=True
     ).filter(
-        Q(last_scraped_at__isnull=True) | Q(last_scraped_at__lte=twelve_hours_ago)
+        Q(last_scraped_at__isnull=True) | Q(last_scraped_at__lte=cooldown_ago)
     ).order_by('priority', 'last_scraped_at')
 
     if not agencies.exists():
@@ -1104,10 +1236,9 @@ def scrape_government_agencies(self):
     def _kw(text):
         return {w for w in _re.findall(r'\b[a-z]{4,}\b', text.lower()) if w not in _GOV_STOPWORDS}
 
-    def is_too_old(item, max_age_days=45):
+    def is_too_old(item, max_age_days=7):
         from datetime import datetime as _dt, timezone as _tz
         cutoff = now - timedelta(days=max_age_days)
-        # Ensure cutoff is timezone-aware for safe comparison
         if cutoff.tzinfo is None:
             cutoff = cutoff.replace(tzinfo=_tz.utc)
 
@@ -1121,7 +1252,7 @@ def scrape_government_agencies(self):
             except Exception:
                 pass
 
-        # Fall back to year/month embedded in the URL path (e.g. /2024/11/)
+        # Fall back to year/month in the URL path (e.g. /2024/11/)
         match = _re.search(r'/(\d{4})[/_-](\d{1,2})', item.get('url', ''))
         if match:
             try:
@@ -1261,17 +1392,19 @@ SKIP: <one sentence explaining why this is not genuinely new or specific news>""
                     logger.debug("Gov scraper — recently covered URL: %s", url)
                     continue
 
-                # Determine if we can verify the content's age
+                # Skip if no verifiable date — undated content is untrusted
                 has_known_date = bool(item.get('published_iso')) or bool(
                     _re.search(r'/(\d{4})[/_-](\d{1,2})', url)
                 )
+                if not has_known_date:
+                    logger.debug("Gov scraper — no date found, skipping: %s", title[:80])
+                    continue
 
-                # Skip if item is older than 45 days
+                # Skip if item is older than 7 days
                 age_check = is_too_old(item)
                 if age_check is True:
                     logger.debug("Gov scraper — stale item skipped: %s", title[:80])
                     continue
-                # age_check is None means no date found — let LLM decide via has_known_date flag
 
                 # Skip if a near-identical title was already published in the last 7 days
                 if similar_title_exists(title):
@@ -1281,7 +1414,7 @@ SKIP: <one sentence explaining why this is not genuinely new or specific news>""
                 # Fetch full content — handles HTML pages, PDFs, and skips images
                 body_text = fetch_gov_content(url, max_chars=2500)
 
-                prompt = build_gov_prompt(agency, item, body_text, date_str, has_known_date=has_known_date)
+                prompt = build_gov_prompt(agency, item, body_text, date_str)
                 raw = call_llm(prompt)
                 if not raw:
                     continue
@@ -1346,6 +1479,9 @@ SKIP: <one sentence explaining why this is not genuinely new or specific news>""
 
             if created_for_agency:
                 logger.info("Gov scraper — %s: %d new article(s)", agency.acronym, created_for_agency)
+
+            # Brief pause between agencies to avoid back-to-back LLM bursts
+            _time.sleep(3)
 
         except Exception as exc:
             logger.error("Gov scraper — agency %s failed: %s", agency.name, exc)

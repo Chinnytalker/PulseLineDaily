@@ -1,5 +1,4 @@
 import logging
-import re
 
 import requests
 from celery import shared_task
@@ -21,26 +20,13 @@ def _post_full_url(post):
     return f"{_site_url()}{post.get_absolute_url()}"
 
 
-def _plain_excerpt(post, max_chars=500):
-    """
-    Return a plain-text excerpt for social sharing.
-    Prefers body content (richer) over the short summary field.
-    Falls back to summary if body is not available.
-    """
-    # Strip HTML from body for a fuller, richer excerpt
-    body_text = ''
-    if post.body:
-        body_text = re.sub(r'<[^>]+>', ' ', post.body)
-        body_text = re.sub(r'\s+', ' ', body_text).strip()
-
-    text = body_text or post.summary or ''
-
+def _summary_text(post, max_chars=350):
+    """Return the post summary for social sharing, truncated if needed."""
+    text = (post.summary or '').strip()
     if len(text) <= max_chars:
-        return text.rstrip()
-
-    # Cut at the last full sentence within the limit
+        return text
     truncated = text[:max_chars]
-    last_period = max(truncated.rfind('. '), truncated.rfind('.\n'))
+    last_period = truncated.rfind('. ')
     if last_period > max_chars // 2:
         return truncated[:last_period + 1]
     return truncated.rstrip() + '...'
@@ -58,9 +44,9 @@ def _share_to_facebook(post):
         logger.warning("Facebook: credentials not configured — skipping post '%s'", post.title[:50])
         return
 
-    excerpt = _plain_excerpt(post, max_chars=600)
+    summary = _summary_text(post)
     post_url = _post_full_url(post)
-    message = f"{post.title}\n\n{excerpt}\n\n#PulseLineDaily #NigeriaNews"
+    message = f"{post.title}\n\n{summary}\n\n#PulseLineDaily #NigeriaNews"
 
     try:
         resp = requests.post(
@@ -115,15 +101,15 @@ def _share_to_telegram(post):
     except Exception:
         image_url = None
 
+    safe_summary = _summary_text(post).replace('<', '&lt;').replace('>', '&gt;')
+
     try:
         if image_url:
             # sendPhoto: attach article image directly — no more site logo previews
             # Caption max is 1024 chars
-            excerpt = _plain_excerpt(post, max_chars=600)
-            safe_excerpt = excerpt.replace('<', '&lt;').replace('>', '&gt;')
             caption = (
                 f"<b>{safe_title}</b>\n\n"
-                f"{safe_excerpt}\n\n"
+                f"{safe_summary}\n\n"
                 f'<a href="{post_url}">Read the full story</a>\n\n'
                 f"#PulseLineDaily #NigeriaNews"
             )
@@ -139,11 +125,9 @@ def _share_to_telegram(post):
             )
         else:
             # No image — fall back to text message with link preview
-            excerpt = _plain_excerpt(post, max_chars=700)
-            safe_excerpt = excerpt.replace('<', '&lt;').replace('>', '&gt;')
             text = (
                 f"<b>{safe_title}</b>\n\n"
-                f"{safe_excerpt}\n\n"
+                f"{safe_summary}\n\n"
                 f'<a href="{post_url}">Read the full story</a>\n\n'
                 f"#PulseLineDaily #NigeriaNews"
             )
