@@ -484,7 +484,7 @@ def generate_sports_articles(self):
     date_str = now.strftime("%d %B %Y")
 
     # ── 1. WC2026 live standings & results (daily) ───────────────────────────
-    if not recently_generated("world cup 2026", days=1):
+    if not recently_generated("wc2026 standings", days=1):
         wc_data = fetch_world_cup_2026_data()
         if wc_data:
             raw = call_llm(build_world_cup_2026_prompt(wc_data, date_str))
@@ -495,7 +495,7 @@ def generate_sports_articles(self):
                     body=html,
                     summary=summary,
                     analysis=analysis,
-                    tags="world cup 2026, football, group stage, round of 32, sports, standings",
+                    tags="world cup 2026, wc2026 standings, football, group stage, round of 32, sports, standings",
                 )
                 created += 1
         else:
@@ -1041,9 +1041,9 @@ def generate_entertainment_articles(self):
 @shared_task(bind=True, max_retries=2, default_retry_delay=60)
 def generate_wc2026_match_reports(self):
     """
-    Poll ESPN every 30 minutes for newly completed WC2026 matches and write a
+    Poll TheSportsDB every 30 minutes for newly completed WC2026 matches and write a
     full match report article for each one not yet covered.
-    Uses ESPN match ID stored in post.link as dedup key.
+    Uses TheSportsDB event ID stored in post.link as dedup key.
     Saves as unpublished draft for rapid review.
     """
     from django.conf import settings
@@ -1099,7 +1099,7 @@ def generate_wc2026_match_reports(self):
         if not match_id:
             continue
 
-        dedup_link = f"espn-wc2026-match-{match_id}"
+        dedup_link = f"tsdb-wc2026-match-{match_id}"
 
         # Skip if we already wrote a report for this match
         if Post.objects.filter(link=dedup_link).exists():
@@ -1151,7 +1151,7 @@ def generate_wc2026_match_reports(self):
                 analysis=analysis or None,
                 link=dedup_link,
                 source="api",
-                source_domain="espn.com",
+                source_domain="thesportsdb.com",
                 is_published=False,
                 updated_by="wc2026-auto",
                 author=default_author,
@@ -1315,7 +1315,10 @@ def scrape_government_agencies(self):
         match = _re.search(r'/(\d{4})[/_-](\d{1,2})', item.get('url', ''))
         if match:
             try:
-                item_date = _dt(int(match.group(1)), int(match.group(2)), 1, tzinfo=_tz.utc)
+                import calendar as _cal
+                yr, mo = int(match.group(1)), int(match.group(2))
+                last_day = _cal.monthrange(yr, mo)[1]
+                item_date = _dt(yr, mo, last_day, tzinfo=_tz.utc)
                 return item_date < cutoff
             except (ValueError, TypeError):
                 pass
@@ -1451,13 +1454,9 @@ SKIP: <one sentence explaining why this is not genuinely new or specific news>""
                     logger.debug("Gov scraper — recently covered URL: %s", url)
                     continue
 
-                # Skip if no verifiable date — undated content is untrusted
                 has_known_date = bool(item.get('published_iso')) or bool(
                     _re.search(r'/(\d{4})[/_-](\d{1,2})', url)
                 )
-                if not has_known_date:
-                    logger.debug("Gov scraper — no date found, skipping: %s", title[:80])
-                    continue
 
                 # Skip if item is older than 7 days
                 age_check = is_too_old(item)
@@ -1473,7 +1472,7 @@ SKIP: <one sentence explaining why this is not genuinely new or specific news>""
                 # Fetch full content — handles HTML pages, PDFs, and skips images
                 body_text = fetch_gov_content(url, max_chars=2500)
 
-                prompt = build_gov_prompt(agency, item, body_text, date_str)
+                prompt = build_gov_prompt(agency, item, body_text, date_str, has_known_date=has_known_date)
                 raw = call_llm(prompt)
                 if not raw:
                     continue
@@ -1549,3 +1548,261 @@ SKIP: <one sentence explaining why this is not genuinely new or specific news>""
         f"Gov scraper complete: {total_created} original article(s) "
         f"from {agencies_processed} agencies"
     )
+
+
+@shared_task(bind=True, max_retries=2, default_retry_delay=120)
+def scrape_cbn_news(self):
+    """
+    Scrape CBN's JSON APIs for recent press releases, circulars, and notices.
+    Only processes items published in the last 2 days — never touches old content.
+    """
+    from datetime import datetime as _dt, timedelta as _td, timezone as _tz
+    import requests as _req
+    from django.conf import settings
+    from django.utils import timezone
+    from .models import Post, Category, Author
+    from .gov_scraper import fetch_gov_content
+    from .data_journalism import parse_llm_response
+
+    api_key = getattr(settings, 'GROQ_API_KEY', '')
+    if not api_key:
+        return "GROQ_API_KEY not configured"
+
+    try:
+        from groq import Groq
+    except ImportError:
+        return "groq package missing"
+
+    _BASE = 'https://www.cbn.gov.ng'
+    _HEADERS = {'User-Agent': 'Mozilla/5.0', 'Referer': _BASE}
+    _APIS = [
+        ('press-release', f'{_BASE}/api/GetAllPressReleases', 'CBN Press Release'),
+        ('circular',      f'{_BASE}/api/GetAllCirculars',     'CBN Circular'),
+        ('notice',        f'{_BASE}/api/GetAllNotices',       'CBN Notice'),
+    ]
+    DAYS_BACK = 2
+    MAX_PER_RUN = 6
+
+    client = Groq(api_key=api_key)
+    now = timezone.now()
+    date_str = now.strftime("%d %B %Y")
+    cutoff = (_dt.now(_tz.utc) - _td(days=DAYS_BACK)).replace(hour=0, minute=0, second=0, microsecond=0)
+    thirty_days_ago = now - _td(days=30)
+
+    finance_cat = (
+        Category.objects.filter(name__icontains='financ').first()
+        or Category.objects.filter(name__icontains='econom').first()
+        or Category.objects.first()
+    )
+    default_author = Author.objects.filter(slug='clinton-nwachukwu').first()
+
+    def _parse_date(s):
+        try:
+            return _dt.strptime(s.strip(), '%d/%m/%Y').replace(tzinfo=_tz.utc)
+        except Exception:
+            return None
+
+    def call_llm(prompt):
+        try:
+            resp = client.chat.completions.create(
+                model='llama-3.3-70b-versatile',
+                max_tokens=2500,
+                messages=[{'role': 'user', 'content': prompt}],
+            )
+            return resp.choices[0].message.content.strip()
+        except Exception as exc:
+            logger.error("Groq API error (CBN scraper): %s", exc)
+            return None
+
+    _SEARCH_FEEDS = [
+        ('businessday.ng',      'https://businessday.ng/feed/'),
+        ('punchng.com',         'https://punchng.com/feed/'),
+        ('premiumtimesng.com',  'https://www.premiumtimesng.com/feed/'),
+        ('vanguardngr.com',     'https://www.vanguardngr.com/feed/'),
+    ]
+    _CBN_STOPWORDS = {
+        'central', 'bank', 'nigeria', 'nigerian', 'press', 'release',
+        'circular', 'notice', 'from', 'with', 'their', 'that', 'this',
+        'have', 'been', 'will', 'which', 'also', 'they', 'about',
+    }
+
+    def _find_news_coverage(title):
+        """Search Nigerian news RSS feeds for coverage of this CBN announcement.
+        Returns article text (str) or empty string."""
+        import re as _re2
+        import feedparser as _fp
+        kw = set(_re2.findall(r'\b\w{4,}\b', title.lower())) - _CBN_STOPWORDS
+        if len(kw) < 2:
+            return ''
+        for domain, feed_url in _SEARCH_FEEDS:
+            try:
+                feed = _fp.parse(feed_url)
+                for entry in feed.entries[:40]:
+                    entry_title = getattr(entry, 'title', '').lower()
+                    entry_kw = set(_re2.findall(r'\b\w{4,}\b', entry_title))
+                    if len(kw & entry_kw) >= 3:
+                        article_url = getattr(entry, 'link', '')
+                        if article_url:
+                            text = fetch_gov_content(article_url, max_chars=4000)
+                            if text and len(text) > 200:
+                                logger.info("CBN scraper — news coverage from %s: %s", domain, title[:60])
+                                return text
+            except Exception:
+                pass
+        return ''
+
+    def build_cbn_prompt(item, body_text, doc_type):
+        title = (item.get('title') or '').strip()
+        ref = (item.get('refNo') or '').strip()
+        doc_date = (item.get('documentDate') or '').strip()
+        description = (item.get('description') or '').strip()
+        keywords = (item.get('keywords') or '').strip()
+
+        if body_text and len(body_text.strip()) > 100:
+            source_block = f"NEWS COVERAGE (full article text from Nigerian media):\n{body_text[:4000]}"
+            source_note = (
+                "Use the news coverage above as your PRIMARY source. Every specific fact, name, figure, "
+                "and institution mentioned in it may be included. Do not invent additional details."
+            )
+        else:
+            meta_parts = [p for p in [description, keywords] if p]
+            meta_str = '\n'.join(meta_parts) if meta_parts else '(none)'
+            source_block = f"AVAILABLE METADATA:\n{meta_str}"
+            source_note = (
+                "The PDF could not be retrieved directly. Write a complete, authoritative article using:\n"
+                "1. The specific facts in the TITLE as verified CBN announcements — treat them as confirmed\n"
+                "2. Your knowledge of CBN policies, Nigerian banking regulation, and the financial sector\n"
+                "   to provide BACKGROUND, CONTEXT, and IMPLICATIONS — this is essential journalism\n"
+                "3. Do NOT invent new specific figures, names, or dates not stated in the title/metadata\n"
+                "4. Write confidently — do not hedge with 'reportedly' or 'it is believed'"
+            )
+
+        return f"""You are a senior financial journalist at PulseLineDaily, Nigeria's leading digital news outlet.
+
+TODAY'S DATE: {date_str}
+CBN DOCUMENT DATE: {doc_date}
+REF: {ref}
+TITLE: {title}
+TYPE: {doc_type}
+KEYWORDS: {keywords}
+
+{source_block}
+
+EDITORIAL GATE — REJECT (respond only with SKIP: <reason>) if:
+- Purely routine scheduled item with zero policy or public-impact (e.g., only an auction calendar)
+- Genuinely too narrow/technical for any general-audience article
+
+WRITE the article if it covers: interest rate or exchange rate decision, bank licence action,
+public warning or consumer alert, new regulation, economic data, or any CBN action with direct
+public or market impact.
+
+{source_note}
+
+OUTPUT FORMAT (exactly as shown):
+SUMMARY: <2–3 punchy sentences, max 250 chars — state the specific CBN action clearly>
+ANALYSIS: <2 sharp sentences on what this signals for the Nigerian economy or banking sector>
+---
+<full HTML article body starting with <h2>>
+
+ARTICLE REQUIREMENTS:
+- Pure HTML: <h2>, <h3>, <p>, <strong>, <ul>, <li> — no <html>/<body>/<head> tags
+- <h2>: specific, action-driven headline naming what CBN did
+- Opening <p>: the exact CBN action — what was done, announced, or decided, and when
+- <h3>What This Means for Nigerians</h3>: plain-English impact on ordinary people, depositors, businesses
+- <h3>Why CBN Acted</h3>: background and regulatory reasoning behind this type of action
+- <h3>Key Details</h3>: all specific figures, institutions, dates from the source
+- <h3>What Happens Next</h3>: next steps, timelines, what stakeholders should watch
+- Closing <p>: broader significance for the Nigerian financial sector
+- Length: 500–650 words | Tone: authoritative, factual, Nigerian financial journalism voice
+- Attribute to the Central Bank of Nigeria
+
+IF REJECTING:
+SKIP: <one line reason>"""
+
+    created = 0
+
+    for doc_slug, api_url, doc_label in _APIS:
+        if created >= MAX_PER_RUN:
+            break
+
+        try:
+            r = _req.get(api_url, headers=_HEADERS, timeout=12)
+            r.raise_for_status()
+            items = r.json()
+        except Exception as exc:
+            logger.warning("CBN API fetch failed [%s]: %s", doc_label, exc)
+            continue
+
+        for item in items:
+            if created >= MAX_PER_RUN:
+                break
+
+            doc_date_str = item.get('documentDate', '')
+            if doc_date_str:
+                parsed_date = _parse_date(doc_date_str)
+                if parsed_date and parsed_date < cutoff:
+                    break  # API is newest-first — stop at first old item
+
+            title = (item.get('title') or '').strip()
+            raw_link = (item.get('link') or '').strip()
+            if not title or not raw_link:
+                continue
+
+            full_url = raw_link if raw_link.startswith('http') else _BASE + raw_link
+            dedup_link = full_url[:500]
+
+            if Post.objects.filter(link=dedup_link, date_created__gte=thirty_days_ago).exists():
+                logger.debug("CBN scraper — already covered: %s", title[:80])
+                continue
+
+            # CBN PDFs are Cloudflare-protected; search Nigerian news sites for coverage first
+            body_text = ''
+            if full_url.lower().endswith('.pdf'):
+                body_text = _find_news_coverage(title)
+                if not body_text:
+                    logger.debug("CBN scraper — no news coverage found, using metadata: %s", title[:60])
+            else:
+                body_text = fetch_gov_content(full_url, max_chars=3000)
+
+            prompt = build_cbn_prompt(item, body_text, doc_label)
+            raw = call_llm(prompt)
+            if not raw:
+                continue
+
+            if raw.strip().upper().startswith('SKIP:'):
+                logger.info("CBN scraper — LLM rejected '%s': %s", title[:60], raw[5:].strip()[:100])
+                continue
+
+            summary, analysis, html_body = parse_llm_response(raw)
+            if not html_body or len(html_body.strip()) < 50:
+                logger.warning("CBN scraper — empty body for: %s", title[:80])
+                continue
+
+            if not summary:
+                summary = title[:160]
+
+            tags = f"cbn, central bank of nigeria, {doc_slug}, financial policy, nigerian economy"
+
+            try:
+                post = Post.objects.create(
+                    title=title[:200],
+                    body=html_body,
+                    summary=summary,
+                    analysis=analysis or None,
+                    link=dedup_link,
+                    source='scrape',
+                    source_domain='cbn.gov.ng',
+                    is_published=False,
+                    updated_by='cbn-auto',
+                    author=default_author,
+                    tags=tags,
+                )
+                if finance_cat:
+                    post.categories.add(finance_cat)
+                created += 1
+                logger.info("CBN scraper — created draft: %s", title[:80])
+            except Exception as exc:
+                logger.error("CBN scraper — save failed [%s]: %s", title[:80], exc)
+
+    return f"CBN scraper: {created} new article(s) created"
+

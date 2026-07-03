@@ -6,6 +6,7 @@ binaryornot==0.4.4
 celery==5.5.3
 certifi==2025.7.9
 chardet==5.2.0
+cloudscraper==1.2.71
 charset-normalizer==3.4.2
 click==8.2.1
 click-didyoumean==0.3.1

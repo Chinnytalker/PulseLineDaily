@@ -67,6 +67,12 @@ TASKS = [
                  'day_of_month': '*', 'month_of_year': '*'},
     },
     {
+        'name': 'cbn-news-scraper',
+        'task': 'projectApp.tasks.scrape_cbn_news',
+        'cron': {'minute': '30', 'hour': '0,4,8,12,16,20', 'day_of_week': '*',
+                 'day_of_month': '*', 'month_of_year': '*'},
+    },
+    {
         'name': 'admin-draft-notifications',
         'task': 'projectApp.tasks.notify_admin_new_drafts',
         'cron': {'minute': '0', 'hour': '*', 'day_of_week': '*',

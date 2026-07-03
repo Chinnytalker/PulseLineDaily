@@ -1147,72 +1147,65 @@ def build_static_sports_prompt(topic, date_str=""):
 
 def fetch_world_cup_2026_data():
     """
-    Fetch live FIFA World Cup 2026 group standings and recent match scores from ESPN.
-    Uses the same public ESPN API as fetch_epl_standings().
+    Fetch WC2026 group standings and recent match scores from TheSportsDB (league 4429).
     Returns a dict with 'groups' and/or 'matches', or None if both fail.
     """
-    base = "https://site.api.espn.com/apis/v2/sports/soccer/fifa.world"
+    from collections import defaultdict as _dd
+    _TSDB = "https://www.thesportsdb.com/api/v1/json/3"
     result = {}
 
     # Group standings
     try:
-        resp = requests.get(f"{base}/standings", timeout=12)
+        resp = requests.get(f"{_TSDB}/lookuptable.php?l=4429&s=2026", timeout=12)
         resp.raise_for_status()
         data = resp.json()
-        groups = []
-        for group in (data.get("children") or []):
-            group_name = group.get("name", "")
-            entries = []
-            for entry in group.get("standings", {}).get("entries", []):
-                name = entry.get("team", {}).get("displayName", "Unknown")
-                stats = {s["name"]: s["value"] for s in entry.get("stats", [])}
-                entries.append({
-                    "team": name,
-                    "played": int(stats.get("gamesPlayed", 0)),
-                    "points": int(stats.get("points", 0)),
-                    "wins": int(stats.get("wins", 0)),
-                    "draws": int(stats.get("ties", 0)),
-                    "losses": int(stats.get("losses", 0)),
-                    "gf": int(stats.get("pointsFor", 0)),
-                    "ga": int(stats.get("pointsAgainst", 0)),
-                })
-            if entries:
-                groups.append({"group": group_name, "teams": sorted(entries, key=lambda x: x["points"], reverse=True)})
+        rows = data.get("table") or []
+        group_map = _dd(list)
+        for row in rows:
+            grp = row.get("strGroup") or "Group"
+            group_map[grp].append({
+                "team": row.get("strTeam", ""),
+                "played": int(row.get("intPlayed") or 0),
+                "points": int(row.get("intPoints") or 0),
+                "wins": int(row.get("intWin") or 0),
+                "draws": int(row.get("intDraw") or 0),
+                "losses": int(row.get("intLoss") or 0),
+                "gf": int(row.get("intGoalsFor") or 0),
+                "ga": int(row.get("intGoalsAgainst") or 0),
+            })
+        groups = [
+            {"group": grp, "teams": sorted(teams, key=lambda x: x["points"], reverse=True)}
+            for grp, teams in sorted(group_map.items())
+        ]
         if groups:
             result["groups"] = groups
     except Exception as exc:
-        logger.warning("ESPN WC2026 standings error: %s", exc)
+        logger.warning("TheSportsDB WC2026 standings error: %s", exc)
 
-    # Recent/live match scores from the scoreboard
+    # Recent completed matches
     try:
-        resp = requests.get(f"{base}/scoreboard", timeout=12)
+        resp = requests.get(f"{_TSDB}/eventspastleague.php?id=4429", timeout=12)
         resp.raise_for_status()
         data = resp.json()
+        events = data.get("events") or []
         matches = []
-        for event in (data.get("events") or [])[:30]:
-            comps = event.get("competitions", [{}])
-            comp = comps[0] if comps else {}
-            competitors = comp.get("competitors", [])
-            if len(competitors) < 2:
+        for ev in events[-30:]:
+            status = ev.get("strStatus", "")
+            if status not in ("FT", "AET", "PEN"):
                 continue
-            home = next((c for c in competitors if c.get("homeAway") == "home"), competitors[0])
-            away = next((c for c in competitors if c.get("homeAway") == "away"), competitors[1])
-            status_type = event.get("status", {}).get("type", {})
-            note = comp.get("notes", [{}])
-            stage = note[0].get("headline", "") if note else ""
             matches.append({
-                "date": event.get("date", "")[:10],
-                "home": home.get("team", {}).get("displayName", ""),
-                "away": away.get("team", {}).get("displayName", ""),
-                "home_score": home.get("score", ""),
-                "away_score": away.get("score", ""),
-                "completed": status_type.get("completed", False),
-                "stage": stage,
+                "date": (ev.get("dateEvent") or "")[:10],
+                "home": ev.get("strHomeTeam", ""),
+                "away": ev.get("strAwayTeam", ""),
+                "home_score": ev.get("intHomeScore") or "",
+                "away_score": ev.get("intAwayScore") or "",
+                "completed": True,
+                "stage": ev.get("strRound") or "",
             })
         if matches:
             result["matches"] = matches
     except Exception as exc:
-        logger.warning("ESPN WC2026 scoreboard error: %s", exc)
+        logger.warning("TheSportsDB WC2026 scoreboard error: %s", exc)
 
     return result if result else None
 
@@ -1291,7 +1284,7 @@ ARTICLE REQUIREMENTS:
 - <h3>Tournament Talking Points</h3>: the biggest stories — surprise results, dominant teams, star performers — based strictly on the data provided
 - Closing: a forward-looking paragraph about what the next stage holds
 - Length: 550–700 words | Tone: energetic, expert, global football audience
-- Attribute data to ESPN/FIFA
+- Attribute data to FIFA
 - Do NOT invent match scores or standings figures beyond the data provided above"""
 
 
@@ -1299,43 +1292,40 @@ ARTICLE REQUIREMENTS:
 
 def fetch_wc2026_fixtures(date_str=None):
     """
-    Fetch today's (or a specific date's) WC2026 fixtures from ESPN.
-    date_str format: 'YYYYMMDD' — omit for today.
+    Fetch WC2026 upcoming and recent fixtures from TheSportsDB (league 4429).
+    date_str is accepted for API compatibility but TheSportsDB returns upcoming
+    fixtures automatically — pass None for default behaviour.
     Returns list of match dicts or None on failure.
     """
-    params = {"dates": date_str} if date_str else {}
+    _TSDB = "https://www.thesportsdb.com/api/v1/json/3"
     try:
-        resp = requests.get(
-            "https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/scoreboard",
-            params=params,
-            timeout=12,
-        )
+        resp = requests.get(f"{_TSDB}/eventsnextleague.php?id=4429", timeout=12)
         resp.raise_for_status()
-        data = resp.json()
+        upcoming = resp.json().get("events") or []
+
+        resp2 = requests.get(f"{_TSDB}/eventspastleague.php?id=4429", timeout=12)
+        resp2.raise_for_status()
+        past = resp2.json().get("events") or []
+
         fixtures = []
-        for event in (data.get("events") or []):
-            comp = (event.get("competitions") or [{}])[0]
-            competitors = comp.get("competitors", [])
-            if len(competitors) < 2:
-                continue
-            home = next((c for c in competitors if c.get("homeAway") == "home"), competitors[0])
-            away = next((c for c in competitors if c.get("homeAway") == "away"), competitors[1])
-            status = event.get("status", {}).get("type", {})
-            note = (comp.get("notes") or [{}])[0]
+        for ev in past[-10:] + upcoming[:15]:
+            status = ev.get("strStatus", "")
+            completed = status in ("FT", "AET", "PEN")
+            in_progress = status in ("LIVE", "HT") and not completed
             fixtures.append({
-                "datetime": event.get("date", ""),
-                "home": home.get("team", {}).get("displayName", ""),
-                "away": away.get("team", {}).get("displayName", ""),
-                "home_score": home.get("score", ""),
-                "away_score": away.get("score", ""),
-                "completed": status.get("completed", False),
-                "in_progress": status.get("name", "") in ("in", "halftime"),
-                "stage": note.get("headline", ""),
-                "venue": comp.get("venue", {}).get("fullName", ""),
+                "datetime": (ev.get("dateEvent") or "") + "T" + (ev.get("strTime") or "00:00:00"),
+                "home": ev.get("strHomeTeam", ""),
+                "away": ev.get("strAwayTeam", ""),
+                "home_score": ev.get("intHomeScore") or "",
+                "away_score": ev.get("intAwayScore") or "",
+                "completed": completed,
+                "in_progress": in_progress,
+                "stage": ev.get("strRound") or "",
+                "venue": ev.get("strVenue") or "",
             })
         return fixtures or None
     except Exception as exc:
-        logger.warning("ESPN WC2026 fixtures error: %s", exc)
+        logger.warning("TheSportsDB WC2026 fixtures error: %s", exc)
         return None
 
 
@@ -1386,48 +1376,18 @@ ARTICLE REQUIREMENTS:
 - Closing: what today's results could mean for the Round of 32 picture
 - Length: 550–700 words | Tone: excited, expert, football-fan voice
 - Do NOT invent specific scores for matches listed as upcoming
-- Attribute data to ESPN/FIFA"""
+- Attribute data to FIFA"""
 
 
 # ── WC2026 golden boot / top scorers ─────────────────────────────────────────
 
 def fetch_wc2026_top_scorers():
     """
-    Fetch WC2026 top scorers from ESPN's leaders endpoint.
-    Returns a list of {name, country, goals} dicts or None on failure.
+    WC2026 top scorers — TheSportsDB free tier has no scorers endpoint.
+    Returns None so the golden boot article generation is skipped gracefully.
     """
-    try:
-        resp = requests.get(
-            "https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/leaders",
-            timeout=12,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        scorers = []
-        for cat in (data.get("categories") or []):
-            if "goal" not in (cat.get("name") or "").lower() and \
-               "goal" not in (cat.get("displayName") or "").lower():
-                continue
-            for leader in (cat.get("leaders") or [])[:10]:
-                athlete = leader.get("athlete") or leader.get("statistics", {})
-                name = (
-                    athlete.get("displayName")
-                    or athlete.get("shortName")
-                    or leader.get("displayName", "Unknown")
-                )
-                country = (
-                    (leader.get("team") or {}).get("displayName")
-                    or (athlete.get("team") or {}).get("displayName", "")
-                )
-                goals = int(leader.get("value", 0))
-                if name and goals > 0:
-                    scorers.append({"name": name, "country": country, "goals": goals})
-            if scorers:
-                break
-        return scorers or None
-    except Exception as exc:
-        logger.warning("ESPN WC2026 top scorers error: %s", exc)
-        return None
+    logger.info("WC2026 top scorers: no free API available — golden boot article skipped")
+    return None
 
 
 def build_wc2026_golden_boot_prompt(scorers, date_str):
@@ -1442,7 +1402,7 @@ Write a complete, original HTML article about the FIFA World Cup 2026 Golden Boo
 TODAY: {date_str}
 NIGERIA IS NOT AT THIS WORLD CUP — do not refer to them as participants.
 
-CURRENT TOP SCORERS (live data from ESPN/FIFA):
+CURRENT TOP SCORERS (live data from FIFA):
 {scorer_lines}
 
 OUTPUT FORMAT — three parts, exactly as shown:
@@ -1461,7 +1421,7 @@ ARTICLE REQUIREMENTS:
 - <h3>Historic Context</h3>: how does this scoring pace compare to past World Cup Golden Boot winners?
 - Closing: who looks most likely to lift the Golden Boot by the final
 - Length: 500–650 words | Tone: analytical, engaging, stat-driven
-- Attribute data to ESPN/FIFA
+- Attribute data to FIFA
 - Do NOT invent goal tallies beyond the data above"""
 
 
@@ -1469,53 +1429,50 @@ ARTICLE REQUIREMENTS:
 
 def fetch_wc2026_completed_matches(days_back=2):
     """
-    Fetch all completed WC2026 matches from ESPN for the last `days_back` days.
+    Fetch all completed WC2026 matches from TheSportsDB (league 4429)
+    for the last `days_back` days.
     Returns a list of match dicts (each with 'id' for dedup), or empty list.
     """
     from datetime import datetime as _dt, timedelta as _td, timezone as _tz
 
-    now = _dt.now(_tz.utc)
-    all_matches = []
-    seen_ids = set()
+    _TSDB = "https://www.thesportsdb.com/api/v1/json/3"
+    try:
+        resp = requests.get(f"{_TSDB}/eventspastleague.php?id=4429", timeout=12)
+        resp.raise_for_status()
+        events = resp.json().get("events") or []
+    except Exception as exc:
+        logger.warning("TheSportsDB WC2026 completed matches error: %s", exc)
+        return []
 
-    for d in range(days_back + 1):
-        target = now - _td(days=d)
-        date_key = target.strftime("%Y%m%d")
-        try:
-            resp = requests.get(
-                "https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/scoreboard",
-                params={"dates": date_key},
-                timeout=12,
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            for event in (data.get("events") or []):
-                event_id = str(event.get("id", ""))
-                if not event_id or event_id in seen_ids:
+    now = _dt.now(_tz.utc)
+    cutoff = now - _td(days=days_back)
+    all_matches = []
+
+    for ev in events:
+        status = ev.get("strStatus", "")
+        if status not in ("FT", "AET", "PEN"):
+            continue
+        date_str = ev.get("dateEvent") or ""
+        if date_str:
+            try:
+                ev_date = _dt.strptime(date_str, "%Y-%m-%d").replace(tzinfo=_tz.utc)
+                if ev_date < cutoff:
                     continue
-                status = event.get("status", {}).get("type", {})
-                if not status.get("completed", False):
-                    continue
-                comp = (event.get("competitions") or [{}])[0]
-                competitors = comp.get("competitors", [])
-                if len(competitors) < 2:
-                    continue
-                home = next((c for c in competitors if c.get("homeAway") == "home"), competitors[0])
-                away = next((c for c in competitors if c.get("homeAway") == "away"), competitors[1])
-                note = (comp.get("notes") or [{}])[0]
-                seen_ids.add(event_id)
-                all_matches.append({
-                    "id": event_id,
-                    "date": event.get("date", "")[:10],
-                    "home": home.get("team", {}).get("displayName", ""),
-                    "away": away.get("team", {}).get("displayName", ""),
-                    "home_score": int(home.get("score", 0) or 0),
-                    "away_score": int(away.get("score", 0) or 0),
-                    "stage": note.get("headline", ""),
-                    "venue": comp.get("venue", {}).get("fullName", ""),
-                })
-        except Exception as exc:
-            logger.warning("ESPN WC2026 completed matches [%s] error: %s", date_key, exc)
+            except Exception:
+                pass
+        hs = ev.get("intHomeScore")
+        as_ = ev.get("intAwayScore")
+        all_matches.append({
+            "id": str(ev.get("idEvent") or ""),
+            "date": date_str,
+            "home": ev.get("strHomeTeam", ""),
+            "away": ev.get("strAwayTeam", ""),
+            "home_score": int(hs) if hs is not None else 0,
+            "away_score": int(as_) if as_ is not None else 0,
+            "stage": ev.get("strRound") or "",
+            "venue": ev.get("strVenue") or "",
+            "status": status,
+        })
 
     return all_matches
 
@@ -1561,7 +1518,7 @@ Write an immediate, publish-ready match report for the FIFA World Cup 2026.
 TODAY: {date_str}
 NIGERIA IS NOT AT THIS WORLD CUP — do not mention Nigeria as a participant.
 
-VERIFIED MATCH RESULT (ESPN/FIFA live data — use these exact figures):
+VERIFIED MATCH RESULT (FIFA live data — use these exact figures):
 {home} {hs} – {as_} {away}
 {f"Stage / Round: {stage}" if stage else ""}
 {f"Venue: {venue}" if venue else ""}
@@ -1586,7 +1543,7 @@ MATCH REPORT REQUIREMENTS:
 - Closing: one sharp sentence on what this result adds to the World Cup 2026 narrative
 - Length: 500-650 words | Tone: immediate, authoritative, match-report energy
 - Do NOT invent scorers, assists, yellow/red cards, or substitution details — stick to the verified score above and analytical inference
-- Attribute the score to ESPN/FIFA"""
+- Attribute the score to FIFA"""
 
 
 # ── Yahoo Finance helper ──────────────────────────────────────────────────────
