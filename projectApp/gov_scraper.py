@@ -133,7 +133,7 @@ def fetch_gov_content(url, max_chars=2500):
 
 # ── Page scrapers ─────────────────────────────────────────────────────────────
 
-def _scrape_rss(agency, max_age_days=45):
+def _scrape_rss(agency, max_age_days=2):
     from datetime import datetime as _dt, timezone as _tz, timedelta as _td
     cutoff = _dt.now(_tz.utc) - _td(days=max_age_days)
     try:
@@ -216,7 +216,10 @@ def _scrape_html(agency):
             return items
 
     # Strategy 2: divs/lis/sections with news-like class names
-    news_keywords = ['news', 'press', 'post', 'article', 'item', 'entry', 'release', 'story', 'update']
+    news_keywords = [
+        'news', 'press', 'post', 'article', 'item', 'entry', 'release',
+        'story', 'update', 'card', 'listing', 'announcement', 'notice', 'media',
+    ]
     for kw in news_keywords:
         containers = soup.find_all(
             ['div', 'li', 'section'],
@@ -246,7 +249,7 @@ def _scrape_html(agency):
             return items
 
     # Strategy 3: headings containing links (last-resort fallback)
-    for heading in soup.find_all(['h2', 'h3', 'h4'], limit=20):
+    for heading in soup.find_all(['h1', 'h2', 'h3', 'h4'], limit=25):
         link_tag = heading.find('a', href=True)
         if not link_tag:
             parent = heading.parent
@@ -264,6 +267,46 @@ def _scrape_html(agency):
             'url': _absolute(href, base),
             'summary': '',
         })
+
+    if items:
+        return items[:10]
+
+    # Strategy 4: broad scan of same-domain links in main content area.
+    # Catches agencies with non-standard or table/list HTML that the above miss.
+    _NAV_TITLES = frozenset([
+        'home', 'about', 'contact', 'login', 'register', 'subscribe',
+        'more', 'read more', 'click here', 'here', 'back', 'next',
+        'previous', 'prev', 'skip', 'menu', 'search', 'facebook',
+        'twitter', 'instagram', 'linkedin', 'youtube', 'privacy',
+        'terms', 'sitemap', 'faq', 'help', 'gallery', 'events',
+    ])
+    base_domain = urlparse(base).netloc
+    main_area = (
+        soup.find('main')
+        or soup.find(id=re.compile(r'content|main|primary', re.I))
+        or soup.find(class_=re.compile(r'content|main|primary', re.I))
+        or soup.body
+    )
+    if main_area:
+        seen = set()
+        for a in main_area.find_all('a', href=True, limit=100):
+            href = a.get('href', '').strip()
+            if not href or href.startswith('#') or href.startswith('javascript') or href.startswith('mailto'):
+                continue
+            title = a.get_text(strip=True)
+            if len(title) < 20 or len(title) > 250:
+                continue
+            if title.lower() in _NAV_TITLES:
+                continue
+            full_url = _absolute(href, base)
+            if base_domain not in full_url:
+                continue
+            if full_url in seen:
+                continue
+            seen.add(full_url)
+            items.append({'title': title, 'url': full_url, 'summary': ''})
+            if len(items) >= 10:
+                break
 
     return items[:10]
 

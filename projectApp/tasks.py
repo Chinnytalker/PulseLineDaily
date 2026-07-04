@@ -1458,8 +1458,8 @@ SKIP: <one sentence explaining why this is not genuinely new or specific news>""
                     _re.search(r'/(\d{4})[/_-](\d{1,2})', url)
                 )
 
-                # Skip if item is older than 7 days
-                age_check = is_too_old(item)
+                # Skip if item is older than 2 days
+                age_check = is_too_old(item, max_age_days=2)
                 if age_check is True:
                     logger.debug("Gov scraper — stale item skipped: %s", title[:80])
                     continue

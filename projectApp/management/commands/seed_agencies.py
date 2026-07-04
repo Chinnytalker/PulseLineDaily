@@ -476,9 +476,9 @@ AGENCIES = [
         'acronym': 'INEC',
         'sector': 'elections',
         'website': 'https://www.inecnigeria.org',
-        'news_url': 'https://www.inecnigeria.org/news/',
-        'rss_url': None,
-        'scrape_strategy': 'html',
+        'news_url': 'https://inecnews.com/',
+        'rss_url': 'https://inecnews.com/feed/',
+        'scrape_strategy': 'rss',
     },
     # ── Financial & Economic (additional) ────────────────────────────────────
     {
