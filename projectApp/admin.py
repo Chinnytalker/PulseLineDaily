@@ -47,8 +47,19 @@ class PostAdmin(admin.ModelAdmin):
             cache.delete_many(_HP_CACHE_KEYS)
 
     def approve_posts(self, request, queryset):
+        # Collect slug + categories BEFORE the bulk update (queryset.update bypasses post_save)
+        posts_to_purge = [
+            (p.slug, list(p.categories.values_list('name', flat=True)))
+            for p in queryset.prefetch_related('categories')
+        ]
         updated = queryset.update(is_published=True)
         cache.delete_many(_HP_CACHE_KEYS)
+        try:
+            from .tasks import purge_cloudflare_cache
+            for slug, cats in posts_to_purge:
+                purge_cloudflare_cache.delay(slug=slug, category_names=cats)
+        except Exception:
+            pass
         self.message_user(request, f"{updated} post(s) approved and published.")
     approve_posts.short_description = "Approve and publish selected posts"
 

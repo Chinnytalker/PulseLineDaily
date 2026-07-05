@@ -316,6 +316,13 @@ CLOUDINARY_STORAGE = {
 # Full URL of the site — used to build article links in social posts
 SITE_URL = config('SITE_URL', default='https://www.pulselinedaily.com')
 
+# ── Cloudflare Cache Purge ──────────────────────────────────────────────────────
+# Zone ID: Cloudflare dashboard → your domain → Overview (right sidebar)
+# API Token: Cloudflare dashboard → My Profile → API Tokens → Create Token
+#   → use the "Cache Purge" template (Zone: Cache Purge: Purge)
+CLOUDFLARE_ZONE_ID = config('CLOUDFLARE_ZONE_ID', default='')
+CLOUDFLARE_API_TOKEN = config('CLOUDFLARE_API_TOKEN', default='')
+
 # Facebook Page — get a Page Access Token at developers.facebook.com
 # Needs pages_manage_posts + pages_read_engagement permissions
 FACEBOOK_PAGE_ACCESS_TOKEN = config('FACEBOOK_PAGE_ACCESS_TOKEN', default='')

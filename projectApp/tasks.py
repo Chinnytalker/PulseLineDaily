@@ -5,6 +5,57 @@ from celery import shared_task
 logger = logging.getLogger(__name__)
 
 
+@shared_task(bind=False, max_retries=2, default_retry_delay=10)
+def purge_cloudflare_cache(slug=None, category_names=None):
+    """
+    Purge Cloudflare edge cache for a published post and all affected listing pages.
+    Called automatically from signals.py and admin.py whenever is_published is set to True.
+    No-ops gracefully when CLOUDFLARE_ZONE_ID / CLOUDFLARE_API_TOKEN are not set.
+    """
+    import requests as _req
+    from django.conf import settings
+
+    zone_id = getattr(settings, 'CLOUDFLARE_ZONE_ID', '').strip()
+    api_token = getattr(settings, 'CLOUDFLARE_API_TOKEN', '').strip()
+    site_url = getattr(settings, 'SITE_URL', 'https://www.pulselinedaily.com').rstrip('/')
+
+    if not zone_id or not api_token:
+        logger.debug("Cloudflare purge skipped — credentials not configured")
+        return "skipped: no credentials"
+
+    urls = [
+        f"{site_url}/",
+        f"{site_url}/categories/",
+        f"{site_url}/rss/",
+        f"{site_url}/sitemap.xml",
+    ]
+    if slug:
+        urls.append(f"{site_url}/post/{slug}/")
+    if category_names:
+        for name in category_names:
+            urls.append(f"{site_url}/category/{name}/")
+
+    cf_url = f"https://api.cloudflare.com/client/v4/zones/{zone_id}/purge_cache"
+    headers = {
+        "Authorization": f"Bearer {api_token}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        resp = _req.post(cf_url, headers=headers, json={"files": urls}, timeout=10)
+        data = resp.json()
+        if data.get("success"):
+            logger.info("Cloudflare cache purged — %d URLs (slug=%s)", len(urls), slug)
+            return f"purged {len(urls)} URLs"
+        else:
+            errors = data.get("errors", [])
+            logger.error("Cloudflare purge failed: %s", errors)
+            return f"failed: {errors}"
+    except Exception as exc:
+        logger.error("Cloudflare purge error: %s", exc)
+        return f"error: {exc}"
+
+
 @shared_task
 def send_weekly_newsletter():
     from django.conf import settings
