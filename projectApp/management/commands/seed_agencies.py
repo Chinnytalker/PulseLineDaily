@@ -14,14 +14,14 @@ AGENCIES = [
         'is_active': False,
     },
     {
-        'name': 'Federal Inland Revenue Service',
-        'acronym': 'FIRS',
+        'name': 'Nigeria Revenue Service',
+        'acronym': 'NRS',
         'sector': 'financial',
-        'website': 'https://www.firs.gov.ng',
-        'news_url': 'https://www.firs.gov.ng/news',
+        'website': 'https://www.nrs.gov.ng',
+        'news_url': 'https://www.nrs.gov.ng/media--updates/press-releases',
         'rss_url': None,
         'scrape_strategy': 'html',
-        'is_active': False,
+        'is_active': False,  # site protected by Radware Bot Manager — cannot scrape without browser
     },
     {
         'name': 'Securities and Exchange Commission',
@@ -46,9 +46,10 @@ AGENCIES = [
         'acronym': 'NBS',
         'sector': 'financial',
         'website': 'https://nigerianstat.gov.ng',
-        'news_url': 'https://nigerianstat.gov.ng/news',
+        'news_url': 'https://microdata.nigerianstat.gov.ng/index.php/home',
         'rss_url': None,
         'scrape_strategy': 'html',
+        'is_active': False,  # handled by dedicated scrape_nbs_data task (microdata catalog API)
     },
     {
         'name': 'National Insurance Commission',
@@ -93,9 +94,10 @@ AGENCIES = [
         'acronym': 'NNPCL',
         'sector': 'energy',
         'website': 'https://nnpcgroup.com',
-        'news_url': 'https://nnpcgroup.com/newsroom/',
+        'news_url': 'https://nnpcgroup.com/insights',
         'rss_url': None,
         'scrape_strategy': 'html',
+        'is_active': False,  # handled by dedicated scrape_nnpc_news task (Strapi CMS API)
     },
     {
         'name': 'Nigerian Upstream Petroleum Regulatory Commission',
@@ -291,9 +293,10 @@ AGENCIES = [
         'acronym': 'EFCC',
         'sector': 'justice',
         'website': 'https://efcc.gov.ng',
-        'news_url': 'https://efcc.gov.ng/news/press-releases/',
+        'news_url': 'https://efcc.gov.ng/News?page=1',
         'rss_url': None,
         'scrape_strategy': 'html',
+        'is_active': False,  # handled by dedicated scrape_efcc_news task (JSON API)
     },
     {
         'name': 'Independent Corrupt Practices and Other Related Offences Commission',
@@ -308,10 +311,11 @@ AGENCIES = [
         'name': 'National Drug Law Enforcement Agency',
         'acronym': 'NDLEA',
         'sector': 'justice',
-        'website': 'https://ndlea.gov.ng',
-        'news_url': 'https://ndlea.gov.ng/news/',
+        'website': 'https://www.ndlea.gov.ng',
+        'news_url': 'https://www.ndlea.gov.ng/news/',
         'rss_url': None,
         'scrape_strategy': 'html',
+        'is_active': False,  # handled by dedicated scrape_ndlea_news task
     },
     # ── Development & Investment ──────────────────────────────────────────────
     {
@@ -479,6 +483,26 @@ AGENCIES = [
         'news_url': 'https://inecnews.com/',
         'rss_url': 'https://inecnews.com/feed/',
         'scrape_strategy': 'rss',
+    },
+    {
+        'name': 'State House Nigeria — News',
+        'acronym': 'STATEHOUSE-N',
+        'sector': 'elections',
+        'website': 'https://statehouse.gov.ng',
+        'news_url': 'https://statehouse.gov.ng/category/news/',
+        'rss_url': None,
+        'scrape_strategy': 'html',
+        'is_active': False,  # handled by dedicated scrape_statehouse task
+    },
+    {
+        'name': 'State House Nigeria — Press Releases',
+        'acronym': 'STATEHOUSE-P',
+        'sector': 'elections',
+        'website': 'https://statehouse.gov.ng',
+        'news_url': 'https://statehouse.gov.ng/category/press-releases/',
+        'rss_url': None,
+        'scrape_strategy': 'html',
+        'is_active': False,  # handled by dedicated scrape_statehouse task
     },
     # ── Financial & Economic (additional) ────────────────────────────────────
     {
@@ -754,7 +778,7 @@ AGENCIES = [
 
 
 class Command(BaseCommand):
-    help = 'Seed all 80 Nigerian government agencies into the database (safe to re-run)'
+    help = 'Seed all 82 Nigerian government agencies into the database (safe to re-run)'
 
     def handle(self, *args, **options):
         created = updated = 0
@@ -782,5 +806,5 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(
             f'\nDone — {created} created, {updated} updated. '
-            f'Total: {created + updated} agencies.'
+            f'Total in seed file: {len(AGENCIES)}. DB total: {created + updated} agencies.'
         ))

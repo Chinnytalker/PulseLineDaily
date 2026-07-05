@@ -710,43 +710,62 @@ def build_rewrite_prompt(story):
             f"(limited context — use what is available):\n{story['excerpt']}"
         )
 
-    return f"""You are a senior journalist at PulseLineDaily, a leading Nigerian digital news outlet. Your articles are published, indexed by Google, and reviewed for AdSense quality.
+    return f"""You are a senior journalist at PulseLineDaily, a leading Nigerian digital news outlet. Your articles are published on Google News, indexed for AdSense, and read by educated Nigerian professionals.
 
 STORY TOPIC:
-Headline: {story['title']}
+Original Headline: {story['title']}
 Source: {story['source_label']}
 
 {source_block}
 
 ABSOLUTE RULES — NEVER BREAK THESE:
-- Do NOT invent quotes of any kind — no named quotes, no anonymous quotes, no "in the words of a wise observer", no "analysts say", no "experts believe", no "critics argue" unless these appear word-for-word in the source
-- Do NOT pad with generic statements that could apply to any story — every sentence must be specific to THIS story
-- Do NOT write more than 700 words — tight, punchy journalism beats long padding every time
-- Do NOT write a "Why This Matters to Nigerians" section unless this story has a DIRECT, SPECIFIC connection to Nigeria — not a vague ripple-effect argument; if the story is purely international with no direct Nigerian angle, skip that section entirely
-- Write ONLY what is supported by the source content or by widely established facts you are confident about
+- Do NOT invent quotes — no named quotes, no anonymous quotes, no "analysts say", no "experts believe", no "critics argue" unless the exact words appear in the source
+- Do NOT pad with generic sentences that could fit any story — every sentence must be specific to THIS story
+- Do NOT exceed 700 words — tight, punchy journalism beats padded filler every time
+- Do NOT add a Nigerian angle unless this story has a DIRECT, SPECIFIC connection to Nigeria — skip that section entirely for purely international stories
+- Write ONLY what is supported by the source or by widely established facts you are confident about
+
+WRITING QUALITY — what separates great journalism from AI filler:
+- Lead with the single strongest fact — the number, name, or event that makes the reader stop scrolling
+- Short paragraphs (2–3 sentences) — this is digital journalism, not an essay
+- Active voice: "The court ruled" not "A ruling was made by the court"
+- Specific beats vague: "₦1.2 billion fine" beats "a substantial penalty"; "3,200 jobs" beats "thousands of positions"
+- Never open a paragraph with: "It is worth noting", "In a significant development", "Against the backdrop of", "In line with", "Furthermore", "Moreover", or "It is important to mention"
+- Cut any sentence that doesn't add new information — ruthlessly
+- Nigerian journalism voice: direct, grounded, no development-speak clichés
 
 YOUR TASK:
-Write a 550–700 word fully original HTML news article that:
-1. Uses every specific fact from the source (names, figures, dates, institutions) — never skip specifics
-2. Adds sharp editorial context where genuinely useful — historical precedent, what led to this, what it signals
-3. Reads like it was written by an experienced Nigerian journalist, not a summary bot
+Write a 550–700 word fully original HTML news article that reads as though a veteran PulseLineDaily journalist wrote it from scratch — not a summary bot rewording the source:
+1. Use every specific fact (names, figures, dates, institutions) — never skip a concrete detail
+2. Add sharp editorial context: what led to this, what it means, what comes next
+3. Every paragraph must move the story forward — no circular repetition
 
-OUTPUT FORMAT — three parts, exactly as shown:
-SUMMARY: <2–3 sentences, 250–350 characters — first sentence: the most striking specific fact (name, figure, or event); second sentence: why this matters or what it reveals; do not just rephrase the headline>
-ANALYSIS: <2–3 sentences of sharp editorial analysis — what this really means, not just what happened>
+OUTPUT FORMAT — four parts, exactly as shown:
+HEADLINE: <SEO title, 55–65 characters — subject + action verb + key detail; present tense; see rules below>
+SUMMARY: <2–3 sentences, 250–350 characters — sentence 1: the most striking specific fact; sentence 2: why it matters or what it reveals; never just rephrase the headline>
+ANALYSIS: <2–3 sentences of sharp editorial analysis — what this really means, the bigger pattern, what to watch>
 ---
-<full HTML article body starting with <h2>>
+<full HTML article body — do NOT repeat HEADLINE/SUMMARY/ANALYSIS here as plain text>
+
+SEO HEADLINE RULES (HEADLINE: field):
+- 55–65 characters — Google truncates at ~60; every character counts
+- Format: [Subject] [Action verb] [Specific detail] — e.g. "Dangote Refinery Cuts Petrol Price by ₦50 Per Litre"
+- Use present tense for immediacy: "Signs", "Cuts", "Wins", "Blocks", "Raises", "Launches"
+- Include the most searchable specific element: a name, figure, institution, or location
+- BANNED phrases in headlines: "Significant", "Major", "Key", "Important", "New Development", "Latest Update", "Breaking", "Shocking", "Must Read", "You Need to Know"
+- NEVER start with "Nigeria's..." unless the story is literally about the country as a whole
+- Good examples: "Dangote Refinery Begins Diesel Export to 4 West African Nations" | "NCC Orders MTN to Refund 2 Million Subscribers ₦5,000 Each"
+- Bad examples: "Major Development in Nigerian Oil Sector" | "Government Makes Important Announcement on Economy"
 
 ARTICLE STRUCTURE:
-- <h2>: strong SEO headline — include the key name/figure/amount, 55–75 chars, tells the reader exactly what happened
-- Opening paragraph: gripping lead with the single most important specific fact — who, what, how much, when
-- <h3>Key Facts</h3>: bullet list of ALL specific names, figures, statistics, dates from the source — be precise
-- <h3>Background and Context</h3>: 2 paragraphs — what led to this, historical precedent, how it fits a bigger trend; use only facts you are confident about
-- <h3>Editorial Analysis</h3>: 3–4 sentences of the journalist's direct analysis — what this reveals, what risks or opportunities it creates; this is YOUR analysis as a journalist, NOT attributed to any "expert" or "observer" — write it in first-person plural ("This signals...", "The pattern here is...", "What stands out is...")
-- <h3>What Happens Next</h3>: 2–3 sentences on the likely next steps or timeline — specific, not vague
-- One sharp closing sentence
+- <h2>: mirrors the HEADLINE field exactly
+- Opening <p>: the lead — who did what, the key number or action, and why it matters right now; one punchy paragraph
+- <h3>Key Facts</h3>: <ul> of ALL specific names, figures, statistics, dates from the source — precise, no paraphrasing
+- <h3>Background and Context</h3>: 2 short paragraphs — what led to this, historical context, how it fits a bigger trend; only facts you are confident about
+- <h3>Editorial Analysis</h3>: 3–4 sentences of direct journalist analysis — what this reveals, what risks or opportunities it creates; write in first-person plural: "This signals...", "The pattern here is...", "What stands out is..." — NOT attributed to any named or unnamed source
+- <h3>What Happens Next</h3>: 2–3 sentences on next steps or timeline — specific, not vague
+- One sharp closing sentence — no "In conclusion", no "Time will tell", no "Only time will tell"
 
-TONE: authoritative, intelligent, direct — the voice of Nigeria's best journalism
 HTML: pure <h2>, <h3>, <p>, <strong>, <ul>, <li> — no html/body/head/style tags"""
 
 

@@ -78,6 +78,41 @@ TASKS = [
         'cron': {'minute': '0', 'hour': '*', 'day_of_week': '*',
                  'day_of_month': '*', 'month_of_year': '*'},
     },
+    # State House (Presidency) — 4x/day: 6am, 10am, 3pm, 5pm
+    {
+        'name': 'statehouse-scraper',
+        'task': 'projectApp.tasks.scrape_statehouse',
+        'cron': {'minute': '0', 'hour': '6,10,15,17', 'day_of_week': '*',
+                 'day_of_month': '*', 'month_of_year': '*'},
+    },
+    # EFCC — 4x/day offset 30 min from statehouse: 6:30am, 10:30am, 3:30pm, 5:30pm
+    {
+        'name': 'efcc-news-scraper',
+        'task': 'projectApp.tasks.scrape_efcc_news',
+        'cron': {'minute': '30', 'hour': '6,10,15,17', 'day_of_week': '*',
+                 'day_of_month': '*', 'month_of_year': '*'},
+    },
+    # NNPC — 4x/day offset 45 min: 6:45am, 10:45am, 3:45pm, 5:45pm
+    {
+        'name': 'nnpc-news-scraper',
+        'task': 'projectApp.tasks.scrape_nnpc_news',
+        'cron': {'minute': '45', 'hour': '6,10,15,17', 'day_of_week': '*',
+                 'day_of_month': '*', 'month_of_year': '*'},
+    },
+    # NBS — once daily at 7:30am (releases are infrequent; no need for 4x/day)
+    {
+        'name': 'nbs-data-scraper',
+        'task': 'projectApp.tasks.scrape_nbs_data',
+        'cron': {'minute': '30', 'hour': '7', 'day_of_week': '*',
+                 'day_of_month': '*', 'month_of_year': '*'},
+    },
+    # NDLEA — 4x/day offset 15 min: 6:15am, 10:15am, 3:15pm, 5:15pm
+    {
+        'name': 'ndlea-news-scraper',
+        'task': 'projectApp.tasks.scrape_ndlea_news',
+        'cron': {'minute': '15', 'hour': '6,10,15,17', 'day_of_week': '*',
+                 'day_of_month': '*', 'month_of_year': '*'},
+    },
 ]
 
 
