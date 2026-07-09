@@ -7,10 +7,10 @@
 {% block og_type %}article{% endblock %}
 {% block og_title %}{{ post.title }}{% endblock %}
 {% block og_description %}{% if post.summary %}{{ post.summary }}{% else %}{{ post.body|truncatewords:30 }}{% endif %}{% endblock %}
-{% block og_image %}{% if post.image %}{{ post.image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/og-home.jpg' %}{% endif %}{% endblock %}
+{% block og_image %}{% if post.image %}{{ post.image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/PLD_og.png' %}{% endif %}{% endblock %}
 {% block twitter_title %}{{ post.title }}{% endblock %}
 {% block twitter_description %}{% if post.summary %}{{ post.summary }}{% else %}{{ post.body|truncatewords:30 }}{% endif %}{% endblock %}
-{% block twitter_image %}{% if post.image %}{{ post.image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/og-home.jpg' %}{% endif %}{% endblock %}
+{% block twitter_image %}{% if post.image %}{{ post.image.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% static 'image/PLD_og.png' %}{% endif %}{% endblock %}
 {% block twitter_image_alt %}{{ post.title }}{% endblock %}
 {% block twitter_creator %}{% if post.author %}@{{ post.author.name }}{% else %}@pulselinedaily{% endif %}{% endblock %}
 

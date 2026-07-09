@@ -4,6 +4,17 @@ from celery import shared_task
 
 logger = logging.getLogger(__name__)
 
+# Sentinel returned by the per-task call_llm helpers when Groq rejects a call
+# with a rate-limit error (e.g. the daily token quota is exhausted). Tasks
+# abort their run early on this value — retrying within the same run is
+# pointless because the quota will not recover for minutes to hours.
+RATE_LIMITED = object()
+
+
+def groq_rate_limited(exc):
+    """True if a Groq SDK exception is a 429 / rate-limit error."""
+    return getattr(exc, 'status_code', None) == 429 or 'rate_limit' in str(exc)
+
 
 @shared_task(bind=False, max_retries=2, default_retry_delay=10)
 def purge_cloudflare_cache(slug=None, category_names=None):
@@ -182,6 +193,8 @@ def generate_data_journalism_articles(self):
             return resp.choices[0].message.content.strip()
         except Exception as exc:
             logger.error("Groq API error: %s", exc)
+            if groq_rate_limited(exc):
+                return RATE_LIMITED
             return None
 
     parse_response = parse_llm_response
@@ -236,6 +249,9 @@ def generate_data_journalism_articles(self):
         if data_points and len(data_points) >= 2:
             prompt = build_indicator_prompt(ind_key, info, data_points)
             raw = call_llm(prompt)
+            if raw is RATE_LIMITED:
+                logger.warning("Data journalism — Groq rate limit hit, aborting run early")
+                return f"Data journalism task: Groq rate-limited — {created} draft(s) created before abort"
             if raw:
                 summary, analysis, html = parse_response(raw)
                 latest_year = data_points[-1]["year"]
@@ -267,6 +283,9 @@ def generate_data_journalism_articles(self):
         if rate_data:
             prompt = build_exchange_rate_prompt(rate_data)
             raw = call_llm(prompt)
+            if raw is RATE_LIMITED:
+                logger.warning("Data journalism — Groq rate limit hit, aborting run early")
+                return f"Data journalism task: Groq rate-limited — {created} draft(s) created before abort"
             if raw:
                 summary, analysis, html = parse_response(raw)
                 rate = rate_data["rate"]
@@ -336,6 +355,8 @@ def generate_rss_articles(self):
             return resp.choices[0].message.content.strip()
         except Exception as exc:
             logger.error("Groq API error: %s", exc)
+            if groq_rate_limited(exc):
+                return RATE_LIMITED
             return None
 
     parse_response = parse_llm_response
@@ -406,6 +427,9 @@ def generate_rss_articles(self):
 
         prompt = build_rewrite_prompt(story)
         raw = call_llm(prompt)
+        if raw is RATE_LIMITED:
+            logger.warning("RSS rewrite — Groq rate limit hit, aborting run early")
+            return f"RSS rewrite task: Groq rate-limited — {created} draft(s) created before abort"
         if not raw:
             continue
 
@@ -512,6 +536,8 @@ def generate_sports_articles(self):
             return resp.choices[0].message.content.strip()
         except Exception as exc:
             logger.error("Groq API error: %s", exc)
+            if groq_rate_limited(exc):
+                return RATE_LIMITED
             return None
 
     parse_response = parse_llm_response
@@ -548,6 +574,9 @@ def generate_sports_articles(self):
         wc_data = fetch_world_cup_2026_data()
         if wc_data:
             raw = call_llm(build_world_cup_2026_prompt(wc_data, date_str))
+            if raw is RATE_LIMITED:
+                logger.warning("Sports articles — Groq rate limit hit, aborting run early")
+                return f"Sports articles task: Groq rate-limited — {created} draft(s) created before abort"
             if raw:
                 summary, analysis, html = parse_response(raw)
                 save_draft(
@@ -566,6 +595,9 @@ def generate_sports_articles(self):
         fixtures = fetch_wc2026_fixtures()
         if fixtures:
             raw = call_llm(build_wc2026_match_preview_prompt(fixtures, date_str))
+            if raw is RATE_LIMITED:
+                logger.warning("Sports articles — Groq rate limit hit, aborting run early")
+                return f"Sports articles task: Groq rate-limited — {created} draft(s) created before abort"
             if raw:
                 summary, analysis, html = parse_response(raw)
                 save_draft(
@@ -584,6 +616,9 @@ def generate_sports_articles(self):
         scorers = fetch_wc2026_top_scorers()
         if scorers:
             raw = call_llm(build_wc2026_golden_boot_prompt(scorers, date_str))
+            if raw is RATE_LIMITED:
+                logger.warning("Sports articles — Groq rate limit hit, aborting run early")
+                return f"Sports articles task: Groq rate-limited — {created} draft(s) created before abort"
             if raw:
                 summary, analysis, html = parse_response(raw)
                 save_draft(
@@ -602,6 +637,9 @@ def generate_sports_articles(self):
         table = fetch_epl_standings()
         if table:
             raw = call_llm(build_epl_standings_prompt(table))
+            if raw is RATE_LIMITED:
+                logger.warning("Sports articles — Groq rate limit hit, aborting run early")
+                return f"Sports articles task: Groq rate-limited — {created} draft(s) created before abort"
             if raw:
                 summary, analysis, html = parse_response(raw)
                 save_draft(
@@ -618,6 +656,9 @@ def generate_sports_articles(self):
         data = fetch_nigeria_results()
         if data and data.get("results"):
             raw = call_llm(build_nigeria_results_prompt(data))
+            if raw is RATE_LIMITED:
+                logger.warning("Sports articles — Groq rate limit hit, aborting run early")
+                return f"Sports articles task: Groq rate-limited — {created} draft(s) created before abort"
             if raw:
                 summary, analysis, html = parse_response(raw)
                 save_draft(
@@ -635,6 +676,9 @@ def generate_sports_articles(self):
 
     if not recently_generated(topic["key"], days=topic["frequency_days"]):
         raw = call_llm(build_static_sports_prompt(topic, date_str=date_str))
+        if raw is RATE_LIMITED:
+            logger.warning("Sports articles — Groq rate limit hit, aborting run early")
+            return f"Sports articles task: Groq rate-limited — {created} draft(s) created before abort"
         if raw:
             summary, analysis, html = parse_response(raw)
             save_draft(
@@ -707,6 +751,8 @@ def generate_market_articles(self):
             return resp.choices[0].message.content.strip()
         except Exception as exc:
             logger.error("Groq API error: %s", exc)
+            if groq_rate_limited(exc):
+                return RATE_LIMITED
             return None
 
     parse_response = parse_llm_response
@@ -750,6 +796,9 @@ def generate_market_articles(self):
         data = fetch_brent_crude()
         if data:
             raw = call_llm(build_brent_prompt(data, date_str=date_str))
+            if raw is RATE_LIMITED:
+                logger.warning("Market articles — Groq rate limit hit, aborting run early")
+                return f"Market articles task: Groq rate-limited — {created} draft(s) created before abort"
             if raw:
                 summary, analysis, html = parse_response(raw)
                 save_draft(
@@ -772,6 +821,9 @@ def generate_market_articles(self):
         data = fetch_ngx_index()
         if data:
             raw = call_llm(build_ngx_prompt(data, date_str))
+            if raw is RATE_LIMITED:
+                logger.warning("Market articles — Groq rate limit hit, aborting run early")
+                return f"Market articles task: Groq rate-limited — {created} draft(s) created before abort"
             if raw:
                 summary, analysis, html = parse_response(raw)
                 direction = "Gains" if data["change_pct"] >= 0 else "Decline"
@@ -795,6 +847,9 @@ def generate_market_articles(self):
         data = fetch_commodity_prices()
         if data:
             raw = call_llm(build_commodity_prompt(data))
+            if raw is RATE_LIMITED:
+                logger.warning("Market articles — Groq rate limit hit, aborting run early")
+                return f"Market articles task: Groq rate-limited — {created} draft(s) created before abort"
             if raw:
                 summary, analysis, html = parse_response(raw)
                 save_draft(
@@ -819,6 +874,9 @@ def generate_market_articles(self):
         data = fetch_acled_nigeria(acled_key, acled_email, days=30)
         if data:
             raw = call_llm(build_acled_prompt(data))
+            if raw is RATE_LIMITED:
+                logger.warning("Market articles — Groq rate limit hit, aborting run early")
+                return f"Market articles task: Groq rate-limited — {created} draft(s) created before abort"
             if raw:
                 summary, analysis, html = parse_response(raw)
                 save_draft(
@@ -839,6 +897,9 @@ def generate_market_articles(self):
         fx_data = fetch_parallel_market_rate()
         if fx_data:
             raw = call_llm(build_parallel_rate_prompt(fx_data, date_str))
+            if raw is RATE_LIMITED:
+                logger.warning("Market articles — Groq rate limit hit, aborting run early")
+                return f"Market articles task: Groq rate-limited — {created} draft(s) created before abort"
             if raw:
                 summary, analysis, html = parse_response(raw)
                 parallel = fx_data.get("parallel") or fx_data.get("official", "")
@@ -866,6 +927,9 @@ def generate_market_articles(self):
             _ngn = _fetch_ngn()
             ngn_rate = _ngn["rate"] if _ngn else None
             raw = call_llm(build_crypto_prompt(crypto_data, date_str, ngn_rate=ngn_rate))
+            if raw is RATE_LIMITED:
+                logger.warning("Market articles — Groq rate limit hit, aborting run early")
+                return f"Market articles task: Groq rate-limited — {created} draft(s) created before abort"
             if raw:
                 summary, analysis, html = parse_response(raw)
                 btc_price = (crypto_data.get("btc") or {}).get("price", "")
@@ -934,6 +998,8 @@ def generate_politics_articles(self):
             return resp.choices[0].message.content.strip()
         except Exception as exc:
             logger.error("Groq API error: %s", exc)
+            if groq_rate_limited(exc):
+                return RATE_LIMITED
             return None
 
     parse_response = parse_llm_response
@@ -969,6 +1035,9 @@ def generate_politics_articles(self):
 
     if not recently_generated(topic["key"], days=topic["frequency_days"]):
         raw = call_llm(build_static_politics_prompt(topic, date_str=now.strftime("%d %B %Y")))
+        if raw is RATE_LIMITED:
+            logger.warning("Politics articles — Groq rate limit hit, aborting run early")
+            return f"Politics articles task: Groq rate-limited — {created} draft(s) created before abort"
         if raw:
             summary, analysis, html = parse_response(raw)
             save_draft(
@@ -1035,6 +1104,8 @@ def generate_entertainment_articles(self):
             return resp.choices[0].message.content.strip()
         except Exception as exc:
             logger.error("Groq API error: %s", exc)
+            if groq_rate_limited(exc):
+                return RATE_LIMITED
             return None
 
     parse_response = parse_llm_response
@@ -1084,6 +1155,9 @@ def generate_entertainment_articles(self):
                 chart_data = "(Chart data unavailable — write about recent Afrobeats trends generally without naming specific songs as 'this week's chart toppers')"
 
         raw = call_llm(build_static_entertainment_prompt(topic, date_str=date_str, chart_data=chart_data))
+        if raw is RATE_LIMITED:
+            logger.warning("Entertainment articles — Groq rate limit hit, aborting run early")
+            return f"Entertainment articles task: Groq rate-limited — {created} draft(s) created before abort"
         if raw:
             summary, analysis, html = parse_response(raw)
             save_draft(
@@ -1148,6 +1222,8 @@ def generate_wc2026_match_reports(self):
             return resp.choices[0].message.content.strip()
         except Exception as exc:
             logger.error("Groq API error (WC2026 match reports): %s", exc)
+            if groq_rate_limited(exc):
+                return RATE_LIMITED
             return None
 
     matches = fetch_wc2026_completed_matches(days_back=1)
@@ -1176,6 +1252,9 @@ def generate_wc2026_match_reports(self):
 
         prompt = build_match_result_prompt(match, date_str)
         raw = call_llm(prompt)
+        if raw is RATE_LIMITED:
+            logger.warning("WC2026 match reports — Groq rate limit hit, aborting run early")
+            return f"WC2026 match reports: Groq rate-limited — {created} article(s) created before abort"
         if not raw:
             continue
 
@@ -1409,6 +1488,8 @@ def scrape_government_agencies(self):
             return resp.choices[0].message.content.strip()
         except Exception as exc:
             logger.error("Groq API error (gov scraper): %s", exc)
+            if groq_rate_limited(exc):
+                return RATE_LIMITED
             return None
 
     def build_gov_prompt(agency, item, body_text, date_str, has_known_date=True):
@@ -1535,6 +1616,9 @@ SKIP: <one sentence explaining why this is not genuinely new or specific news>""
 
                 prompt = build_gov_prompt(agency, item, body_text, date_str, has_known_date=has_known_date)
                 raw = call_llm(prompt)
+                if raw is RATE_LIMITED:
+                    logger.warning("Gov scraper — Groq rate limit hit, aborting run early")
+                    return f"Gov scraper: Groq rate-limited — {total_created} article(s) created before abort"
                 if not raw:
                     continue
 
@@ -1673,6 +1757,8 @@ def scrape_cbn_news(self):
             return resp.choices[0].message.content.strip()
         except Exception as exc:
             logger.error("Groq API error (CBN scraper): %s", exc)
+            if groq_rate_limited(exc):
+                return RATE_LIMITED
             return None
 
     _SEARCH_FEEDS = [
@@ -1878,6 +1964,9 @@ SKIP: <one sentence reason>"""
 
             prompt = build_cbn_prompt(item, body_text, doc_label)
             raw = call_llm(prompt)
+            if raw is RATE_LIMITED:
+                logger.warning("CBN scraper — Groq rate limit hit, aborting run early")
+                return f"CBN scraper: Groq rate-limited — {created} article(s) created before abort"
             if not raw:
                 continue
 
@@ -2003,6 +2092,8 @@ def scrape_statehouse(self):
             return resp.choices[0].message.content.strip()
         except Exception as exc:
             logger.error("Groq API error (statehouse): %s", exc)
+            if groq_rate_limited(exc):
+                return RATE_LIMITED
             return None
 
     _MONTHS = {
@@ -2177,6 +2268,9 @@ IF REJECTING: SKIP: <one sentence reason>"""
 
         prompt = build_statehouse_prompt(title, body_text, pub_date_str)
         raw = call_llm(prompt)
+        if raw is RATE_LIMITED:
+            logger.warning("Statehouse — Groq rate limit hit, aborting run early")
+            return f"Statehouse scraper: Groq rate-limited — {created} article(s) created before abort"
         if not raw:
             continue
 
@@ -2300,6 +2394,8 @@ def scrape_efcc_news(self):
             return resp.choices[0].message.content.strip()
         except Exception as exc:
             logger.error("Groq API error (EFCC scraper): %s", exc)
+            if groq_rate_limited(exc):
+                return RATE_LIMITED
             return None
 
     def build_efcc_prompt(title, body_text, pub_date_str):
@@ -2410,6 +2506,9 @@ IF REJECTING: SKIP: <one sentence reason>"""
 
         prompt = build_efcc_prompt(title, body_text, pub_date_str)
         raw = call_llm(prompt)
+        if raw is RATE_LIMITED:
+            logger.warning("EFCC scraper — Groq rate limit hit, aborting run early")
+            return f"EFCC scraper: Groq rate-limited — {created} article(s) created before abort"
         if not raw:
             continue
 
@@ -2535,6 +2634,8 @@ def scrape_nnpc_news(self):
             return resp.choices[0].message.content.strip()
         except Exception as exc:
             logger.error("Groq API error (NNPC scraper): %s", exc)
+            if groq_rate_limited(exc):
+                return RATE_LIMITED
             return None
 
     def build_nnpc_prompt(title, body_text, pub_date_str, category):
@@ -2647,6 +2748,9 @@ IF REJECTING: SKIP: <one sentence reason>"""
 
         prompt = build_nnpc_prompt(title, body_text, pub_date_str, category)
         raw = call_llm(prompt)
+        if raw is RATE_LIMITED:
+            logger.warning("NNPC scraper — Groq rate limit hit, aborting run early")
+            return f"NNPC scraper: Groq rate-limited — {created} article(s) created before abort"
         if not raw:
             continue
 
@@ -2803,6 +2907,8 @@ def scrape_nbs_data(self):
             return resp.choices[0].message.content.strip()
         except Exception as exc:
             logger.error("Groq API error (NBS scraper): %s", exc)
+            if groq_rate_limited(exc):
+                return RATE_LIMITED
             return None
 
     def build_nbs_prompt(title, abstract_text, pub_date_str, sector):
@@ -2934,6 +3040,9 @@ IF REJECTING: SKIP: <one sentence reason>"""
 
         prompt = build_nbs_prompt(title, abstract_text, pub_date_str, sector)
         raw = call_llm(prompt)
+        if raw is RATE_LIMITED:
+            logger.warning("NBS scraper — Groq rate limit hit, aborting run early")
+            return f"NBS scraper: Groq rate-limited — {created} article(s) created before abort"
         if not raw:
             continue
 
@@ -3050,6 +3159,8 @@ def scrape_ndlea_news(self):
             return resp.choices[0].message.content.strip()
         except Exception as exc:
             logger.error("Groq API error (NDLEA scraper): %s", exc)
+            if groq_rate_limited(exc):
+                return RATE_LIMITED
             return None
 
     def build_ndlea_prompt(title, subtitle, body_text, pub_date_str):
@@ -3208,6 +3319,9 @@ IF REJECTING: SKIP: <one sentence reason>"""
 
         prompt = build_ndlea_prompt(title, subtitle, body_text, pub_date_str)
         raw = call_llm(prompt)
+        if raw is RATE_LIMITED:
+            logger.warning("NDLEA scraper — Groq rate limit hit, aborting run early")
+            return f"NDLEA scraper: Groq rate-limited — {created} article(s) created before abort"
         if not raw:
             continue
 
