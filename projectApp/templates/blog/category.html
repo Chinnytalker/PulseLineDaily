@@ -88,7 +88,7 @@
               </div>
             {% else %}
               <div class="h-44 bg-gray-100 dark:bg-zinc-700 flex items-center justify-center">
-                <span class="text-gray-400 text-xs">No image</span>
+                <img src="{% static 'image/pulsemainlogo.jpg' %}" alt="{{ post.title }}" class="h-14 w-auto opacity-40 grayscale" loading="lazy" />
               </div>
             {% endif %}
             <div class="p-4 flex flex-col flex-1">

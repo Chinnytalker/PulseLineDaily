@@ -16,6 +16,20 @@ def groq_rate_limited(exc):
     return getattr(exc, 'status_code', None) == 429 or 'rate_limit' in str(exc)
 
 
+# AdSense "Low value content" remediation (July 2026): RSS rewrites and
+# static-topic generators (politics, entertainment, static sports) are paused
+# until the site passes review. Data-driven pipelines (markets, data
+# journalism, gov scrapers, WC2026 live coverage) keep running. To resume,
+# flip this to False and re-enable the paused schedules in
+# setup_scrape_schedule.py, then re-run that command on each environment.
+REWRITE_AND_STATIC_TOPICS_PAUSED = True
+
+# Minimum characters of fetched source text required before an article prompt
+# is built. Below this the LLM writes vague filler around the headline
+# ("announces a policy" without ever stating the policy) — skip instead.
+MIN_SOURCE_CHARS = 400
+
+
 @shared_task(bind=False, max_retries=2, default_retry_delay=10)
 def purge_cloudflare_cache(slug=None, category_names=None):
     """
@@ -321,6 +335,10 @@ def generate_rss_articles(self):
     from django.conf import settings
     from django.utils import timezone
     from datetime import timedelta
+
+    if REWRITE_AND_STATIC_TOPICS_PAUSED:
+        logger.info("RSS rewrite task paused (AdSense remediation) — skipping")
+        return "paused: RSS rewrite generation disabled"
 
     api_key = getattr(settings, "GROQ_API_KEY", "")
     if not api_key:
@@ -674,7 +692,7 @@ def generate_sports_articles(self):
     topic_index = now.day % len(SPORTS_ANALYSIS_TOPICS)
     topic = SPORTS_ANALYSIS_TOPICS[topic_index]
 
-    if not recently_generated(topic["key"], days=topic["frequency_days"]):
+    if not REWRITE_AND_STATIC_TOPICS_PAUSED and not recently_generated(topic["key"], days=topic["frequency_days"]):
         raw = call_llm(build_static_sports_prompt(topic, date_str=date_str))
         if raw is RATE_LIMITED:
             logger.warning("Sports articles — Groq rate limit hit, aborting run early")
@@ -964,6 +982,10 @@ def generate_politics_articles(self):
     from django.utils import timezone
     from datetime import timedelta
 
+    if REWRITE_AND_STATIC_TOPICS_PAUSED:
+        logger.info("Politics articles task paused (AdSense remediation) — skipping")
+        return "paused: static-topic generation disabled"
+
     api_key = getattr(settings, "GROQ_API_KEY", "")
     if not api_key:
         logger.warning("GROQ_API_KEY not set — skipping politics articles task")
@@ -1062,6 +1084,10 @@ def generate_entertainment_articles(self):
     from django.conf import settings
     from django.utils import timezone
     from datetime import timedelta
+
+    if REWRITE_AND_STATIC_TOPICS_PAUSED:
+        logger.info("Entertainment articles task paused (AdSense remediation) — skipping")
+        return "paused: static-topic generation disabled"
 
     api_key = getattr(settings, "GROQ_API_KEY", "")
     if not api_key:
@@ -1539,6 +1565,8 @@ WRITING QUALITY — what makes this a great article, not AI filler:
 - Specific beats vague: "₦750 million penalty" beats "a significant fine"; "12,000 subscribers affected" beats "many customers"
 - BANNED openers: "In a significant development", "It is noteworthy that", "Against the backdrop of", "In line with", "It is important to mention", "Furthermore"
 - Cut any sentence that doesn't add new information
+- NEVER state the same fact, praise, or directive twice — if a detail appears in one section, do not restate it in another
+- The closing paragraph must NOT summarise or restate earlier content — one NEW closing thought only
 - Length: 550–750 words — every word earning its place
 
 SEO HEADLINE RULES (HEADLINE: field):
@@ -1613,6 +1641,12 @@ SKIP: <one sentence explaining why this is not genuinely new or specific news>""
 
                 # Fetch full content — handles HTML pages, PDFs, and skips images
                 body_text = fetch_gov_content(url, max_chars=2500)
+
+                source_text = (body_text or item.get('summary') or '').strip()
+                if len(source_text) < MIN_SOURCE_CHARS:
+                    logger.info("Gov scraper — source too thin (%d chars), skipping: %s",
+                                len(source_text), title[:60])
+                    continue
 
                 prompt = build_gov_prompt(agency, item, body_text, date_str, has_known_date=has_known_date)
                 raw = call_llm(prompt)
@@ -1884,6 +1918,8 @@ WRITING QUALITY — CBN journalism must be authoritative, not robotic:
 - Active voice: "CBN raised the MPR to 27.5%" not "The MPR was raised by CBN"
 - Specific beats vague: "27.5% MPR" beats "a higher rate"; "₦50 billion fine" beats "a substantial penalty"
 - BANNED openers: "In a significant development", "It is noteworthy", "Against the backdrop of", "Furthermore", "It is important to mention"
+- NEVER state the same fact, figure, or decision twice — if a detail appears in one section, do not restate it in another
+- The closing paragraph must NOT summarise or restate earlier content — one NEW closing thought only
 - Length: 500–650 words — every word must add value
 
 SEO HEADLINE RULES (HEADLINE: field):
@@ -1957,10 +1993,13 @@ SKIP: <one sentence reason>"""
             body_text = ''
             if full_url.lower().endswith('.pdf'):
                 body_text = _find_news_coverage(title)
-                if not body_text:
-                    logger.debug("CBN scraper — no news coverage found, using metadata: %s", title[:60])
             else:
                 body_text = fetch_gov_content(full_url, max_chars=3000)
+
+            # Never write from title/metadata alone — it produces filler around the headline
+            if len((body_text or '').strip()) < MIN_SOURCE_CHARS:
+                logger.info("CBN scraper — no substantive source text, skipping: %s", title[:60])
+                continue
 
             prompt = build_cbn_prompt(item, body_text, doc_label)
             raw = call_llm(prompt)
@@ -2207,6 +2246,8 @@ JOURNALISM RULES:
 - Do NOT invent statistics, names, or figures not in the source
 - You MAY add context from your knowledge of Nigerian governance and the policy area involved
 - Open with the IMPACT — what did the government actually do or decide, and why does it matter?
+- NEVER state the same fact, praise, or directive twice — if a detail appears in one section, do not restate it in another
+- The closing paragraph must NOT summarise or restate earlier content — one NEW closing thought only
 - Length: 550–750 words
 
 OUTPUT FORMAT (exactly as shown):
@@ -2226,7 +2267,7 @@ Opening <p>: the key Presidential action — who, what, when, and why it matters
 Closing <p>: one sharp editorial sentence on significance
 
 HTML: pure <h2>, <h3>, <p>, <strong>, <ul>, <li> — no html/body/head/style tags
-Attribute to: State House, Abuja
+End the article with a source line as its own final paragraph, exactly: <p><em>Source: State House, Abuja</em></p> — never weave this attribution into a sentence.
 
 IF REJECTING: SKIP: <one sentence reason>"""
 
@@ -2262,8 +2303,9 @@ IF REJECTING: SKIP: <one sentence reason>"""
             # No date found — allow through (category pages show most recent first)
             pub_date_str = "date not specified"
 
-        if not body_text or len(body_text) < 80:
-            logger.debug("Statehouse — empty body, skipping: %s", title[:60])
+        if not body_text or len(body_text) < MIN_SOURCE_CHARS:
+            logger.info("Statehouse — source too thin (%d chars), skipping: %s",
+                        len(body_text or ''), title[:60])
             continue
 
         prompt = build_statehouse_prompt(title, body_text, pub_date_str)
@@ -2428,6 +2470,8 @@ WRITING QUALITY — EFCC journalism must be punchy, factual, not bureaucratic:
 - Active voice: "EFCC arraigned Chidi Okonkwo for N500m fraud" not "A suspect was arraigned"
 - Specific beats vague: "N986 million AGO fraud" beats "a significant fraud"
 - BANNED openers: "In a significant development", "It is noteworthy", "Against the backdrop of", "Furthermore"
+- NEVER state the same fact, charge, or amount twice — if a detail appears in one section, do not restate it in another
+- The closing paragraph must NOT summarise or restate earlier content — one NEW closing thought only
 
 SEO HEADLINE RULES (HEADLINE: field):
 - 55–65 characters — Google truncates at ~60
@@ -2453,7 +2497,7 @@ Opening <p>: the EFCC action — who is charged/convicted/arrested, exact amount
 Closing <p>: one sharp sentence on the case's significance for anti-corruption efforts in Nigeria
 
 HTML: pure <h2>, <h3>, <p>, <strong>, <ul>, <li> — no html/body/head/style tags
-Attribute to: Economic and Financial Crimes Commission (EFCC)
+End the article with a source line as its own final paragraph, exactly: <p><em>Source: Economic and Financial Crimes Commission (EFCC)</em></p> — never weave this attribution into a sentence.
 
 IF REJECTING: SKIP: <one sentence reason>"""
 
@@ -2500,8 +2544,9 @@ IF REJECTING: SKIP: <one sentence reason>"""
             continue
 
         body_text = _html_to_text(content_html)
-        if len(body_text) < 80:
-            logger.debug("EFCC scraper — content too short, skipping: %s", title[:60])
+        if len(body_text) < MIN_SOURCE_CHARS:
+            logger.info("EFCC scraper — source too thin (%d chars), skipping: %s",
+                        len(body_text), title[:60])
             continue
 
         prompt = build_efcc_prompt(title, body_text, pub_date_str)
@@ -2667,6 +2712,8 @@ WRITING QUALITY — energy journalism must be specific and data-led:
 - Short paragraphs (2–3 sentences), active voice
 - Specific beats vague: "1.8 million barrels/day" beats "increased production"
 - BANNED openers: "In a significant development", "It is noteworthy", "Against the backdrop of", "Furthermore"
+- NEVER state the same fact, figure, or deal twice — if a detail appears in one section, do not restate it in another
+- The closing paragraph must NOT summarise or restate earlier content — one NEW closing thought only
 - Length: 500–650 words
 
 SEO HEADLINE RULES (HEADLINE: field):
@@ -2693,7 +2740,7 @@ Opening <p>: the key NNPC action or data — what happened, the exact figure, an
 Closing <p>: one sharp sentence on the broader significance for Nigeria's energy future
 
 HTML: pure <h2>, <h3>, <p>, <strong>, <ul>, <li> — no html/body/head/style tags
-Attribute to: NNPC Limited
+End the article with a source line as its own final paragraph, exactly: <p><em>Source: NNPC Limited</em></p> — never weave this attribution into a sentence.
 
 IF REJECTING: SKIP: <one sentence reason>"""
 
@@ -2742,8 +2789,9 @@ IF REJECTING: SKIP: <one sentence reason>"""
 
         body_text = _html_to_text(content_html)
         # Skip PDF-only posts (no real content)
-        if len(body_text) < 100:
-            logger.debug("NNPC scraper — content too thin, skipping: %s", title[:60])
+        if len(body_text) < MIN_SOURCE_CHARS:
+            logger.info("NNPC scraper — source too thin (%d chars), skipping: %s",
+                        len(body_text), title[:60])
             continue
 
         prompt = build_nnpc_prompt(title, body_text, pub_date_str, category)
@@ -2943,6 +2991,8 @@ WRITING QUALITY — data journalism must make numbers meaningful:
 - Short paragraphs (2–3 sentences), active voice
 - Specific beats vague: "food prices rose 41%" beats "food prices increased significantly"
 - BANNED openers: "In a significant development", "It is noteworthy", "Against the backdrop of", "Furthermore"
+- NEVER state the same figure or finding twice — if a statistic appears in one section, do not restate it in another
+- The closing paragraph must NOT summarise or restate earlier content — one NEW closing thought only
 - Length: 500–650 words
 
 SEO HEADLINE RULES (HEADLINE: field):
@@ -2969,7 +3019,7 @@ Opening <p>: the headline data point and its immediate significance for Nigeria
 Closing <p>: one sharp sentence on the broader economic significance
 
 HTML: pure <h2>, <h3>, <p>, <strong>, <ul>, <li> — no html/body/head/style tags
-Attribute to: National Bureau of Statistics (NBS)
+End the article with a source line as its own final paragraph, exactly: <p><em>Source: National Bureau of Statistics (NBS)</em></p> — never weave this attribution into a sentence.
 
 IF REJECTING: SKIP: <one sentence reason>"""
 
@@ -3037,6 +3087,11 @@ IF REJECTING: SKIP: <one sentence reason>"""
 
         sector = 'statistics'
         pub_date_str = pub_date.strftime("%d %B %Y") if pub_date else date_str
+
+        # Never write from the dataset title alone — abstract must carry real substance
+        if len((abstract_text or '').strip()) < MIN_SOURCE_CHARS:
+            logger.info("NBS scraper — abstract too thin, skipping: %s", title[:60])
+            continue
 
         prompt = build_nbs_prompt(title, abstract_text, pub_date_str, sector)
         raw = call_llm(prompt)
@@ -3198,6 +3253,8 @@ WRITING QUALITY — crime reporting must be precise and compelling:
 - Translate numbers: "€2m" → "about ₦3.5 billion"
 - Use the names and ranks of NDLEA officials from the source
 - BANNED openers: "In a significant development", "It is noteworthy", "Against the backdrop of", "The NDLEA has"
+- NEVER state the same seizure, quantity, or arrest detail twice — if it appears in one section, do not restate it in another
+- The closing paragraph must NOT summarise or restate earlier content — one NEW closing thought only
 - Length: 450–600 words
 
 SEO HEADLINE RULES (HEADLINE: field):
@@ -3224,7 +3281,7 @@ Opening <p>: the most specific, compelling fact from the operation
 Closing <p>: one sharp sentence on what this signals for Nigeria's anti-narcotics campaign
 
 HTML: pure <h2>, <h3>, <p>, <strong>, <ul>, <li> — no html/body/head/style tags
-Attribute all facts to: NDLEA, National Drug Law Enforcement Agency
+End the article with a source line as its own final paragraph, exactly: <p><em>Source: National Drug Law Enforcement Agency (NDLEA)</em></p> — never weave this attribution into a sentence.
 
 IF REJECTING: SKIP: <one sentence reason>"""
 
@@ -3303,8 +3360,9 @@ IF REJECTING: SKIP: <one sentence reason>"""
         body_el = art_soup.find(class_='post-text')
         body_text = body_el.get_text(separator='\n', strip=True)[:3000] if body_el else ''
 
-        if len(body_text) < 100:
-            logger.debug("NDLEA scraper — article body too short, skipping: %s", title[:60])
+        if len(body_text) < MIN_SOURCE_CHARS:
+            logger.info("NDLEA scraper — source too thin (%d chars), skipping: %s",
+                        len(body_text), title[:60])
             continue
 
         # Subtitle from post-summary

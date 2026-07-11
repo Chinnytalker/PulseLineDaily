@@ -16,11 +16,13 @@ TASKS = [
                  'day_of_month': '*', 'month_of_year': '*'},
     },
     # RSS rewrite offset +2h from gov scraper so they never overlap
+    # Paused July 2026 — AdSense "Low value content" remediation (see tasks.py)
     {
         'name': 'rss-article-rewrite',
         'task': 'projectApp.tasks.generate_rss_articles',
         'cron': {'minute': '0', 'hour': '2,6,10,14,18,22', 'day_of_week': '*',
                  'day_of_month': '*', 'month_of_year': '*'},
+        'paused': True,
     },
     {
         'name': 'sports-articles',
@@ -35,17 +37,21 @@ TASKS = [
         'cron': {'minute': '30', 'hour': '9,21', 'day_of_week': '*',
                  'day_of_month': '*', 'month_of_year': '*'},
     },
+    # Paused July 2026 — AdSense "Low value content" remediation (see tasks.py)
     {
         'name': 'politics-articles',
         'task': 'projectApp.tasks.generate_politics_articles',
         'cron': {'minute': '0', 'hour': '11', 'day_of_week': '*',
                  'day_of_month': '*', 'month_of_year': '*'},
+        'paused': True,
     },
+    # Paused July 2026 — AdSense "Low value content" remediation (see tasks.py)
     {
         'name': 'entertainment-articles',
         'task': 'projectApp.tasks.generate_entertainment_articles',
         'cron': {'minute': '30', 'hour': '11', 'day_of_week': '*',
                  'day_of_month': '*', 'month_of_year': '*'},
+        'paused': True,
     },
     # Gov scraper is the heaviest task — runs alone at top of each 4-hour block
     {
@@ -124,20 +130,22 @@ class Command(BaseCommand):
 
         for entry in TASKS:
             schedule, _ = CrontabSchedule.objects.get_or_create(**entry['cron'])
+            enabled = not entry.get('paused', False)
             _, was_created = PeriodicTask.objects.update_or_create(
                 name=entry['name'],
                 defaults={
                     'task': entry['task'],
                     'crontab': schedule,
-                    'enabled': True,
+                    'enabled': enabled,
                 },
             )
+            label = '' if enabled else ' (paused)'
             if was_created:
                 created += 1
-                self.stdout.write(self.style.SUCCESS(f'  Created: {entry["name"]}'))
+                self.stdout.write(self.style.SUCCESS(f'  Created: {entry["name"]}{label}'))
             else:
                 updated += 1
-                self.stdout.write(f'  Updated: {entry["name"]}')
+                self.stdout.write(f'  Updated: {entry["name"]}{label}')
 
         self.stdout.write(self.style.SUCCESS(
             f'\nDone — {created} created, {updated} updated.'
